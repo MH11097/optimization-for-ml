@@ -44,7 +44,6 @@ venv.bak/
 
 # Large data files only - CSV files are too big for git
 data/00_raw/*.csv
-data/01_eda/*.csv
 data/02_processed/*.csv
 
 # Heavy model files only  

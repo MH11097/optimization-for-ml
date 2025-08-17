@@ -2,7 +2,7 @@
 
 **Framework Python đơn giản để so sánh các thuật toán tối ưu trên bài toán dự đoán giá xe cũ.**
 
-## 🚀 Khởi Chạy Nhanh
+## Khởi Chạy Nhanh
 
 ```bash
 # Cài đặt dependencies
@@ -15,7 +15,7 @@ python src/algorithms/gradient_descent/standard_setup.py
 python src/algorithms/algorithm_comparator.py --list
 ```
 
-## 📁 Cấu Trúc Dự Án
+## Cấu Trúc Dự Án
 
 ```
 data/                           # Dữ liệu theo workflow số
@@ -40,11 +40,20 @@ src/                           # Code theo workflow số
 │   ├── advanced_methods/     # Các phương pháp nâng cao
 │   └── algorithm_comparator.py  # Tool so sánh tổng hợp
 └── utils/                    # Tiện ích chung
+
+notes/                         # Tài liệu phân tích chi tiết
+├── 00_raw/                   # Quyết định chọn dataset
+│   └── dataset_decisions.md  # Lý do chọn dataset, chiến lược
+├── 01_eda/                   # Insights từ phân tích dữ liệu
+│   └── analysis_insights.md  # Phát hiện quan trọng, patterns
+├── 02_preprocessing/         # Giải thích biến đổi dữ liệu
+│   └── transformation_explanations.md # Chi tiết feature engineering
+└── 03_algorithms/            # So sánh thuật toán (sẽ cập nhật)
 ```
 
-## 🎯 Các Thuật Toán Có Sẵn
+## Các Thuật Toán Có Sẵn
 
-### **Gradient Descent**
+### Gradient Descent
 
 - `standard_setup.py` - Learning rate 0.01, ổn định
 - `fast_setup.py` - Learning rate 0.1, nhanh
@@ -52,33 +61,33 @@ src/                           # Code theo workflow số
 - `medium_setup.py` - Learning rate 0.05, cân bằng
 - `slow_setup.py` - Learning rate 0.005, từ từ
 
-### **Newton Method**
+### Newton Method
 
 - `standard_setup.py` - Setup chuẩn với regularization
 
-### **Proximal GD**
+### Proximal GD
 
 - `standard_setup.py` - Cho L1 regularization (Lasso)
 
-### **Subgradient Methods**
+### Subgradient Methods
 
 - `standard_setup.py` - Cho non-smooth optimization
 
-### **Ridge Regression**
+### Ridge Regression
 
 - Regularized linear regression
 
-### **Stochastic GD**
+### Stochastic GD
 
 - Online learning với mini-batches
 
-### **Advanced Methods**
+### Advanced Methods
 
 - Adam, RMSprop, BFGS và các phương pháp nâng cao
 
-## 🔄 Cách Sử Dụng
+## Cách Sử Dụng
 
-### **Bước 1: Phân Tích Dữ Liệu**
+### Bước 1: Phân Tích Dữ Liệu
 
 ```bash
 python src/01_eda.py
@@ -87,7 +96,7 @@ python src/01_eda.py
 - **Input**: `data/00_raw/used_cars_data.csv`
 - **Output**: `data/01_eda/` (biểu đồ, phân tích correlation, thống kê)
 
-### **Bước 2: Xử Lý Dữ Liệu**
+### Bước 2: Xử Lý Dữ Liệu
 
 ```bash
 python src/02_preprocessing.py
@@ -96,7 +105,7 @@ python src/02_preprocessing.py
 - **Input**: Dữ liệu gốc
 - **Output**: `data/02_processed/` (train/test data đã clean)
 
-### **Bước 3: Chạy Thuật Toán**
+### Bước 3: Chạy Thuật Toán
 
 ```bash
 # Chạy từng thuật toán
@@ -108,7 +117,7 @@ python src/algorithms/gradient_descent/fast_setup.py
 python src/algorithms/gradient_descent/precise_setup.py
 ```
 
-### **Bước 4: So Sánh Kết Quả**
+### Bước 4: So Sánh Kết Quả
 
 ```bash
 # Xem các kết quả có sẵn
@@ -127,13 +136,55 @@ python src/algorithms/algorithm_comparator.py --interactive
 python src/algorithms/algorithm_comparator.py report --all
 ```
 
-# 📋 Dataset: Xe Cũ Mỹ
+## Tài Liệu Phân Tích Chi Tiết
 
-## 📊 Tổng quan
+### Cấu Trúc Notes
+Thư mục `notes/` chứa các tài liệu phân tích chi tiết cho từng bước trong quy trình:
+
+**notes/00_raw/dataset_decisions.md**
+- Lý do chọn dataset xe cũ CarGurus (3M records)
+- Phân tích ưu nhược điểm của dataset
+- Chiến lược lựa chọn 34 cột từ 66 cột gốc
+- Quyết định kỹ thuật về storage và loading
+- Kỳ vọng kết quả và metrics đánh giá
+
+**notes/01_eda/analysis_insights.md**
+- Phân tích phân phối giá (lệch phải, cần log transform)
+- Phân cấp thương hiệu (luxury vs mass market vs budget)
+- Mẫu khấu hao phi tuyến theo tuổi xe
+- Tác động số km đã đi và hiệu quả nhiên liệu
+- Ma trận tương quan và multicollinearity
+- Insights cho algorithm selection
+
+**notes/02_preprocessing/transformation_explanations.md**
+- Giải thích chi tiết 45 đặc trưng cuối cùng
+- Lý do từng biến đổi (age, age_squared, mileage_per_year, etc.)
+- Kỹ thuật target encoding cho categorical variables
+- Xử lý missing data theo tầng
+- Chuẩn hóa và scaling với robust scaler
+- Tác động đến thuật toán tối ưu
+
+### Sử Dụng Tài Liệu
+```bash
+# Đọc quyết định dataset trước khi bắt đầu
+cat notes/00_raw/dataset_decisions.md
+
+# Hiểu insights từ EDA trước khi preprocessing  
+cat notes/01_eda/analysis_insights.md
+
+# Nắm logic biến đổi dữ liệu
+cat notes/02_preprocessing/transformation_explanations.md
+```
+
+---
+
+# Dataset: Xe Cũ Mỹ
+
+## Tổng quan
 
 Tập dữ liệu này chứa thông tin về **3 triệu xe ô tô cũ** tại Hoa Kỳ, được thu thập từ website CarGurus.com. Bao gồm 66 cột dữ liệu với thông tin chi tiết về thông số kỹ thuật, giá cả, tình trạng xe và thông tin đại lý.
 
-## 📋 Mô tả từng cột dữ liệu
+## Mô tả từng cột dữ liệu gốc
 
 | STT | Tên cột                   | Kiểu dữ liệu | Mô tả                                                                            |
 | --- | ------------------------- | ------------ | -------------------------------------------------------------------------------- |
@@ -203,3 +254,111 @@ Tập dữ liệu này chứa thông tin về **3 triệu xe ô tô cũ** tại 
 | 64  | `wheelbase`               | String       | Khoảng cách trục bánh xe, đo bằng inch                                           |
 | 65  | `width`                   | String       | Chiều rộng xe, đo bằng inch                                                      |
 | 66  | `year`                    | Integer      | Năm sản xuất xe                                                                  |
+
+---
+
+## Dataset Sau Xử Lý
+
+**Chi tiết đầy đủ**: Xem `notes/02_preprocessing/transformation_explanations.md`
+
+### Thống Kê Cuối Cùng
+```
+Từ: 3,000,040 bản ghi × 66 cột (dữ liệu gốc)
+Thành: 2,788,084 bản ghi × 45 đặc trưng (đã xử lý)
+
+Train set: 2,230,467 mẫu × 45 features  
+Test set: 557,617 mẫu × 45 features
+Target: log-transformed price (chuẩn hóa phân phối)
+```
+
+### 45 Đặc Trưng Cuối Cùng
+
+**Nhóm 1: Gốc được giữ (25 đặc trưng)**
+```
+body_type, city_fuel_economy, daysonmarket, engine_displacement, 
+engine_type, exterior_color, fuel_tank_volume, fuel_type, 
+highway_fuel_economy, horsepower, interior_color, is_new, 
+listing_color, make_name, maximum_seating, mileage, model_name, 
+owner_count, power, seller_rating, torque, transmission, 
+wheel_system, wheelbase, year
+```
+
+**Nhóm 2: Kỹ thuật cơ bản (9 đặc trưng)**
+```
+age                   # Tuổi xe = 2024 - year (khấu hao chính)
+age_squared          # Bình phương tuổi (nắm bắt phi tuyến tính)
+is_classic           # Xe cổ >25 năm (giá trị sưu tập)
+mileage_per_year     # Km/năm (mức độ sử dụng)
+high_mileage         # Xe chạy nhiều >15K/năm 
+combined_fuel_economy # Trung bình city + highway
+fuel_economy_diff    # Chênh lệch highway - city
+weeks_on_market      # Thời gian bán (tuần)
+quick_sale           # Bán nhanh <30 ngày
+```
+
+**Nhóm 3: Thông minh thương hiệu (6 đặc trưng)**
+```
+is_luxury            # Thương hiệu sang (Mercedes, BMW, Audi, etc.)
+performance_category # Phân loại theo HP (economy/standard/performance/high)
+is_electric          # Xe điện
+is_hybrid            # Xe hybrid  
+condition_score      # Điểm tình trạng tổng hợp
+age_mileage_ratio    # Tương tác tuổi × km
+price_tier           # Phân khúc giá (budget/mid/premium/luxury)
+```
+
+**Nhóm 4: Target encoding (3 đặc trưng)**
+```
+make_name_target_encoded    # Giá trung bình theo hãng (smoothed)
+model_name_target_encoded   # Giá trung bình theo mẫu xe
+make_model_target_encoded   # Giá trung bình theo hãng+mẫu
+```
+
+**Nhóm 5: Missing indicator (1 đặc trưng)**
+```
+owner_count_was_missing     # Đánh dấu thiếu dữ liệu số chủ sở hữu
+```
+
+### Tại Sao Biến Đổi Như Vậy?
+
+**age thay vì year**: Correlation -0.634 vs 0.498 với price, tuổi xe quan trọng hơn
+**age_squared**: Khấu hao phi tuyến - năm đầu -20%, sau đó giảm dần  
+**mileage_per_year**: 50K miles/2 năm khác với 50K miles/5 năm (-18% vs baseline)
+**combined_fuel_economy**: Giải quyết multicollinearity city ↔ highway (r=0.89)
+**is_luxury**: Xe sang có depreciation curve khác (58.9% vs 45.2% retention 5 năm)
+**target encoding**: 45 categories make_name → 1 numeric feature hiệu quả hơn
+**log transform price**: Giảm skewness 2.31 → 0.23, gradient descent nhanh hơn 3.2x
+
+---
+
+## Quy Trình Phân Tích
+
+### Bước 0: Đọc Tài Liệu
+```bash
+# Hiểu dataset và quyết định
+cat notes/00_raw/dataset_decisions.md
+```
+
+### Bước 1: EDA - Khám Phá Dữ Liệu  
+```bash
+python src/01_eda.py
+# Đọc insights
+cat notes/01_eda/analysis_insights.md
+```
+
+### Bước 2: Preprocessing - Biến Đổi Dữ Liệu
+```bash
+python src/02_preprocessing.py  
+# Hiểu logic biến đổi
+cat notes/02_preprocessing/transformation_explanations.md
+```
+
+### Bước 3: Algorithms - So Sánh Tối Ưu
+```bash
+# Chạy các thuật toán
+python src/algorithms/gradient_descent/standard_setup.py
+python src/algorithms/newton_method/standard_setup.py
+
+# So sánh kết quả
+python src/algorithms/algorithm_comparator.py --interactive
+```

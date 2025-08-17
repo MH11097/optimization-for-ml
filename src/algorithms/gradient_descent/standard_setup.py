@@ -1,4 +1,3 @@
-from src.utils.data_loader import load_data_chunked
 #!/usr/bin/env python3
 """
 Gradient Descent - Standard Setup
@@ -11,6 +10,7 @@ Tolerance: 1e-6
 - Learning rate vừa phải, ít risk
 - Phù hợp cho người mới bắt đầu
 """
+# from src.utils.data_loader import load_data_chunked
 
 import pandas as pd
 import numpy as np
@@ -35,11 +35,14 @@ def load_processed_data():
             raise FileNotFoundError(f"Processed data not found: {data_dir / file}")
     
     print("📂 Loading processed data...")
-    X_train = load_data_chunked(data_dir / "X_train.csv").values
-    X_test = load_data_chunked(data_dir / "X_test.csv").values
-    y_train = load_data_chunked(data_dir / "y_train.csv").values.ravel()
-    y_test = load_data_chunked(data_dir / "y_test.csv").values.ravel()
-    
+    # X_train = load_data_chunked(data_dir / "X_train.csv").values
+    # X_test = load_data_chunked(data_dir / "X_test.csv").values
+    # y_train = load_data_chunked(data_dir / "y_train.csv").values.ravel()
+    # y_test = load_data_chunked(data_dir / "y_test.csv").values.ravel()
+    X_train = pd.read_csv(r"data\02_processed\X_train.csv").values
+    X_test = pd.read_csv(r"data\02_processed\X_test.csv").values
+    y_train = pd.read_csv(r"data\02_processed\y_train.csv").values.ravel()
+    y_test = pd.read_csv(r"data\02_processed\y_test.csv").values.ravel()
     print(f"✅ Loaded: Train {X_train.shape}, Test {X_test.shape}")
     return X_train, X_test, y_train, y_test
 

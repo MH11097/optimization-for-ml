@@ -1,351 +1,414 @@
-# Ridge Regression - Kiến Thức Toán Học & Setups
+# Ridge Regression
 
-## 📚 **Lý Thuyết Toán Học**
+## Mathematical Foundation
 
-### **Định Nghĩa Cơ Bản**
-Ridge Regression thêm L2 regularization vào linear regression để prevent overfitting và handle multicollinearity.
+### Definition
 
-**Objective function:**
-```
-f(w) = (1/2n) ||Xw - y||² + (λ/2) ||w||²
-```
+Ridge regression, also known as Tikhonov regularization, is a regularized extension of ordinary least squares that addresses overfitting and multicollinearity by adding an L2 penalty term to the objective function.
 
-Trong đó:
-- `(1/2n) ||Xw - y||²`: Original MSE loss
-- `(λ/2) ||w||²`: L2 regularization penalty
-- `λ ≥ 0`: Regularization parameter
+### Objective Function
 
-### **Closed-Form Solution**
-Ridge regression có analytical solution:
-```
-w* = (X^T X + λI)^{-1} X^T y
-```
+The ridge regression optimization problem is formulated as:
 
-**So với OLS:** `w* = (X^T X)^{-1} X^T y`
+$$\min_{w} f(w) = \frac{1}{2n} \|Xw - y\|^2 + \frac{\lambda}{2} \|w\|^2$$
 
-### **Gradient và Hessian**
-**Gradient:**
-```
-∇f(w) = (1/n) X^T (Xw - y) + λw
-```
+where:
+- $\frac{1}{2n} \|Xw - y\|^2$ represents the mean squared error loss
+- $\frac{\lambda}{2} \|w\|^2$ is the L2 regularization penalty
+- $\lambda \geq 0$ is the regularization parameter controlling the penalty strength
 
-**Hessian:**
-```
-∇²f(w) = (1/n) X^T X + λI
-```
+### Analytical Solution
 
-**Key insight:** Hessian luôn positive definite khi λ > 0!
+Unlike many optimization problems, ridge regression admits a closed-form solution:
 
-### **Regularization Effect**
-L2 penalty "shrinks" weights toward zero:
-- **Small λ**: Gần như OLS, risk overfitting
-- **Large λ**: Weights gần 0, risk underfitting
-- **Optimal λ**: Balance bias-variance tradeoff
+$$w^* = (X^T X + \lambda I)^{-1} X^T y$$
 
-## 🎯 **Các Setup và Ý Nghĩa**
+Compare this to the ordinary least squares solution:
 
-### **1. Light Regularization Setup**
-```python
-lambda_reg = 0.01         # Small penalty
-solver = "analytical"     # Closed-form solution
-normalize_features = True # Important for Ridge
-```
+$$w_{\text{OLS}} = (X^T X)^{-1} X^T y$$
 
-**🧠 Cách nhớ:**
-- "0.01 = 1% penalty trên weights"
-- "Analytical = tính exact solution"
-- "Normalize vì Ridge sensitive to scale"
+The regularization term $\lambda I$ ensures that the matrix $(X^T X + \lambda I)$ is invertible even when $X^T X$ is singular or ill-conditioned.
 
-**⚖️ Trade-offs:**
-- ✅ Fast convergence (closed-form)
-- ✅ Minimal bias introduced
-- ✅ Good for well-conditioned problems
-- ❌ May not prevent overfitting enough
-- ❌ Still sensitive to multicollinearity
+### Gradient and Hessian
 
-### **2. Standard Regularization Setup**
-```python
-lambda_reg = 1.0          # Moderate penalty
-solver = "gradient_descent" # Iterative method
-max_iterations = 1000     # Sufficient for convergence
-learning_rate = 0.01      # Standard GD rate
-```
+The gradient of the ridge regression objective is:
 
-**🧠 Cách nhớ:**
-- "λ = 1.0 = equal weight MSE vs regularization"
-- "GD khi matrix too large for inversion"
-- "1000 iterations for safety"
+$$\nabla f(w) = \frac{1}{n} X^T (Xw - y) + \lambda w$$
 
-**⚖️ Trade-offs:**
-- ✅ Good bias-variance balance
-- ✅ Handles multicollinearity well
-- ✅ Scalable to large datasets
-- ❌ Requires hyperparameter tuning
-- ❌ Slower than analytical
+The Hessian matrix is:
 
-### **3. Strong Regularization Setup**
-```python
-lambda_reg = 100.0        # Heavy penalty
-solver = "coordinate_descent" # Efficient for regularized
-alpha_grid = [0.1, 1, 10, 100] # Cross-validation
-cv_folds = 5              # K-fold validation
-```
+$$\nabla^2 f(w) = \frac{1}{n} X^T X + \lambda I$$
 
-**🧠 Cách nhớ:**
-- "λ = 100 = regularization dominates"
-- "Coordinate descent efficient for Ridge"
-- "Grid search để tìm optimal λ"
+**Critical Property**: When $\lambda > 0$, the Hessian is always positive definite, guaranteeing a unique global minimum and ensuring numerical stability.
 
-**⚖️ Trade-offs:**
-- ✅ Strong overfitting prevention
-- ✅ Very stable solutions
-- ✅ Automatic λ selection
-- ❌ High bias, may underfit
-- ❌ Computational overhead from CV
+### Regularization Effects
 
-## 📊 **Regularization Parameter Deep Dive**
+The L2 penalty induces weight shrinkage toward zero, creating a bias-variance tradeoff:
 
-### **Lambda Selection Strategies**
+- **Small $\lambda$**: Approaches OLS behavior, higher variance, potential overfitting
+- **Large $\lambda$**: Strong shrinkage toward zero, higher bias, potential underfitting  
+- **Optimal $\lambda$**: Minimizes total prediction error by balancing bias and variance
 
-| Strategy | Method | Pros | Cons |
-|----------|--------|------|------|
-| **Fixed small** | λ = 0.01 | Fast, simple | May overfit |
-| **Fixed moderate** | λ = 1.0 | Good default | Not optimal |
-| **Cross-validation** | Grid search | Optimal for data | Expensive |
-| **Analytical** | GCV/AIC/BIC | Fast approximation | Asymptotic |
+## Algorithm Configurations
 
-### **Lambda Effects Visualization**
-```
-λ = 0:     ────────○ (OLS, possible overfitting)
-λ = 0.01:  ──────○   (Light shrinkage)
-λ = 1.0:   ────○     (Moderate shrinkage)  
-λ = 100:   ○         (Heavy shrinkage)
-λ = ∞:     •         (All weights → 0)
-```
+### Light Regularization Configuration
 
-### **Bias-Variance Tradeoff**
-```
-Bias²    = ||E[ŵ] - w*||²     (Increases with λ)
-Variance = E[||ŵ - E[ŵ]||²]   (Decreases with λ)
-MSE      = Bias² + Variance + σ²
-```
+This configuration applies minimal regularization while maintaining numerical stability.
 
-**Optimal λ minimizes total MSE**
+**Parameters:**
+- Regularization parameter: $\lambda = 0.01$
+- Solver: Analytical (closed-form)
+- Feature normalization: Required
 
-## 🧮 **Mathematical Properties**
+**Characteristics:**
+- Provides fast convergence through direct matrix computation
+- Introduces minimal bias to the solution
+- Suitable for well-conditioned problems with low noise
+- May provide insufficient regularization for high-dimensional or noisy datasets
+- Remains sensitive to multicollinearity despite regularization
 
-### **Condition Number Improvement**
-Original: `κ(X^T X) = λ_max / λ_min`
-Ridge: `κ(X^T X + λI) = (λ_max + λ) / (λ_min + λ)`
+### Standard Regularization Configuration
 
-**Effect:** Ridge dramatically improves conditioning!
+This configuration balances regularization strength with computational considerations.
 
-### **Effective Degrees of Freedom**
-```
-df(λ) = tr(X(X^T X + λI)^{-1} X^T) = Σ σᵢ²/(σᵢ² + λ)
-```
-- `σᵢ`: singular values of X
-- `df(0) = p` (OLS)
-- `df(∞) = 0` (null model)
+**Parameters:**
+- Regularization parameter: $\lambda = 1.0$
+- Solver: Gradient descent (iterative)
+- Maximum iterations: 1000
+- Learning rate: 0.01
 
-### **Shrinkage Factors**
-Each principal component shrunk by factor:
-```
-sᵢ = σᵢ²/(σᵢ² + λ)
-```
-- Large σᵢ (important directions): Less shrinkage
-- Small σᵢ (noise directions): More shrinkage
+**Characteristics:**
+- Achieves effective bias-variance balance for most applications
+- Handles multicollinearity robustly through substantial regularization
+- Scales efficiently to large datasets via iterative methods
+- Requires careful hyperparameter tuning for optimal performance
+- Trades computational speed for improved scalability compared to analytical solutions
 
-## 🎯 **Solver Comparison**
+### Strong Regularization Configuration
 
-### **Analytical vs Iterative**
+This configuration emphasizes stability and generalization through heavy regularization.
+
+**Parameters:**
+- Regularization parameter: $\lambda = 100.0$
+- Solver: Coordinate descent
+- Cross-validation grid: $[0.1, 1, 10, 100]$
+- CV folds: 5
+
+**Characteristics:**
+- Provides strong protection against overfitting in high-dimensional settings
+- Produces highly stable solutions robust to data perturbations
+- Incorporates automatic hyperparameter selection through cross-validation
+- May introduce excessive bias leading to underfitting on complex problems
+- Incurs additional computational cost from cross-validation procedures
+
+## Regularization Parameter Analysis
+
+### Selection Strategies
+
+| Strategy | Method | Advantages | Limitations |
+|----------|--------|------------|-------------|
+| Fixed small | $\lambda = 0.01$ | Computational efficiency, simplicity | Risk of overfitting |
+| Fixed moderate | $\lambda = 1.0$ | Reasonable default performance | Suboptimal for specific datasets |
+| Cross-validation | Grid search | Data-adaptive optimization | Computational expense |
+| Information criteria | GCV/AIC/BIC | Fast approximation | Asymptotic validity assumptions |
+
+### Regularization Spectrum
+
+The regularization parameter $\lambda$ controls the extent of weight shrinkage:
+
+- $\lambda = 0$: Reduces to ordinary least squares (potential overfitting)
+- $\lambda = 0.01$: Light shrinkage, minimal bias
+- $\lambda = 1.0$: Moderate shrinkage, balanced bias-variance
+- $\lambda = 100$: Heavy shrinkage, high bias but low variance
+- $\lambda \to \infty$: All weights approach zero (null model)
+
+### Bias-Variance Decomposition
+
+The prediction error can be decomposed as:
+
+$$\text{MSE} = \text{Bias}^2 + \text{Variance} + \sigma^2$$
+
+where:
+- $\text{Bias}^2 = \|\mathbb{E}[\hat{w}] - w^*\|^2$ (increases with $\lambda$)
+- $\text{Variance} = \mathbb{E}[\|\hat{w} - \mathbb{E}[\hat{w}]\|^2]$ (decreases with $\lambda$)
+- $\sigma^2$ is the irreducible noise
+
+The optimal $\lambda$ minimizes the total mean squared error by balancing bias and variance.
+
+## Mathematical Properties
+
+### Condition Number Improvement
+
+Ridge regression significantly improves the conditioning of the normal equations:
+
+- Original: $\kappa(X^T X) = \frac{\lambda_{\max}}{\lambda_{\min}}$
+- Ridge: $\kappa(X^T X + \lambda I) = \frac{\lambda_{\max} + \lambda}{\lambda_{\min} + \lambda}$
+
+This regularization effect dramatically reduces the condition number, enhancing numerical stability.
+
+### Effective Degrees of Freedom
+
+The effective degrees of freedom in ridge regression is:
+
+$$\text{df}(\lambda) = \text{tr}(X(X^T X + \lambda I)^{-1} X^T) = \sum_{i=1}^p \frac{\sigma_i^2}{\sigma_i^2 + \lambda}$$
+
+where $\sigma_i$ are the singular values of $X$. This quantity:
+- Equals $p$ when $\lambda = 0$ (OLS)
+- Approaches 0 as $\lambda \to \infty$ (null model)
+- Provides a measure of model complexity
+
+### Shrinkage Analysis
+
+Ridge regression applies differential shrinkage to the principal components of the design matrix:
+
+$$s_i = \frac{\sigma_i^2}{\sigma_i^2 + \lambda}$$
+
+This creates an adaptive regularization effect:
+- Large singular values (signal): Minimal shrinkage
+- Small singular values (noise): Substantial shrinkage
+
+## Computational Methods
+
+### Solver Comparison
 
 | Aspect | Analytical | Gradient Descent | Coordinate Descent |
 |--------|------------|------------------|--------------------|
-| **Speed** | O(n³) one-shot | O(kn²) iterations | O(kn) iterations |
-| **Memory** | O(n²) | O(n) | O(n) |
-| **Accuracy** | Exact | Approximate | Approximate |
-| **Scale limit** | n < 10K | Any n | Any n |
+| Computational complexity | $O(p^3)$ direct | $O(knp)$ iterative | $O(kp)$ iterative |
+| Memory requirement | $O(p^2)$ | $O(p)$ | $O(p)$ |
+| Solution accuracy | Exact (up to numerics) | Approximate | Approximate |
+| Scalability limit | $p < 10^4$ | No practical limit | No practical limit |
+| Convergence guarantee | One-step | Linear rate | Linear rate |
 
-### **When to Use Each Solver**
+### Solver Selection Guidelines
 
 ```python
-if n_features < 1000:
-    solver = "analytical"     # Fast and exact
-elif sparse_data:
-    solver = "coordinate_descent"  # Efficient for sparse
-else:
-    solver = "gradient_descent"    # General purpose
+def select_ridge_solver(n_features, is_sparse, memory_constraint):
+    if n_features < 1000 and not memory_constraint:
+        return "analytical"  # Direct matrix inversion
+    elif is_sparse or n_features > 10000:
+        return "coordinate_descent"  # Efficient for sparse/large problems
+    else:
+        return "gradient_descent"  # General purpose iterative method
 ```
 
-## 🔧 **Implementation Details**
+## Implementation Considerations
 
-### **Feature Normalization**
+### Feature Normalization
+
+Feature normalization is critical for ridge regression due to the scale-sensitive nature of the L2 penalty:
+
 ```python
-# Essential for Ridge!
-X_normalized = (X - X.mean(axis=0)) / X.std(axis=0)
+def normalize_features(X):
+    """Standardize features for ridge regression."""
+    X_mean = X.mean(axis=0)
+    X_std = X.std(axis=0)
+    return (X - X_mean) / X_std, X_mean, X_std
 
-# Why? Ridge penalty ||w||² treats all features equally
-# Without normalization: features with large scale get unfairly penalized
+# The L2 penalty ||w||² treats all features equally
+# Without normalization, features with larger scales receive disproportionate penalties
 ```
 
-### **Analytical Solution Implementation**
+### Analytical Implementation
+
 ```python
-def ridge_analytical(X, y, lambda_reg):
+def ridge_analytical(X, y, lambda_reg, solve_method='cholesky'):
+    """Compute ridge regression solution analytically."""
     n, p = X.shape
     
-    # Add regularization to normal equations
+    # Form regularized normal equations
     A = X.T @ X + lambda_reg * np.eye(p)
     b = X.T @ y
     
-    # Solve linear system (more stable than inversion)
-    weights = np.linalg.solve(A, b)
+    # Numerical solution strategies
+    if solve_method == 'cholesky' and np.all(np.linalg.eigvals(A) > 0):
+        # Most efficient for positive definite systems
+        L = np.linalg.cholesky(A)
+        weights = scipy.linalg.solve_triangular(
+            L.T, scipy.linalg.solve_triangular(L, b, lower=True)
+        )
+    else:
+        # General linear system solver
+        weights = np.linalg.solve(A, b)
+    
     return weights
 ```
 
-### **Cross-Validation for Lambda**
+### Cross-Validation Implementation
+
 ```python
-def ridge_cv(X, y, lambda_grid, cv_folds=5):
-    best_lambda = None
-    best_score = float('inf')
+def ridge_cross_validation(X, y, lambda_grid, cv_folds=5, scoring='mse'):
+    """Select optimal regularization parameter via cross-validation."""
+    from sklearn.model_selection import KFold
     
-    for lambda_reg in lambda_grid:
-        cv_scores = []
-        for train_idx, val_idx in kfold_split(X, cv_folds):
-            # Train on fold
-            w = ridge_fit(X[train_idx], y[train_idx], lambda_reg)
-            # Validate
-            val_error = mse(X[val_idx] @ w, y[val_idx])
-            cv_scores.append(val_error)
-        
-        avg_score = np.mean(cv_scores)
-        if avg_score < best_score:
-            best_score = avg_score
-            best_lambda = lambda_reg
+    kf = KFold(n_splits=cv_folds, shuffle=True, random_state=42)
+    cv_scores = np.zeros((len(lambda_grid), cv_folds))
     
-    return best_lambda
+    for i, lambda_reg in enumerate(lambda_grid):
+        for j, (train_idx, val_idx) in enumerate(kf.split(X)):
+            # Fit ridge regression on training fold
+            X_train, X_val = X[train_idx], X[val_idx]
+            y_train, y_val = y[train_idx], y[val_idx]
+            
+            weights = ridge_analytical(X_train, y_train, lambda_reg)
+            
+            # Evaluate on validation fold
+            y_pred = X_val @ weights
+            if scoring == 'mse':
+                cv_scores[i, j] = np.mean((y_val - y_pred)**2)
+            elif scoring == 'r2':
+                cv_scores[i, j] = r2_score(y_val, y_pred)
+    
+    # Select lambda with best average CV score
+    mean_scores = cv_scores.mean(axis=1)
+    best_idx = np.argmin(mean_scores) if scoring == 'mse' else np.argmax(mean_scores)
+    
+    return lambda_grid[best_idx], mean_scores
 ```
 
-## 🧠 **Memory Aids & Intuition**
+## Theoretical Insights
 
-### **Ridge vs Housebuilding Analogy**
-```
-OLS = Xây nhà không có building code
-- Tự do complete, có thể unstable
-- Perfect fit to current data
-- Risk collapse với new data
+### Relationship to Bayesian Inference
 
-Ridge = Xây nhà với safety regulations  
-- Ít freedom hơn nhưng safer
-- Small trade-off in current fit
-- Much more stable với new conditions
-```
+Ridge regression can be interpreted as maximum a posteriori (MAP) estimation with a Gaussian prior:
 
-### **Lambda như Volume Control**
-```
-λ = 0:    🔊🔊🔊 (Full volume, possible noise)
-λ = 0.01: 🔊🔊   (Slight reduction)  
-λ = 1.0:  🔊     (Moderate volume)
-λ = 100:  🔈     (Very quiet)
-λ = ∞:    🔇     (Muted)
-```
+$$p(w) = \mathcal{N}(0, \sigma_w^2 I)$$
 
-### **Regularization Path Visualization**
-```
-No Reg:    w₁=5.2, w₂=-3.1, w₃=8.7  (Large weights)
-Light:     w₁=4.8, w₂=-2.9, w₃=8.1  (Slight shrinkage)
-Moderate:  w₁=3.2, w₂=-1.8, w₃=5.4  (Clear shrinkage)
-Heavy:     w₁=0.8, w₂=-0.4, w₃=1.2  (Heavy shrinkage)
-```
+where $\lambda = \sigma^2/\sigma_w^2$ relates the noise variance to the prior variance.
 
-## 🔍 **Troubleshooting Guide**
+### Geometric Interpretation
 
-### **Common Issues & Solutions**
+Ridge regression can be viewed as constrained optimization:
 
-| Problem | Symptoms | Solution |
-|---------|----------|----------|
-| **Still overfitting** | High val error vs train | Increase λ |
-| **Underfitting** | Both train/val error high | Decrease λ |
-| **Numerical instability** | Weird weight values | Check feature scaling |
-| **Poor performance** | Ridge worse than OLS | Check if regularization needed |
+$$\min_{w} \|Xw - y\|^2 \quad \text{subject to} \quad \|w\|^2 \leq t$$
 
-### **Diagnostic Checks**
+The regularization parameter $\lambda$ is inversely related to the constraint radius $t$.
+
+### Regularization Path
+
+The solution path $w(\lambda)$ is continuous and differentiable in $\lambda$, enabling efficient computation of solutions across multiple regularization levels.
+
+## Troubleshooting Guide
+
+### Common Issues and Solutions
+
+| Problem | Symptoms | Recommended Solution |
+|---------|----------|----------------------|
+| Persistent overfitting | High validation error relative to training | Increase regularization parameter $\lambda$ |
+| Underfitting | High error on both training and validation | Decrease regularization parameter $\lambda$ |
+| Numerical instability | Unreasonable weight magnitudes | Verify feature standardization |
+| Performance degradation | Ridge performs worse than OLS | Evaluate necessity of regularization |
+
+### Diagnostic Procedures
+
 ```python
-# 1. Check conditioning improvement
-κ_original = np.linalg.cond(X.T @ X)
-κ_ridge = np.linalg.cond(X.T @ X + lambda_reg * np.eye(p))
-print(f"Condition number: {κ_original:.2e} → {κ_ridge:.2e}")
-
-# 2. Check effective degrees of freedom
-eigenvals = np.linalg.eigvals(X.T @ X)
-df_eff = np.sum(eigenvals / (eigenvals + lambda_reg))
-print(f"Effective DF: {df_eff:.1f}/{p}")
-
-# 3. Check weight shrinkage
-w_ols = ols_fit(X, y)
-w_ridge = ridge_fit(X, y, lambda_reg)
-shrinkage = np.linalg.norm(w_ridge) / np.linalg.norm(w_ols)
-print(f"Weight shrinkage: {shrinkage:.3f}")
+def diagnose_ridge_regression(X, y, lambda_reg, w_ridge):
+    """Comprehensive diagnostics for ridge regression."""
+    p = X.shape[1]
+    
+    # Condition number analysis
+    cond_original = np.linalg.cond(X.T @ X)
+    cond_ridge = np.linalg.cond(X.T @ X + lambda_reg * np.eye(p))
+    
+    print(f"Condition number improvement: {cond_original:.2e} → {cond_ridge:.2e}")
+    print(f"Improvement factor: {cond_original / cond_ridge:.1f}")
+    
+    # Effective degrees of freedom
+    eigenvals = np.linalg.eigvals(X.T @ X)
+    df_effective = np.sum(eigenvals / (eigenvals + lambda_reg))
+    
+    print(f"Effective degrees of freedom: {df_effective:.1f}/{p}")
+    print(f"Model complexity reduction: {(p - df_effective)/p:.1%}")
+    
+    # Weight magnitude analysis
+    w_ols = np.linalg.solve(X.T @ X, X.T @ y)  # OLS for comparison
+    shrinkage_factor = np.linalg.norm(w_ridge) / np.linalg.norm(w_ols)
+    
+    print(f"Weight shrinkage factor: {shrinkage_factor:.3f}")
+    print(f"Average weight magnitude: {np.mean(np.abs(w_ridge)):.4f}")
 ```
 
-### **Lambda Selection Guidelines**
+### Lambda Selection Guidelines
+
 ```python
-# Rule of thumb starting points
-n, p = X.shape
-
-if n >> p:  # Many samples
-    lambda_start = 0.01
-elif n ≈ p:  # Equal samples/features  
-    lambda_start = 1.0
-else:  # Few samples (n < p)
-    lambda_start = 10.0
-
-# Then use CV to refine
-lambda_grid = lambda_start * np.logspace(-2, 2, 50)
+def suggest_lambda_range(X, y, n_candidates=50):
+    """Suggest reasonable lambda values for cross-validation."""
+    n, p = X.shape
+    
+    # Estimate noise level
+    w_ols = np.linalg.solve(X.T @ X, X.T @ y)
+    residuals = y - X @ w_ols
+    sigma_est = np.std(residuals)
+    
+    # Data-dependent lambda range
+    lambda_max = np.max(np.abs(X.T @ y)) / n  # Largest useful lambda
+    lambda_min = 1e-6 * lambda_max          # Minimal regularization
+    
+    # Adjust based on problem characteristics
+    if n >> p:  # Many samples
+        lambda_range = np.logspace(np.log10(lambda_min), np.log10(0.1 * lambda_max), n_candidates)
+    elif n < p:  # High-dimensional regime
+        lambda_range = np.logspace(np.log10(0.1 * lambda_max), np.log10(lambda_max), n_candidates)
+    else:  # Balanced regime
+        lambda_range = np.logspace(np.log10(lambda_min), np.log10(lambda_max), n_candidates)
+    
+    return lambda_range
 ```
 
-## 📈 **Advanced Topics**
+## Advanced Topics
 
-### **Bayesian Interpretation**
-Ridge regression equivalent to MAP estimation với Gaussian prior:
-```
-w ~ N(0, σ²/λ I)
-y|w ~ N(Xw, σ²I)
-```
+### Kernel Ridge Regression
 
-### **Kernel Ridge Regression**
-For non-linear problems:
-```
-w* = X^T (XX^T + λI)^{-1} y
-f(x_new) = k(x_new, X) (K + λI)^{-1} y
-```
+For non-linear problems, ridge regression can be kernelized:
 
-### **Group Ridge Regression**
-Penalize groups of features together:
-```
-Penalty = λ Σⱼ ||wⱼ||₂
-```
+$$f(x) = \sum_{i=1}^n \alpha_i k(x_i, x)$$
 
-## 📖 **Connections to Other Methods**
+where $\alpha = (K + \lambda I)^{-1} y$ and $K_{ij} = k(x_i, x_j)$.
 
-### **Relationship to SVD**
-```
-X = UΣV^T  (SVD decomposition)
-w_ridge = V D_λ U^T y
-where D_λ = diag(σᵢ/(σᵢ² + λ))
-```
+### Generalized Ridge Regression
 
-### **Connection to PCA**
-Ridge regression shrinks along principal components:
-- High variance directions: Less shrinkage
-- Low variance directions: More shrinkage
+The penalty can be generalized to:
 
-### **Limiting Cases**
-```
-λ → 0:   Ridge → OLS
-λ → ∞:   Ridge → Zero weights
-```
+$$\|w\|_P^2 = w^T P w$$
 
----
+where $P$ is a positive definite matrix encoding prior knowledge about parameter relationships.
 
-*"Ridge Regression: Add just enough constraint to stabilize the solution without losing too much fit"* ⚖️🏔️✨
+### Sparse Ridge Variants
+
+Combining L1 and L2 penalties yields elastic net regularization:
+
+$$\frac{1}{2n} \|Xw - y\|^2 + \lambda_1 \|w\|_1 + \frac{\lambda_2}{2} \|w\|^2$$
+
+## Connections to Other Methods
+
+### SVD Perspective
+
+Using the singular value decomposition $X = U\Sigma V^T$:
+
+$$w_{\text{ridge}} = V D_\lambda U^T y$$
+
+where $D_\lambda = \text{diag}(\sigma_i/(\sigma_i^2 + \lambda))$ applies differential shrinkage.
+
+### Principal Component Relationship
+
+Ridge regression performs automatic feature selection in the principal component space:
+- High-variance directions receive minimal shrinkage
+- Low-variance directions receive substantial shrinkage
+
+### Limiting Behavior
+
+- As $\lambda \to 0$: Ridge regression approaches OLS
+- As $\lambda \to \infty$: All weights approach zero (intercept-only model)
+
+## References and Further Reading
+
+### Foundational Literature
+1. Hoerl, A. E., & Kennard, R. W. (1970). Ridge regression: Biased estimation for nonorthogonal problems. *Technometrics*, 12(1), 55-67.
+2. Tikhonov, A. N. (1943). On the stability of inverse problems. *Doklady Akademii Nauk SSSR*, 39(5), 195-198.
+
+### Advanced Topics
+- Hastie, T., Tibshirani, R., & Friedman, J. (2009). *The Elements of Statistical Learning*. Springer.
+- Golub, G. H., Heath, M., & Wahba, G. (1979). Generalized cross-validation as a method for choosing a good ridge parameter. *Technometrics*, 21(2), 215-223.
+
+## Summary
+
+Ridge regression provides a principled approach to regularized linear modeling through L2 penalization. By trading increased bias for reduced variance, it achieves improved generalization performance, particularly in high-dimensional or ill-conditioned settings. The method's analytical tractability, combined with its robust numerical properties, makes it a foundational technique in statistical learning and a building block for more sophisticated regularization methods.

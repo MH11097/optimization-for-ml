@@ -1,0 +1,34 @@
+{
+  "setup_name": "Standard Setup",
+  "algorithm": "Gradient Descent",
+  "parameters": {
+    "learning_rate": 0.01,
+    "max_iterations": 1000,
+    "tolerance": 1e-06
+  },
+  "metrics": {
+    "mse": NaN,
+    "rmse": NaN,
+    "mae": NaN,
+    "r2": NaN,
+    "mape": NaN
+  },
+  "training_time": 569.2207987308502,
+  "convergence": {
+    "iterations": 1000,
+    "final_cost": NaN,
+    "final_gradient_norm": NaN
+  },
+  "notes": {
+    "setup_description": "Standard, safe setup with moderate learning rate",
+    "pros": [
+      "Stable convergence",
+      "Good for beginners",
+      "Reliable"
+    ],
+    "cons": [
+      "May be slow",
+      "Not optimized for speed"
+    ]
+  }
+}

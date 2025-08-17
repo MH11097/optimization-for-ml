@@ -1,0 +1,72 @@
+{
+  "n_features": 45,
+  "feature_names": [
+    "body_type",
+    "city_fuel_economy",
+    "daysonmarket",
+    "engine_displacement",
+    "engine_type",
+    "exterior_color",
+    "fuel_tank_volume",
+    "fuel_type",
+    "highway_fuel_economy",
+    "horsepower",
+    "interior_color",
+    "is_new",
+    "listing_color",
+    "make_name",
+    "maximum_seating",
+    "mileage",
+    "model_name",
+    "owner_count",
+    "power",
+    "seller_rating",
+    "torque",
+    "transmission",
+    "wheel_system",
+    "wheelbase",
+    "year",
+    "owner_count_was_missing",
+    "age",
+    "age_squared",
+    "is_classic",
+    "mileage_per_year",
+    "high_mileage",
+    "combined_fuel_economy",
+    "fuel_economy_diff",
+    "weeks_on_market",
+    "quick_sale",
+    "is_luxury",
+    "performance_category",
+    "is_electric",
+    "is_hybrid",
+    "condition_score",
+    "age_mileage_ratio",
+    "price_tier",
+    "make_name_target_encoded",
+    "model_name_target_encoded",
+    "make_model_target_encoded"
+  ],
+  "train_shape": [
+    2230467,
+    45
+  ],
+  "test_shape": [
+    557617,
+    45
+  ],
+  "target_name": "target",
+  "target_stats": {
+    "train_min": 5.111987590789795,
+    "train_max": 11.548225402832031,
+    "train_mean": 10.11788272857666,
+    "test_min": 5.703782558441162,
+    "test_max": 11.54829216003418,
+    "test_mean": 10.117219924926758
+  },
+  "validation": {
+    "features_match_names": true,
+    "no_empty_features": true,
+    "no_empty_targets": true
+  }
+}

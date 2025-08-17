@@ -1,0 +1,79 @@
+{
+  "timestamp": "2025-08-17T09:31:43.791069",
+  "data_overview": {
+    "dataset_shape": [
+      3000040,
+      42
+    ],
+    "memory_usage_mb": 553.17,
+    "total_missing_values": 13594008,
+    "missing_percentage": 10.79,
+    "duplicate_rows": 40,
+    "duplicate_percentage": 0.0,
+    "data_types": {
+      "float32": 8,
+      "boolean": 4,
+      "int16": 2,
+      "category": 1,
+      "object": 1,
+      "bool": 1
+    },
+    "column_types": {
+      "numeric": 10,
+      "categorical": 1,
+      "boolean": 5,
+      "numeric_cols": [
+        "city_fuel_economy",
+        "daysonmarket",
+        "engine_displacement",
+        "highway_fuel_economy",
+        "horsepower",
+        "mileage",
+        "owner_count",
+        "price",
+        "seller_rating",
+        "year"
+      ],
+      "categorical_cols": [
+        "vin"
+      ]
+    }
+  },
+  "recommendations": [
+    {
+      "type": "DROP_COLUMNS",
+      "priority": "HIGH",
+      "description": "Drop 1 columns with >50% missing values",
+      "columns": [
+        "owner_count"
+      ]
+    },
+    {
+      "type": "REMOVE_DUPLICATES",
+      "priority": "HIGH",
+      "description": "Remove 40 duplicate rows"
+    },
+    {
+      "type": "TRANSFORM_TARGET",
+      "priority": "MEDIUM",
+      "description": "Apply log transformation to target variable (high skewness)",
+      "skewness": 14.912970542907715
+    },
+    {
+      "type": "ENCODE_CATEGORICAL",
+      "priority": "HIGH",
+      "description": "Handle 1 high-cardinality categorical features",
+      "columns": [
+        "vin"
+      ],
+      "suggestion": "Use target encoding or feature hashing"
+    }
+  ],
+  "next_steps": [
+    "Run preprocessing pipeline (02_preprocessing.py)",
+    "Handle missing values based on analysis",
+    "Encode categorical variables appropriately",
+    "Create train/test splits",
+    "Apply feature engineering"
+  ]
+}

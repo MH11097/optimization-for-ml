@@ -1,0 +1,39 @@
+{
+  "dataset_shape": [
+    3000040,
+    42
+  ],
+  "memory_usage_mb": 553.17,
+  "total_missing_values": 13594008,
+  "missing_percentage": 10.79,
+  "duplicate_rows": 40,
+  "duplicate_percentage": 0.0,
+  "data_types": {
+    "float32": 8,
+    "boolean": 4,
+    "int16": 2,
+    "category": 1,
+    "object": 1,
+    "bool": 1
+  },
+  "column_types": {
+    "numeric": 10,
+    "categorical": 1,
+    "boolean": 5,
+    "numeric_cols": [
+      "city_fuel_economy",
+      "daysonmarket",
+      "engine_displacement",
+      "highway_fuel_economy",
+      "horsepower",
+      "mileage",
+      "owner_count",
+      "price",
+      "seller_rating",
+      "year"
+    ],
+    "categorical_cols": [
+      "vin"
+    ]
+  }
+}

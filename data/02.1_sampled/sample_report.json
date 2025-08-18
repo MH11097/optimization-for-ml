@@ -1,0 +1,32 @@
+{
+  "sample_size_config": 100000,
+  "train_sample": {
+    "X_shape": [
+      100000,
+      45
+    ],
+    "y_shape": [
+      100000,
+      1
+    ],
+    "files": [
+      "X_train.csv",
+      "y_train.csv"
+    ]
+  },
+  "test_sample": {
+    "X_shape": [
+      25000,
+      45
+    ],
+    "y_shape": [
+      25000,
+      1
+    ],
+    "files": [
+      "X_test.csv",
+      "y_test.csv"
+    ]
+  },
+  "created_at": "2025-08-18T11:33:15.447876"
+}

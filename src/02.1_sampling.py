@@ -1,103 +1,130 @@
 """
 Step 2.1: Data Sampling cho test optimization algorithms
-Tạo sample data từ processed data để test code trước khi chạy full dataset
+Tạo stratified sample để giữ đặc trưng dataset
 """
 
 import pandas as pd
 import numpy as np
 from pathlib import Path
-import json
 import sys
 sys.path.append('.')
 from utils.data_loader import load_data_chunked
 
-class DataSampler:
-    """Tạo sample data cho test optimization algorithms"""
+# Khai báo số dòng sample trực tiếp
+SAMPLE_SIZE = 100000
+
+
+def create_stratified_samples():
+    """Tạo stratified sample giữ đặc trưng price distribution"""
     
-    def __init__(self, random_state: int = 42):
-        self.random_state = random_state
-        
-    def create_samples(self, 
-                      data_path: str = "../data/02_processed/X_train.csv",
-                      target_path: str = "../data/02_processed/y_train.csv",
-                      sample_sizes: list = [1000, 10000, 100000],
-                      output_dir: str = "../data/02.1_sampled") -> dict:
-        """Tạo sample data cho test algorithms"""
-        
-        print("🎯 Tạo sample data...")
-        
-        # Load data using chunking
-        X_df = load_data_chunked(data_path, max_rows=200000)
-        y_df = load_data_chunked(target_path, max_rows=200000)
-        df = pd.concat([X_df, y_df], axis=1)
-        target_column = y_df.columns[0]
-        
-        print(f"📄 Data: {df.shape[0]:,} × {df.shape[1]}")
-
-        Path(output_dir).mkdir(parents=True, exist_ok=True)
-        
-        sample_results = {}
-        
-        for size in sample_sizes:
-            if size >= len(df):
-                size = len(df) - 1
-                
-            # Random sampling
-            sample_df = df.sample(n=size, random_state=self.random_state)
-            
-            # Tách X và y
-            X_sample = sample_df.drop(columns=[target_column])
-            y_sample = sample_df[[target_column]]
-            
-            # Lưu files
-            X_path = Path(output_dir) / f"X_sample_{size}.csv"
-            y_path = Path(output_dir) / f"y_sample_{size}.csv"
-            
-            X_sample.to_csv(X_path, index=False)
-            y_sample.to_csv(y_path, index=False)
-            
-            sample_results[f"sample_{size}"] = {
-                'size': size,
-                'X_path': str(X_path),
-                'y_path': str(y_path)
-            }
-            
-            print(f"✅ Sample {size}: {sample_df.shape}")
-
-        # Lưu report
-        report = {
-            'original_shape': df.shape,
-            'samples': sample_results,
-            'created_at': pd.Timestamp.now().isoformat()
-        }
-        
-        report_path = Path(output_dir) / 'report.json'
-        with open(report_path, 'w') as f:
-            json.dump(report, f, indent=2, default=str)
-        
-        print(f"📋 Report: {report_path}")
-        return report
-
-
-def load_sample_data(size: int, sample_dir: str = "../data/02.1_sampled"):
-    """Load sample data để test algorithms"""
-    X_path = Path(sample_dir) / f"X_sample_{size}.csv"
-    y_path = Path(sample_dir) / f"y_sample_{size}.csv"
+    print(f"🎯 Tạo stratified sample với {SAMPLE_SIZE:,} dòng...")
     
-    X = pd.read_csv(X_path)
-    y = pd.read_csv(y_path)
+    output_dir = Path("data/02.1_sampled")
+    output_dir.mkdir(parents=True, exist_ok=True)
     
-    print(f"📂 Loaded sample {size}: X{X.shape}, y{y.shape}")
-    return X, y
+    # Load train data
+    print("📂 Loading train data...")
+    X_train = load_data_chunked("data/02_processed/X_train.csv", max_rows=SAMPLE_SIZE*2)
+    y_train = load_data_chunked("data/02_processed/y_train.csv", max_rows=SAMPLE_SIZE*2)
+    
+    # Load test data
+    print("📂 Loading test data...")
+    X_test = load_data_chunked("data/02_processed/X_test.csv", max_rows=SAMPLE_SIZE//2)
+    y_test = load_data_chunked("data/02_processed/y_test.csv", max_rows=SAMPLE_SIZE//2)
+    
+    # Stratified sampling train data
+    print("🔄 Stratified sampling train...")
+    train_sample_size = min(SAMPLE_SIZE, len(X_train))
+    X_train_sample, y_train_sample = _stratified_sample_by_price(
+        X_train, y_train, train_sample_size
+    )
+    
+    # Stratified sampling test data
+    print("🔄 Stratified sampling test...")
+    test_sample_size = min(SAMPLE_SIZE//4, len(X_test))
+    X_test_sample, y_test_sample = _stratified_sample_by_price(
+        X_test, y_test, test_sample_size
+    )
+    
+    # Save files
+    X_train_sample.to_csv(output_dir / "X_train.csv", index=False)
+    y_train_sample.to_csv(output_dir / "y_train.csv", index=False)
+    X_test_sample.to_csv(output_dir / "X_test.csv", index=False)
+    y_test_sample.to_csv(output_dir / "y_test.csv", index=False)
+    
+    # Validation
+    print("\n📊 Sample quality check:")
+    print(f"   Original train price: mean={y_train.iloc[:,0].mean():.0f}, std={y_train.iloc[:,0].std():.0f}")
+    print(f"   Sample train price:   mean={y_train_sample.iloc[:,0].mean():.0f}, std={y_train_sample.iloc[:,0].std():.0f}")
+    print(f"   Original test price:  mean={y_test.iloc[:,0].mean():.0f}, std={y_test.iloc[:,0].std():.0f}")
+    print(f"   Sample test price:    mean={y_test_sample.iloc[:,0].mean():.0f}, std={y_test_sample.iloc[:,0].std():.0f}")
+    
+    print(f"\n✅ Train sample: {X_train_sample.shape}")
+    print(f"✅ Test sample: {X_test_sample.shape}")
+    print(f"📁 Files saved in {output_dir}")
+
+
+def _stratified_sample_by_price(X, y, sample_size, n_bins=8, random_state=42):
+    """Stratified sampling theo price bins để giữ distribution"""
+    
+    # Tạo price bins
+    try:
+        price_col = y.iloc[:, 0]
+        bins = pd.qcut(price_col, q=n_bins, duplicates='drop', precision=0)
+        
+        sample_indices = []
+        
+        # Sample từ mỗi bin proportionally
+        for bin_label in bins.cat.categories:
+            bin_mask = bins == bin_label
+            bin_size = bin_mask.sum()
+            
+            if bin_size == 0:
+                continue
+            
+            # Proportional allocation
+            n_from_bin = max(1, int(sample_size * bin_size / len(X)))
+            n_from_bin = min(n_from_bin, bin_size)
+            
+            # Random sample trong bin
+            bin_indices = X[bin_mask].index.tolist()
+            if len(bin_indices) > 0:
+                sampled = np.random.RandomState(random_state).choice(
+                    bin_indices, size=min(n_from_bin, len(bin_indices)), replace=False
+                )
+                sample_indices.extend(sampled)
+        
+        # Adjust về đúng sample size
+        if len(sample_indices) > sample_size:
+            sample_indices = np.random.RandomState(random_state).choice(
+                sample_indices, size=sample_size, replace=False
+            )
+        elif len(sample_indices) < sample_size:
+            # Thêm random samples nếu thiếu
+            remaining = list(set(X.index) - set(sample_indices))
+            additional_needed = sample_size - len(sample_indices)
+            if len(remaining) > 0:
+                additional = np.random.RandomState(random_state).choice(
+                    remaining, size=min(additional_needed, len(remaining)), replace=False
+                )
+                sample_indices.extend(additional)
+        
+        return X.loc[sample_indices], y.loc[sample_indices]
+        
+    except Exception as e:
+        print(f"⚠️  Stratified sampling failed ({e}), using random sampling")
+        # Fallback to random sampling
+        indices = np.random.RandomState(random_state).choice(
+            len(X), size=min(sample_size, len(X)), replace=False
+        )
+        return X.iloc[indices], y.iloc[indices]
 
 
 if __name__ == "__main__":
-    # Tạo samples
-    sampler = DataSampler()
-    report = sampler.create_samples()
-    
-    print("\n🎯 Samples created!")
-    print("📋 Usage:")
-    print("  X, y = load_sample_data(1000)")
-    print("  X, y = load_sample_data(10000)")
-    print("  X, y = load_sample_data(100000)")
+    create_stratified_samples()
+    print("\n🎯 Stratified sampling completed!")
+    print("📋 Files created:")
+    print("   data/02.1_sampled/X_train.csv")
+    print("   data/02.1_sampled/y_train.csv") 
+    print("   data/02.1_sampled/X_test.csv")
+    print("   data/02.1_sampled/y_test.csv")

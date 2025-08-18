@@ -1,0 +1,24 @@
+{
+  "original_shape": [
+    200000,
+    46
+  ],
+  "samples": {
+    "sample_1000": {
+      "size": 1000,
+      "X_path": "../data/02.1_sampled/X_sample_1000.csv",
+      "y_path": "../data/02.1_sampled/y_sample_1000.csv"
+    },
+    "sample_10000": {
+      "size": 10000,
+      "X_path": "../data/02.1_sampled/X_sample_10000.csv",
+      "y_path": "../data/02.1_sampled/y_sample_10000.csv"
+    },
+    "sample_100000": {
+      "size": 100000,
+      "X_path": "../data/02.1_sampled/X_sample_100000.csv",
+      "y_path": "../data/02.1_sampled/y_sample_100000.csv"
+    }
+  },
+  "created_at": "2025-08-18T11:07:56.457732"
+}

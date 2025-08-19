@@ -1,4 +1,30 @@
-"""Implementation of Damped Newton Method với Line Search cho Linear Regression"""
+"""Newton Method - Damped Newton (Giảm tốc)
+
+=== PHIÊN BẢN: DAMPED NEWTON (NEWTON GIẢM TỐC) ===
+
+HÀM LOSS: Hỗ trợ OLS, Ridge, Lasso
+Công thức: w_{k+1} = w_k - α_k * H^{-1} * ∇L(w_k)
+Trong đó: α_k là learning rate được điều chỉnh
+
+THAM SỐ TỐI ỨU:
+Standard Setup:
+- Learning Rate: 1.0 (ban đầu)
+- Damping Factor: 0.5 (giảm tốc khi cần)
+- Max Iterations: 100
+- Backtrack iterations: 20
+
+Robust Setup:
+- Learning Rate: 0.5 (thận trọng hơn)
+- Damping Factor: 0.8 (giảm tốc nhẹ hơn)
+- Max Iterations: 200
+- Backtrack iterations: 50
+
+Fast Setup:
+- Learning Rate: 1.5 (tích cực hơn)
+- Damping Factor: 0.3 (giảm tốc nhanh)
+- Max Iterations: 50
+- Backtrack iterations: 10
+"""
 
 import numpy as np
 import time
@@ -9,24 +35,29 @@ import os
 # Add the src directory to path để import utils
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from utils.calculus_utils import (
-    compute_gradient_linear_regression,
-    compute_hessian_linear_regression,
-    solve_linear_system,
-    check_positive_definite,
-    compute_condition_number,
-    print_matrix_info,
-    print_gradient_info
+from utils.optimization_utils import (
+    tinh_gradient_hoi_quy_tuyen_tinh,
+    tinh_ma_tran_hessian_hoi_quy_tuyen_tinh,
+    giai_he_phuong_trinh_tuyen_tinh,
+    kiem_tra_positive_definite,
+    tinh_condition_number,
+    in_thong_tin_ma_tran,
+    in_thong_tin_gradient
 )
-from utils.optimization_utils import compute_mse, predict
 
 
-class DampedNewtonOptimizer:
+
+class BoToiUuHoaNewtonGiamToc:
     """
-    Damped Newton Method implementation với backtracking line search
+    Bộ tối ưu hóa Newton giảm tốc cho Hồi quy tuyến tính
     
-    Sử dụng công thức: x_{k+1} = x_k - α_k * H^{-1} * gradient
-    trong đó α_k được tìm bằng line search
+    Sử dụng line search (tìm kiếm đường thẳng) để:
+    - Đảm bảo hội tụ ổn định
+    - Tránh overshooting (vượt quá đích)
+    - Điều chỉnh learning rate tự động
+    
+    Công thức: w_{k+1} = w_k - α_k * H^{-1} * ∇L(w_k)
+    Trong đó: α_k được tìm bằng backtracking line search
     """
     
     def __init__(self, 
@@ -68,8 +99,8 @@ class DampedNewtonOptimizer:
     def _compute_cost(self, X: np.ndarray, y: np.ndarray, 
                      weights: np.ndarray, bias: float) -> float:
         """Tính cost function (MSE với regularization)"""
-        predictions = predict(X, weights, bias)
-        mse = compute_mse(y, predictions)
+        predictions = du_doan(X, weights, bias)
+        mse = tinh_mse(y, predictions)
         
         # Thêm regularization term
         regularization_term = 0.5 * self.regularization * np.sum(weights**2)
@@ -178,12 +209,12 @@ class DampedNewtonOptimizer:
             print()
         
         # Pre-compute Hessian (constant cho linear regression)
-        hessian = compute_hessian_linear_regression(X, self.regularization)
-        condition_number = compute_condition_number(hessian)
-        is_positive_definite = check_positive_definite(hessian)
+        hessian = tinh_ma_tran_hessian_hoi_quy_tuyen_tinh(X, self.regularization)
+        condition_number = tinh_condition_number(hessian)
+        is_positive_definite = kiem_tra_positive_definite(hessian)
         
         if self.verbose:
-            print_matrix_info(hessian, "Hessian Matrix")
+            in_thong_tin_ma_tran(hessian, "Hessian Matrix")
             print(f"Is positive definite: {is_positive_definite}")
             print()
         
@@ -195,7 +226,7 @@ class DampedNewtonOptimizer:
         for iteration in range(self.max_iterations + 1):
             # Tính cost và gradient
             current_cost = self._compute_cost(X, y, weights, bias)
-            gradient_w, gradient_b = compute_gradient_linear_regression(
+            gradient_w, gradient_b = tinh_gradient_hoi_quy_tuyen_tinh(
                 X, y, weights, bias, self.regularization
             )
             
@@ -236,7 +267,7 @@ class DampedNewtonOptimizer:
             # Newton direction: giải H * d = -gradient
             try:
                 # Giải cho weights direction
-                direction_w = -solve_linear_system(hessian, gradient_w)
+                direction_w = -giai_he_phuong_trinh_tuyen_tinh(hessian, gradient_w)
                 
                 # Bias direction
                 direction_b = -gradient_b
@@ -273,8 +304,8 @@ class DampedNewtonOptimizer:
         end_time = time.time()
         
         # Tính final metrics
-        final_predictions = predict(X, weights, bias)
-        final_mse = compute_mse(y, final_predictions)
+        final_predictions = du_doan(X, weights, bias)
+        final_mse = tinh_mse(y, final_predictions)
         
         # Prepare results
         results = {

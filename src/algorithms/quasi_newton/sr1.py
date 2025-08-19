@@ -10,13 +10,14 @@ import os
 # Add the src directory to path để import utils
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from utils.calculus_utils import (
-    compute_gradient_linear_regression,
-    check_positive_definite,
-    compute_condition_number,
-    print_gradient_info
+from utils.optimization_utils import (
+    tinh_gradient_hoi_quy_tuyen_tinh,
+    kiem_tra_positive_definite,
+    tinh_condition_number,
+    in_thong_tin_gradient,
+    tinh_mse,
+    predict
 )
-from utils.optimization_utils import compute_mse, predict
 
 
 class SR1Optimizer:
@@ -83,7 +84,7 @@ class SR1Optimizer:
                      weights: np.ndarray, bias: float) -> float:
         """Tính cost function (MSE với regularization)"""
         predictions = predict(X, weights, bias)
-        mse = compute_mse(y, predictions)
+        mse = tinh_mse(y, predictions)
         
         # Thêm regularization term
         regularization_term = 0.5 * self.regularization * np.sum(weights**2)
@@ -93,7 +94,7 @@ class SR1Optimizer:
     def _compute_combined_gradient(self, X: np.ndarray, y: np.ndarray,
                                  weights: np.ndarray, bias: float) -> np.ndarray:
         """Tính combined gradient cho weights và bias"""
-        gradient_w, gradient_b = compute_gradient_linear_regression(
+        gradient_w, gradient_b = tinh_gradient_hoi_quy_tuyen_tinh(
             X, y, weights, bias, self.regularization
         )
         # Combine weights và bias gradients
@@ -148,7 +149,7 @@ class SR1Optimizer:
         Returns:
             B_regularized: regularized Hessian approximation
         """
-        is_pos_def = check_positive_definite(B)
+        is_pos_def = kiem_tra_positive_definite(B)
         
         if not is_pos_def:
             # Add regularization to make it positive definite
@@ -295,8 +296,8 @@ class SR1Optimizer:
             current_combined_params = np.concatenate([weights, [bias]])
             
             # Analyze current Hessian approximation
-            condition_number = compute_condition_number(B)
-            is_positive_definite = check_positive_definite(B)
+            condition_number = tinh_condition_number(B)
+            is_positive_definite = kiem_tra_positive_definite(B)
             
             # Lưu tracking info
             self.cost_history.append(current_cost)
@@ -402,7 +403,7 @@ class SR1Optimizer:
         
         # Tính final metrics
         final_predictions = predict(X, weights, bias)
-        final_mse = compute_mse(y, final_predictions)
+        final_mse = tinh_mse(y, final_predictions)
         
         # Statistics
         sr1_success_rate = (np.sum(self.sr1_updates_applied) / 

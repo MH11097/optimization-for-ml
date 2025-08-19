@@ -1,20 +1,32 @@
-from src.utils.data_loader import load_data_chunked
 #!/usr/bin/env python3
 """
-Proximal Gradient Descent - Standard Setup
-Learning Rate: 0.01
-Lambda (L1): 0.01
-Max Iterations: 1000
+Proximal Gradient Descent - Standard Setup cho Linear Regression
 
-Đặc điểm:
+=== THAM SỐ SETUP & HÀM LOSS ===
+
+CÁC HÀM LOSS HỖ TRỢ:
+1. Lasso: MSE + L1 regularization (Lasso = λ * ||w||_1)
+2. Elastic Net: MSE + L1 + L2 regularization
+3. Sparse Regression variants
+
+CÁC SETUP KHÁC NHAU:
+Standard Setup (Proximal GD):
+- Learning Rate: 0.01 (vừa phải)
+- Lambda (L1): 0.01 (regularization strength)
+- Max Iterations: 1000 (đủ để hội tụ)
+- Sử dụng cho: Lasso regression, sparse learning
+
+ĐẶC ĐIỂM:
 - Kết hợp Gradient Descent + L1 regularization
 - Proximal operator cho sparsity (feature selection)
 - Soft thresholding function
-- Tạo ra sparse solutions (nhiều weights = 0)
+- Tầo ra sparse solutions (nhiều weights = 0)
+- Sử dụng dữ liệu từ 02.1_sampled
 
-Toán học:
+TOÁN HỌC:
 - Forward step: z = w - α∇f(w)  
 - Proximal step: w = prox_λ(z) = soft_threshold(z, λα)
+- Soft threshold: sign(x) * max(|x| - λ, 0)
 """
 
 import pandas as pd
@@ -23,27 +35,35 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import json
 import time
+import sys
+import os
+
+# Add the src directory to path để import utils
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+from utils.optimization_utils import tinh_mse, compute_r2_score, predict
+from utils.visualization_utils import ve_duong_hoi_tu, ve_so_sanh_thuc_te_du_doan
 
 def setup_output_dir():
     """Tạo thư mục output"""
-    output_dir = Path("data/algorithms/proximal_gd/standard_setup")
+    output_dir = Path("data/03_algorithms/proximal_gd/standard_setup")
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir
 
-def load_processed_data():
-    """Load dữ liệu đã xử lý"""
-    data_dir = Path("data/02_processed")
+def load_sampled_data():
+    """Load dữ liệu từ 02.1_sampled (consistent với workflow hiện tại)"""
+    data_dir = Path("data/02.1_sampled")
     required_files = ["X_train.csv", "X_test.csv", "y_train.csv", "y_test.csv"]
     
     for file in required_files:
         if not (data_dir / file).exists():
-            raise FileNotFoundError(f"Processed data not found: {data_dir / file}")
+            raise FileNotFoundError(f"Sampled data not found: {data_dir / file}")
     
-    print("📂 Loading processed data...")
-    X_train = load_data_chunked(data_dir / "X_train.csv").values
-    X_test = load_data_chunked(data_dir / "X_test.csv").values
-    y_train = load_data_chunked(data_dir / "y_train.csv").values.ravel()
-    y_test = load_data_chunked(data_dir / "y_test.csv").values.ravel()
+    print("📂 Loading sampled data...")
+    X_train = pd.read_csv(data_dir / "X_train.csv").values
+    X_test = pd.read_csv(data_dir / "X_test.csv").values
+    y_train = pd.read_csv(data_dir / "y_train.csv").values.ravel()
+    y_test = pd.read_csv(data_dir / "y_test.csv").values.ravel()
     
     print(f"✅ Loaded: Train {X_train.shape}, Test {X_test.shape}")
     return X_train, X_test, y_train, y_test

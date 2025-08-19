@@ -1,26 +1,25 @@
 #!/usr/bin/env python3
 """
-Newton Method - So sánh Thư viện cho Linear Regression
+Library Comparison v2 - Ridge Regression
 
-=== THAM SỐ SETUP & HÀM LOSS ===
+=== SO SÁNH THƯ VIỆN: RIDGE FOCUS ===
 
-CÁC HÀM LOSS HỖ TRỢ:
-1. OLS (Ordinary Least Squares): MSE thuần túy
-2. Ridge: MSE + L2 regularization (Ridge = λ * ||w||^2)
-3. Lasso: MSE + L1 regularization (Lasso = λ * ||w||_1)
+HÀM LOSS: Ridge Regression
+Công thức: L(w) = (1/2n) * Σ(y_i - ŷ_i)² + λ * ||w||²
 
-SO SÁNH GIỮA:
-1. Implementation tự code (Pure Newton, Damped Newton)
-2. SciPy optimize methods (BFGS, Newton-CG, trust-ncg)
-3. Sklearn LinearRegression (analytical solution)
-4. Các loss function khác nhau (OLS, Ridge, Lasso)
+So sánh giữa:
+1. Implementation tự code Ridge (Pure Newton Ridge, Damped Newton Ridge)
+2. SciPy optimize cho Ridge (BFGS, L-BFGS-B với L2 penalty)
+3. Sklearn Ridge regression (analytical solution)
+4. Analytical solution tự code cho Ridge
 
-MỤC TIÊU:
+# Updated to use new import pattern
+
+Mục tiêu:
 - Đánh giá hiệu suất (performance)
-- So sánh độ chính xác (accuracy)  
+- So sánh độ chính xác (accuracy)
 - Phân tích thời gian chạy (runtime)
 - Hiểu trade-offs giữa các phương pháp
-- Sử dụng dữ liệu từ 02.1_sampled
 """
 
 import pandas as pd
@@ -31,12 +30,7 @@ from pathlib import Path
 import json
 import time
 import warnings
-import sys
-import os
 warnings.filterwarnings('ignore')
-
-# Add the src directory to path để import utils
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 # Library imports
 from sklearn.linear_model import LinearRegression
@@ -44,23 +38,20 @@ from sklearn.metrics import mean_squared_error, r2_score
 from scipy.optimize import minimize
 from scipy.linalg import solve
 
-from utils.optimization_utils import tinh_mse, compute_r2_score, predict
-from utils.visualization_utils import ve_duong_hoi_tu, ve_so_sanh_thuc_te_du_doan
-
-def load_sampled_data():
-    """Load dữ liệu từ 02.1_sampled (consistent với workflow hiện tại)"""
+def load_processed_data():
+    """Load dữ liệu đã xử lý"""
     data_dir = Path("data/02.1_sampled")
-    X_train = pd.read_csv(data_dir / "X_train.csv").values
-    X_test = pd.read_csv(data_dir / "X_test.csv").values
-    y_train = pd.read_csv(data_dir / "y_train.csv").values.ravel()
-    y_test = pd.read_csv(data_dir / "y_test.csv").values.ravel()
+    X_train = load_data_chunked(data_dir / "X_train.csv").values
+    X_test = load_data_chunked(data_dir / "X_test.csv").values
+    y_train = load_data_chunked(data_dir / "y_train.csv").values.ravel()
+    y_test = load_data_chunked(data_dir / "y_test.csv").values.ravel()
     
     print(f"📊 Data loaded: Train {X_train.shape}, Test {X_test.shape}")
     return X_train, X_test, y_train, y_test
 
 def load_our_newton_results():
     """Load kết quả từ các setup Newton của chúng ta"""
-    results_dir = Path("data/03_algorithms/newton_method")
+    results_dir = Path("data/algorithms/newton_method")
     our_results = {}
     
     for setup_dir in results_dir.iterdir():

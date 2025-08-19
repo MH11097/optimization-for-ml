@@ -1,8 +1,8 @@
-from src.utils.data_loader import load_data_chunked
+# Updated to use new import pattern
 #!/usr/bin/env python3
 """
 03. Newton Method Algorithm
-Input: data/02_processed/ (training data)
+Input: data/02.1_sampled/ (sampled training data)
 Output: data/03_algorithms/newton_method/ (model, metrics, plots)
 """
 
@@ -22,7 +22,7 @@ def setup_output_dir():
 
 def load_processed_data():
     """Load processed training data"""
-    data_dir = Path("data/02_processed")
+    data_dir = Path("data/02.1_sampled")
     
     required_files = ["X_train.csv", "X_test.csv", "y_train.csv", "y_test.csv"]
     for file in required_files:

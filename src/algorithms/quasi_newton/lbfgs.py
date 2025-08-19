@@ -10,11 +10,12 @@ import os
 # Add the src directory to path để import utils
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from utils.calculus_utils import (
-    compute_gradient_linear_regression,
-    print_gradient_info
+from utils.optimization_utils import (
+    tinh_gradient_hoi_quy_tuyen_tinh,
+    in_thong_tin_gradient,
+    tinh_mse,
+    predict
 )
-from utils.optimization_utils import compute_mse, predict
 
 
 class LBFGSOptimizer:
@@ -77,7 +78,7 @@ class LBFGSOptimizer:
                      weights: np.ndarray, bias: float) -> float:
         """Tính cost function (MSE với regularization)"""
         predictions = predict(X, weights, bias)
-        mse = compute_mse(y, predictions)
+        mse = tinh_mse(y, predictions)
         
         # Thêm regularization term
         regularization_term = 0.5 * self.regularization * np.sum(weights**2)
@@ -87,7 +88,7 @@ class LBFGSOptimizer:
     def _compute_combined_gradient(self, X: np.ndarray, y: np.ndarray,
                                  weights: np.ndarray, bias: float) -> np.ndarray:
         """Tính combined gradient cho weights và bias"""
-        gradient_w, gradient_b = compute_gradient_linear_regression(
+        gradient_w, gradient_b = tinh_gradient_hoi_quy_tuyen_tinh(
             X, y, weights, bias, self.regularization
         )
         # Combine weights và bias gradients
@@ -378,7 +379,7 @@ class LBFGSOptimizer:
         
         # Tính final metrics
         final_predictions = predict(X, weights, bias)
-        final_mse = compute_mse(y, final_predictions)
+        final_mse = tinh_mse(y, final_predictions)
         
         # Statistics
         curvature_success_rate = (np.sum(self.curvature_conditions) / 

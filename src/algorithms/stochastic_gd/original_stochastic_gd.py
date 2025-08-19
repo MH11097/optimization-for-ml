@@ -1,10 +1,35 @@
-from src.utils.data_loader import load_data_chunked
 #!/usr/bin/env python3
 """
-03. Stochastic Gradient Descent Algorithm
-Input: data/02_processed/ (training data)
-Output: data/03_algorithms/stochastic_gd/ (model, metrics, plots)
+=============================================================================
+THUẬT TOÁN: STOCHASTIC GRADIENT DESCENT (SGD)
+=============================================================================
+
+Dữ liệu vào: data/02.1_sampled/ (dữ liệu đã được sampling)
+Kết quả ra: data/03_algorithms/stochastic_gd/ (model, metrics, visualizations)
+
+Thông số cài đặt:
+- Learning rate (α): 0.01
+- Số epochs: 100  
+- Random state: 42
+- Batch size: 1 (single sample per update)
+- Loss function: Mean Squared Error (MSE)
+
+Đặc điểm thuật toán:
+- Cập nhật weights sau mỗi sample (không phải toàn bộ batch)
+- Convergence nhanh trong early iterations
+- High variance trong updates do single sample
+- Memory efficient cho large datasets
+- Shuffle data mỗi epoch để tránh bias
+
+Công thức toán học:
+- Gradient: g_i = 2 * x_i^T * (x_i * w - y_i)
+- Update: w = w - α * g_i
+- Cost: J = (1/n) * Σ(y_i - x_i*w)²
 """
+
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 import pandas as pd
 import numpy as np
@@ -14,39 +39,42 @@ import json
 import pickle
 import time
 
+from utils.optimization_utils import tinh_mse, compute_r2_score, predict
+from utils.visualization_utils import ve_duong_hoi_tu, ve_so_sanh_thuc_te_du_doan
+
 def setup_output_dir():
     """Create output directory for SGD results"""
     output_dir = Path("data/03_algorithms/stochastic_gd")
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir
 
-def load_processed_data():
-    """Load processed training data"""
-    data_dir = Path("data/02_processed")
+def load_sampled_data():
+    """Load sampled training data từ 02.1_sampled"""
+    data_dir = Path("data/02.1_sampled")
     
     required_files = ["X_train.csv", "X_test.csv", "y_train.csv", "y_test.csv"]
     for file in required_files:
         if not (data_dir / file).exists():
-            raise FileNotFoundError(f"Processed data not found: {data_dir / file}")
+            raise FileNotFoundError(f"Sampled data not found: {data_dir / file}")
     
-    print("📂 Loading processed data...")
-    X_train = load_data_chunked(data_dir / "X_train.csv")
-    X_test = load_data_chunked(data_dir / "X_test.csv")
-    y_train = load_data_chunked(data_dir / "y_train.csv").values.ravel()
-    y_test = load_data_chunked(data_dir / "y_test.csv").values.ravel()
+    print("📂 Loading sampled data...")
+    X_train = pd.read_csv(data_dir / "X_train.csv")
+    X_test = pd.read_csv(data_dir / "X_test.csv")
+    y_train = pd.read_csv(data_dir / "y_train.csv").values.ravel()
+    y_test = pd.read_csv(data_dir / "y_test.csv").values.ravel()
     
     print(f"✅ Loaded: Train {X_train.shape}, Test {X_test.shape}")
     
     return X_train.values, X_test.values, y_train, y_test
 
-def compute_cost(X, y, weights):
-    """Compute Mean Squared Error cost"""
+def tinh_chi_phi(X, y, weights):
+    """Tính chi phí Mean Squared Error"""
     predictions = X.dot(weights)
     errors = predictions - y
     cost = np.mean(errors ** 2)
     return cost
 
-def stochastic_gd_fit(X, y, learning_rate=0.01, epochs=100, random_state=42):
+def stochastic_gradient_descent(X, y, learning_rate=0.01, epochs=100, random_state=42):
     """
     Stochastic Gradient Descent implementation
     Updates weights after each sample
@@ -98,7 +126,7 @@ def stochastic_gd_fit(X, y, learning_rate=0.01, epochs=100, random_state=42):
             weights -= learning_rate * gradient
         
         # Calculate cost for entire dataset at end of epoch
-        epoch_cost = compute_cost(X, y, weights)
+        epoch_cost = tinh_chi_phi(X, y, weights)
         cost_history.append(epoch_cost)
         
         # Progress update
@@ -112,8 +140,8 @@ def stochastic_gd_fit(X, y, learning_rate=0.01, epochs=100, random_state=42):
     
     return weights, cost_history, training_time
 
-def sgd_predict(X, weights):
-    """Make predictions using learned weights"""
+def sgd_du_doan(X, weights):
+    """Thực hiện dự đoán sử dụng weights đã học"""
     return X.dot(weights)
 
 def calculate_metrics(y_true, y_pred):
@@ -256,10 +284,10 @@ def main():
     output_dir = setup_output_dir()
     
     # Load data
-    X_train, X_test, y_train, y_test = load_processed_data()
+    X_train, X_test, y_train, y_test = load_sampled_data()
     
     # Train model
-    weights, cost_history, training_time = stochastic_gd_fit(
+    weights, cost_history, training_time = stochastic_gradient_descent(
         X_train, y_train,
         learning_rate=0.01,
         epochs=100,
@@ -267,8 +295,8 @@ def main():
     )
     
     # Make predictions
-    y_pred_train = sgd_predict(X_train, weights)
-    y_pred_test = sgd_predict(X_test, weights)
+    y_pred_train = sgd_du_doan(X_train, weights)
+    y_pred_test = sgd_du_doan(X_test, weights)
     
     # Calculate metrics
     train_metrics = calculate_metrics(y_train, y_pred_train)

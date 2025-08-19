@@ -1,15 +1,24 @@
 #!/usr/bin/env python3
 """
-Newton Method - Standard Setup (Fixed for 02.1_sampled data)
-Regularization: 1e-8 (minimal)
-Max Iterations: 50
+Standard Setup v3 - Lasso Regression (Approximate)
 
-Đặc điểm:
-- Hội tụ rất nhanh (quadratic convergence)
-- Dùng thông tin bậc 2 (Hessian)
-- Tốt cho bài toán convex
-- Cần ít iterations
-- Sử dụng data từ 02.1_sampled (consistent với workflow hiện tại)
+=== ỨNG DỤNG THỰC TẾ: STANDARD SETUP + LASSO ===
+
+HÀM LOSS: Lasso Regression (Xấp xỉ với Smooth L1)
+Công thức: L(w) = (1/2n) * Σ(y_i - ŷ_i)² + λ * Σ|w_i|
+Lưu ý: Sử dụng smooth approximation: |w| ≈ sqrt(w² + ε)
+
+THAM SỐ TỐI ƯU:
+- Regularization: 1e-3 (cho Lasso regression)
+- Max Iterations: 100 (cần nhiều hơn vì approximation)
+- Tolerance: 1e-8
+
+ĐẶC ĐIỂM:
+- Hội tụ nhanh nhưng chậm hơn OLS/Ridge
+- Dùng thông tin bậc 2 (ma trận Hessian xấp xỉ)
+- Tạo sparse solutions (feature selection)
+- Sử dụng smooth L1 approximation
+- Sử dụng dữ liệu từ 02.1_sampled
 """
 
 import pandas as pd

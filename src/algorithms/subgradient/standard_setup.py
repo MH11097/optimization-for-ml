@@ -1,21 +1,33 @@
-from src.utils.data_loader import load_data_chunked
 #!/usr/bin/env python3
 """
-Subgradient Method - Standard Setup
-Learning Rate: 0.01 (constant)
-Max Iterations: 2000
-For Non-Smooth Functions
+Subgradient Method - Standard Setup cho Non-Smooth Functions
 
-Đặc điểm:
+=== THAM SỐ SETUP & HÀM LOSS ===
+
+CÁC HÀM LOSS HỖ TRỢ:
+1. L1 Norm: |w|_1 (non-smooth)
+2. Hinge Loss: max(0, 1-y*f(x)) (SVM)
+3. Non-smooth optimization problems
+
+CÁC SETUP KHÁC NHAU:
+Standard Setup (Subgradient):
+- Learning Rate: 0.01 (constant, diminishing)
+- Max Iterations: 2000 (cần nhiều hơn do convergence chậm)
+- Tolerance: 1e-6
+- Sử dụng cho: Non-smooth functions
+
+ĐẶC ĐIỂM:
 - Cho functions không smooth (không có gradient everywhere)
 - Dùng subgradient thay vì gradient
 - Convergence chậm hơn GD (O(1/√t))
 - Không guarantee monotonic decrease
+- Sử dụng dữ liệu từ 02.1_sampled
 
-Toán học:
+TOÁN HỌC:
 - w_t+1 = w_t - α_t * g_t
 - g_t ∈ ∂f(w_t) (subgradient)
 - Cho L1: subgradient = sign(w) when w≠0, [-1,1] when w=0
+- Learning rate schedule: α_t = α_0 / sqrt(t)
 """
 
 import pandas as pd
@@ -24,27 +36,35 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import json
 import time
+import sys
+import os
+
+# Add the src directory to path để import utils
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+from utils.optimization_utils import tinh_mse, compute_r2_score, predict
+from utils.visualization_utils import ve_duong_hoi_tu, ve_so_sanh_thuc_te_du_doan
 
 def setup_output_dir():
     """Tạo thư mục output"""
-    output_dir = Path("data/algorithms/subgradient/standard_setup")
+    output_dir = Path("data/03_algorithms/subgradient/standard_setup")
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir
 
-def load_processed_data():
-    """Load dữ liệu đã xử lý"""
-    data_dir = Path("data/02_processed")
+def load_sampled_data():
+    """Load dữ liệu từ 02.1_sampled (consistent với workflow hiện tại)"""
+    data_dir = Path("data/02.1_sampled")
     required_files = ["X_train.csv", "X_test.csv", "y_train.csv", "y_test.csv"]
     
     for file in required_files:
         if not (data_dir / file).exists():
-            raise FileNotFoundError(f"Processed data not found: {data_dir / file}")
+            raise FileNotFoundError(f"Sampled data not found: {data_dir / file}")
     
-    print("📂 Loading processed data...")
-    X_train = load_data_chunked(data_dir / "X_train.csv").values
-    X_test = load_data_chunked(data_dir / "X_test.csv").values
-    y_train = load_data_chunked(data_dir / "y_train.csv").values.ravel()
-    y_test = load_data_chunked(data_dir / "y_test.csv").values.ravel()
+    print("📂 Loading sampled data...")
+    X_train = pd.read_csv(data_dir / "X_train.csv").values
+    X_test = pd.read_csv(data_dir / "X_test.csv").values
+    y_train = pd.read_csv(data_dir / "y_train.csv").values.ravel()
+    y_test = pd.read_csv(data_dir / "y_test.csv").values.ravel()
     
     print(f"✅ Loaded: Train {X_train.shape}, Test {X_test.shape}")
     return X_train, X_test, y_train, y_test

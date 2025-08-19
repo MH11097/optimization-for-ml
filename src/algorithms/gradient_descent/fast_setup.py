@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 """
 Gradient Descent - Fast Setup
-Learning Rate: 0.1 (high)
-Max Iterations: 500
-Tolerance: 1e-5
 
-Đặc điểm:
-- Hội tụ nhanh
-- Learning rate cao, có thể không ổn định
-- Phù hợp khi cần kết quả nhanh
+=== ỨNG DỤNG THỰC TẾ: GRADIENT DESCENT NHANH ===
+
+THAM SỐ TỐI ƯU:
+- Learning Rate: 0.1 (cao, cho tốc độ)
+- Max Iterations: 500 (ít hơn, kỳ vọng hội tụ nhanh)
+- Tolerance: 1e-5 (thoải mái cho tốc độ)
+
+ĐẶC ĐIỂM:
+- Hội tụ nhanh nhưng có thể không ổn định
+- Phù hợp cho thí nghiệm nhanh
 - Risk: có thể overshoot minimum
+- Sử dụng dữ liệu từ 02.1_sampled
 """
 
 import pandas as pd
@@ -18,11 +22,14 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import json
 import time
-import psutil
+import sys
 import os
-from src.utils.data_loader import load_data_chunked
-from src.algorithms.core.results_manager import save_algorithm_results
-from src.algorithms.core.car_price_metrics import calculate_price_metrics
+
+# Add the src directory to path để import utils
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+from utils.optimization_utils import tinh_mse, compute_r2_score, predict
+from utils.visualization_utils import ve_duong_hoi_tu, ve_so_sanh_thuc_te_du_doan
 
 def setup_output_dir():
     """Tạo thư mục output"""
@@ -30,40 +37,45 @@ def setup_output_dir():
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir
 
-def load_processed_data():
-    """Load dữ liệu đã xử lý"""
-    data_dir = Path("data/02_processed")
+def load_sampled_data():
+    """Load dữ liệu từ 02.1_sampled (consistent với workflow hiện tại)"""
+    data_dir = Path("data/02.1_sampled")
     required_files = ["X_train.csv", "X_test.csv", "y_train.csv", "y_test.csv"]
     
     for file in required_files:
         if not (data_dir / file).exists():
-            raise FileNotFoundError(f"Processed data not found: {data_dir / file}")
+            raise FileNotFoundError(f"Sampled data not found: {data_dir / file}")
     
-    print("📂 Loading processed data...")
-    X_train = load_data_chunked(data_dir / "X_train.csv").values
-    X_test = load_data_chunked(data_dir / "X_test.csv").values
-    y_train = load_data_chunked(data_dir / "y_train.csv").values.ravel()
-    y_test = load_data_chunked(data_dir / "y_test.csv").values.ravel()
+    print("📂 Loading sampled data...")
+    X_train = pd.read_csv(data_dir / "X_train.csv").values
+    X_test = pd.read_csv(data_dir / "X_test.csv").values
+    y_train = pd.read_csv(data_dir / "y_train.csv").values.ravel()
+    y_test = pd.read_csv(data_dir / "y_test.csv").values.ravel()
     
     print(f"✅ Loaded: Train {X_train.shape}, Test {X_test.shape}")
     return X_train, X_test, y_train, y_test
 
-def compute_cost(X, y, weights):
-    """Tính Mean Squared Error cost"""
-    predictions = X.dot(weights)
-    errors = predictions - y
-    cost = np.mean(errors ** 2)
+def tinh_chi_phi(X, y, trong_so, he_so_tu_do):
+    """Tính Mean Squared Error cost với bias"""
+    du_doan_values = predict(X, trong_so, he_so_tu_do)
+    cost = tinh_mse(y, du_doan_values)
     return cost
 
-def compute_gradient(X, y, weights):
-    """Tính gradient của MSE cost function"""
+def tinh_gradient(X, y, trong_so, he_so_tu_do):
+    """Tính gradient của MSE cost function cho weights và bias"""
     n_samples = X.shape[0]
-    predictions = X.dot(weights)
-    errors = predictions - y
-    gradient = (2 / n_samples) * X.T.dot(errors)
-    return gradient
+    du_doan_values = predict(X, trong_so, he_so_tu_do)
+    errors = du_doan_values - y
+    
+    # Gradient cho weights
+    gradient_w = (2 / n_samples) * X.T.dot(errors)
+    
+    # Gradient cho bias
+    gradient_b = (2 / n_samples) * np.sum(errors)
+    
+    return gradient_w, gradient_b
 
-def gradient_descent_fit(X, y, learning_rate=0.1, max_iterations=500, tolerance=1e-5):
+def gd_toi_uu_hoa_nhanh(X, y, learning_rate=0.1, max_iterations=500, tolerance=1e-5):
     """
     Fast Gradient Descent Implementation
     
@@ -89,8 +101,8 @@ def gradient_descent_fit(X, y, learning_rate=0.1, max_iterations=500, tolerance=
     
     for iteration in range(max_iterations):
         # Compute cost and gradient
-        cost = compute_cost(X, y, weights)
-        gradient = compute_gradient(X, y, weights)
+        cost = tinh_chi_phi(X, y, weights, bias)
+        gradient_w, gradient_b = tinh_gradient(X, y, weights, bias)
         
         # Update weights
         weights -= learning_rate * gradient
@@ -317,7 +329,7 @@ def main():
     initial_memory = get_memory_usage()
     
     # Load data
-    X_train, X_test, y_train, y_test = load_processed_data()
+    X_train, X_test, y_train, y_test = load_sampled_data()
     
     # Configuration
     config = {
@@ -331,7 +343,7 @@ def main():
     }
     
     # Train model
-    weights, cost_history, gradient_norms, training_time, oscillation_count = gradient_descent_fit(X_train, y_train)
+    weights, cost_history, gradient_norms, training_time, oscillation_count = gd_toi_uu_hoa_nhanh(X_train, y_train)
     
     # Calculate peak memory usage
     peak_memory = get_memory_usage()

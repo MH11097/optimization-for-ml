@@ -19,13 +19,15 @@ from quasi_newton.bfgs import bfgs_standard_setup
 from quasi_newton.lbfgs import lbfgs_standard_setup
 from quasi_newton.sr1 import sr1_standard_setup
 
-from utils.calculus_utils import (
-    compute_gradient_linear_regression,
-    compute_hessian_linear_regression,
-    verify_gradient,
-    verify_hessian
+from utils.optimization_utils import (
+    tinh_gradient_hoi_quy_tuyen_tinh,
+    tinh_ma_tran_hessian_hoi_quy_tuyen_tinh,
+    xac_minh_gradient,
+    xac_minh_hessian,
+    tinh_mse,
+    compute_r2_score,
+    predict
 )
-from utils.optimization_utils import compute_mse, compute_r2_score, predict
 
 
 class OptimizationTester:
@@ -86,22 +88,22 @@ class OptimizationTester:
         def gradient_func(params):
             w = params[:-1]
             b = params[-1]
-            grad_w, grad_b = compute_gradient_linear_regression(X, y, w, b, 0.0)
+            grad_w, grad_b = tinh_gradient_hoi_quy_tuyen_tinh(X, y, w, b, 0.0)
             return np.concatenate([grad_w, [grad_b]])
         
         # Test gradient
         test_params = np.concatenate([weights, [bias]])
-        gradient_correct = verify_gradient(objective, gradient_func, test_params)
+        gradient_correct = xac_minh_gradient(objective, gradient_func, test_params)
         
         # Test Hessian (for weights only, since it's constant)
         def hessian_func(w):
-            return compute_hessian_linear_regression(X, 0.0)
+            return tinh_ma_tran_hessian_hoi_quy_tuyen_tinh(X, 0.0)
         
         def objective_weights_only(w):
             predictions = X @ w + bias
             return 0.5 * np.mean((predictions - y)**2)
         
-        hessian_correct = verify_hessian(objective_weights_only, hessian_func, weights)
+        hessian_correct = xac_minh_hessian(objective_weights_only, hessian_func, weights)
         
         results = {
             'gradient_correct': gradient_correct,
@@ -147,7 +149,7 @@ class OptimizationTester:
         # Extract results
         learned_weights = result['weights']
         learned_bias = result['bias']
-        final_mse = result.get('final_mse', compute_mse(y, result['predictions']))
+        final_mse = result.get('final_mse', tinh_mse(y, result['predictions']))
         
         # Compute metrics
         weights_error = np.linalg.norm(learned_weights - true_weights)

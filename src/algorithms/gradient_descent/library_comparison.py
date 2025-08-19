@@ -17,7 +17,7 @@ from pathlib import Path
 import json
 import time
 import warnings
-from src.utils.data_loader import load_data_chunked
+# Updated to use new import pattern
 warnings.filterwarnings('ignore')
 
 # Library imports
@@ -29,7 +29,7 @@ import joblib
 
 def load_processed_data():
     """Load dữ liệu đã xử lý"""
-    data_dir = Path("data/02_processed")
+    data_dir = Path("data/02.1_sampled")
     X_train = load_data_chunked(data_dir / "X_train.csv").values
     X_test = load_data_chunked(data_dir / "X_test.csv").values
     y_train = load_data_chunked(data_dir / "y_train.csv").values.ravel()

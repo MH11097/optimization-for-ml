@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 """
 Gradient Descent - Standard Setup
-Learning Rate: 0.01 (moderate)
-Max Iterations: 1000
-Tolerance: 1e-6
 
-Đặc điểm:
-- Setup cổ điển, ổn định
-- Learning rate vừa phải, ít risk
+=== ỨNG DỤNG THỰC TẾ: GRADIENT DESCENT CỔ ĐIỂN ===
+
+THAM SỐ TỐI ƯU:
+- Learning Rate: 0.01 (vừa phải, ổn định)
+- Max Iterations: 1000 (đủ để hội tụ)
+- Tolerance: 1e-6 (chính xác cao)
+
+ĐẶC ĐIỂM:
+- Hội tụ ổn định và có thể dự đoán
 - Phù hợp cho người mới bắt đầu
+- Setup cơ bản, đáng tin cậy
+- Sử dụng dữ liệu từ 02.1_sampled
 """
-# from src.utils.data_loader import load_data_chunked
 
 import pandas as pd
 import numpy as np
@@ -18,6 +22,15 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import json
 import time
+import sys
+import os
+
+# Add the src directory to path để import utils
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+from utils.optimization_utils import tinh_mse, compute_r2_score, predict
+# Removed old import - using load_sampled_data instead
+from utils.visualization_utils import ve_duong_hoi_tu, ve_so_sanh_thuc_te_du_doan
 
 def setup_output_dir():
     """Tạo thư mục output"""
@@ -25,43 +38,45 @@ def setup_output_dir():
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir
 
-def load_processed_data():
-    """Load dữ liệu đã xử lý"""
-    data_dir = Path("data/02_processed")
+def load_sampled_data():
+    """Load dữ liệu từ 02.1_sampled (consistent với workflow hiện tại)"""
+    data_dir = Path("data/02.1_sampled")
     required_files = ["X_train.csv", "X_test.csv", "y_train.csv", "y_test.csv"]
     
     for file in required_files:
         if not (data_dir / file).exists():
-            raise FileNotFoundError(f"Processed data not found: {data_dir / file}")
+            raise FileNotFoundError(f"Sampled data not found: {data_dir / file}")
     
-    print("📂 Loading processed data...")
-    # X_train = load_data_chunked(data_dir / "X_train.csv").values
-    # X_test = load_data_chunked(data_dir / "X_test.csv").values
-    # y_train = load_data_chunked(data_dir / "y_train.csv").values.ravel()
-    # y_test = load_data_chunked(data_dir / "y_test.csv").values.ravel()
-    X_train = pd.read_csv(r"data\02_processed\X_train.csv").values
-    X_test = pd.read_csv(r"data\02_processed\X_test.csv").values
-    y_train = pd.read_csv(r"data\02_processed\y_train.csv").values.ravel()
-    y_test = pd.read_csv(r"data\02_processed\y_test.csv").values.ravel()
+    print("📂 Loading sampled data...")
+    X_train = pd.read_csv(data_dir / "X_train.csv").values
+    X_test = pd.read_csv(data_dir / "X_test.csv").values
+    y_train = pd.read_csv(data_dir / "y_train.csv").values.ravel()
+    y_test = pd.read_csv(data_dir / "y_test.csv").values.ravel()
+    
     print(f"✅ Loaded: Train {X_train.shape}, Test {X_test.shape}")
     return X_train, X_test, y_train, y_test
 
-def compute_cost(X, y, weights):
-    """Tính Mean Squared Error cost"""
-    predictions = X.dot(weights)
-    errors = predictions - y
-    cost = np.mean(errors ** 2)
+def tinh_chi_phi(X, y, trong_so, he_so_tu_do):
+    """Tính Mean Squared Error cost với bias"""
+    du_doan_values = predict(X, trong_so, he_so_tu_do)
+    cost = tinh_mse(y, du_doan_values)
     return cost
 
-def compute_gradient(X, y, weights):
-    """Tính gradient của MSE cost function"""
+def tinh_gradient(X, y, trong_so, he_so_tu_do):
+    """Tính gradient của MSE cost function cho weights và bias"""
     n_samples = X.shape[0]
-    predictions = X.dot(weights)
-    errors = predictions - y
-    gradient = (2 / n_samples) * X.T.dot(errors)
-    return gradient
+    du_doan_values = predict(X, trong_so, he_so_tu_do)
+    errors = du_doan_values - y
+    
+    # Gradient cho weights
+    gradient_w = (2 / n_samples) * X.T.dot(errors)
+    
+    # Gradient cho bias
+    gradient_b = (2 / n_samples) * np.sum(errors)
+    
+    return gradient_w, gradient_b
 
-def gradient_descent_fit(X, y, learning_rate=0.01, max_iterations=1000, tolerance=1e-6):
+def gd_toi_uu_hoa_co_ban(X, y, learning_rate=0.01, max_iterations=1000, tolerance=1e-6):
     """
     Standard Gradient Descent Implementation
     

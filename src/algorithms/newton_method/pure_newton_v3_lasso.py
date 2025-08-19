@@ -1,13 +1,13 @@
-"""Implementation of Pure Newton Method cho Linear Regression
+"""Newton Method v3 - Lasso Regression (Approximate)
 
-=== THAM SỐ SETUP & HÀM LOSS ===
+=== PHIÊN BẢN: LASSO REGRESSION (L1 REGULARIZATION) ===
 
-CÁC HÀM LOSS HỖ TRỢ:
-1. OLS (Ordinary Least Squares): MSE thuần túy
-2. Ridge: MSE + L2 regularization (Ridge = λ * ||w||^2)
-3. Lasso: MSE + L1 regularization (Lasso = λ * ||w||_1)
+HÀM LOSS: Lasso Regression (Xấp xỉ với Smooth L1)
+Công thức: L(w) = (1/2n) * Σ(y_i - ŷ_i)² + λ * Σ|w_i|
+Lưu ý: Newton không thể áp dụng trực tiếp cho L1 (không differentiable)
+Sử dụng smooth approximation: |w| ≈ sqrt(w² + ε)
 
-CÁC SETUP KHÁC NHAU:
+THAM SỐ TỐI ỨU:
 Standard Setup (OLS/Ridge):
 - Regularization: 1e-8 (minimal)
 - Max Iterations: 50
@@ -39,29 +39,31 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from utils.optimization_utils import (
     tinh_gradient_hoi_quy_tuyen_tinh,
     tinh_ma_tran_hessian_hoi_quy_tuyen_tinh,
+    safe_matrix_inverse,
     giai_he_phuong_trinh_tuyen_tinh,
     kiem_tra_positive_definite,
     tinh_condition_number,
-    du_doan,
-    tinh_mse,
-    tinh_loss_ols,
     in_thong_tin_ma_tran,
     in_thong_tin_gradient
 )
 
 
-class BoToiUuHoaNewtonCoBan:
+
+class BoToiUuHoaNewtonLasso:
     """
-    Bộ tối ưu hóa Newton cơ bản cho Hồi quy tuyến tính
+    Bộ tối ưu hóa Newton cho Lasso Regression (L1 approximation)
     
-    Sử dụng công thức: x_{k+1} = x_k - H^{-1} * ∇f(x_k)
+    Sử dụng công thức: w_{k+1} = w_k - H^{-1} * ∇L(w_k)
     Trong đó:
-    - H: Ma trận Hessian (đạo hàm bậc 2)
-    - ∇f(x_k): Vector gradient tại điểm x_k
+    - L(w): Hàm loss Lasso ≈ (1/2n) * ||y - Xw||² + λ Σ sqrt(w_i² + ε)
+    - H: Ma trận Hessian approximate
+    - ∇L(w): Gradient của smooth L1 approximation
+    
+    Lưu ý: Đây là xấp xỉ vì L1 norm không differentiable tại 0
     """
     
     def __init__(self, 
-                 regularization: float = 1e-8,
+                 regularization: float = 1e-3,
                  max_iterations: int = 50,
                  tolerance: float = 1e-10,
                  verbose: bool = False):
@@ -88,13 +90,14 @@ class BoToiUuHoaNewtonCoBan:
     def _tinh_chi_phi(self, X: np.ndarray, y: np.ndarray, 
                      trong_so: np.ndarray, he_so_tu_do: float) -> float:
         """Tính hàm chi phí (MSE với điều chỉnh)"""
-        du_doan = predict(X, trong_so, he_so_tu_do)
-        mse = compute_mse(y, du_doan)
+        du_doan = du_doan(X, trong_so, he_so_tu_do)
+        mse = tinh_mse(y, du_doan)
         
-        # Thêm thành phần điều chỉnh
-        thanh_phan_dieu_chinh = 0.5 * self.regularization * np.sum(trong_so**2)
+        # Lasso: sử dụng smooth L1 approximation
+        epsilon = 1e-8  # để tránh chia cho 0
+        smooth_l1 = self.regularization * np.sum(np.sqrt(trong_so**2 + epsilon))
         
-        return mse + thanh_phan_dieu_chinh
+        return mse + smooth_l1
     
     def _kiem_tra_hoi_tu(self, chuan_gradient: float, 
                         thay_doi_chi_phi: float, vong_lap: int) -> Tuple[bool, str]:

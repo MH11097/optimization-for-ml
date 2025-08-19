@@ -8,7 +8,7 @@ import numpy as np
 from pathlib import Path
 import sys
 sys.path.append('.')
-from utils.data_loader import load_data_chunked
+from utils.data_process_utils import load_data_chunked
 
 # Khai báo số dòng sample trực tiếp
 SAMPLE_SIZE = 100000

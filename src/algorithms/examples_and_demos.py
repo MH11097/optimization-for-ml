@@ -22,8 +22,13 @@ from quasi_newton.bfgs import bfgs_standard_setup
 from quasi_newton.lbfgs import lbfgs_standard_setup
 from quasi_newton.sr1 import sr1_standard_setup
 
-from utils.optimization_utils import compute_mse, compute_r2_score, predict
-from utils.calculus_utils import compute_condition_number, compute_hessian_linear_regression
+from utils.optimization_utils import (
+    tinh_mse,
+    compute_r2_score,
+    predict,
+    tinh_condition_number,
+    tinh_ma_tran_hessian_hoi_quy_tuyen_tinh
+)
 
 
 class OptimizationDemo:
@@ -127,8 +132,8 @@ class OptimizationDemo:
         y = X @ true_weights + true_bias + noise
         
         # Analyze problem characteristics
-        hessian = compute_hessian_linear_regression(X, 1e-8)
-        condition_number = compute_condition_number(hessian)
+        hessian = tinh_ma_tran_hessian_hoi_quy_tuyen_tinh(X, 1e-8)
+        condition_number = tinh_condition_number(hessian)
         
         print(f"📋 Problem characteristics:")
         print(f"   - {n_samples} samples, {n_features} features")
@@ -241,8 +246,8 @@ class OptimizationDemo:
             y = X @ true_weights + true_bias + noise
             
             # Analyze condition number
-            hessian = compute_hessian_linear_regression(X, 1e-8)
-            condition_number = compute_condition_number(hessian)
+            hessian = tinh_ma_tran_hessian_hoi_quy_tuyen_tinh(X, 1e-8)
+            condition_number = tinh_condition_number(hessian)
             
             print(f"   Condition number: {condition_number:.2e}")
             
@@ -325,8 +330,8 @@ class OptimizationDemo:
             print(f"   - Target range: ${y_train.min():.0f} - ${y_train.max():.0f}")
             
             # Analyze problem difficulty
-            hessian = compute_hessian_linear_regression(X_train, 1e-8)
-            condition_number = compute_condition_number(hessian)
+            hessian = tinh_ma_tran_hessian_hoi_quy_tuyen_tinh(X_train, 1e-8)
+            condition_number = tinh_condition_number(hessian)
             print(f"   - Hessian condition number: {condition_number:.2e}")
             print()
             
@@ -352,7 +357,7 @@ class OptimizationDemo:
                     
                     # Evaluate on test set
                     test_predictions = predict(X_test, result['weights'], result['bias'])
-                    test_mse = compute_mse(y_test, test_predictions)
+                    test_mse = tinh_mse(y_test, test_predictions)
                     test_r2 = compute_r2_score(y_test, test_predictions)
                     
                     # Train set performance

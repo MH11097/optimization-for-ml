@@ -1,4 +1,4 @@
-from src.utils.data_loader import load_data_chunked
+# Updated to use new import pattern
 #!/usr/bin/env python3
 """
 Newton Method - Standard Setup
@@ -27,7 +27,7 @@ def setup_output_dir():
 
 def load_processed_data():
     """Load dữ liệu đã xử lý"""
-    data_dir = Path("data/02_processed")
+    data_dir = Path("data/02.1_sampled")
     required_files = ["X_train.csv", "X_test.csv", "y_train.csv", "y_test.csv"]
     
     for file in required_files:

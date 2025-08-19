@@ -19,16 +19,18 @@ from quasi_newton.bfgs import BFGSOptimizer, bfgs_standard_setup
 from quasi_newton.lbfgs import LBFGSOptimizer, lbfgs_standard_setup
 from quasi_newton.sr1 import SR1Optimizer, sr1_standard_setup
 
-from utils.calculus_utils import (
-    compute_gradient_linear_regression,
-    compute_hessian_linear_regression,
-    verify_gradient,
-    verify_hessian,
-    check_positive_definite,
+from utils.optimization_utils import (
+    tinh_gradient_hoi_quy_tuyen_tinh,
+    tinh_ma_tran_hessian_hoi_quy_tuyen_tinh,
+    xac_minh_gradient,
+    xac_minh_hessian,
+    kiem_tra_positive_definite,
     safe_matrix_inverse,
-    solve_linear_system
+    giai_he_phuong_trinh_tuyen_tinh,
+    tinh_mse,
+    compute_r2_score,
+    predict
 )
-from utils.optimization_utils import compute_mse, compute_r2_score, predict
 
 
 class ValidationSuite:
@@ -73,7 +75,7 @@ class ValidationSuite:
         
         # Test gradient computation
         try:
-            grad_w, grad_b = compute_gradient_linear_regression(X, y, weights, bias, 0.0)
+            grad_w, grad_b = tinh_gradient_hoi_quy_tuyen_tinh(X, y, weights, bias, 0.0)
             self.assert_test(
                 grad_w.shape == (n_features,) and isinstance(grad_b, (int, float, np.floating)),
                 "Gradient computation shapes",
@@ -84,7 +86,7 @@ class ValidationSuite:
         
         # Test Hessian computation
         try:
-            hessian = compute_hessian_linear_regression(X, 0.0)
+            hessian = tinh_ma_tran_hessian_hoi_quy_tuyen_tinh(X, 0.0)
             self.assert_test(
                 hessian.shape == (n_features, n_features),
                 "Hessian computation shape",
@@ -103,8 +105,8 @@ class ValidationSuite:
             pd_matrix = np.array([[2, 1], [1, 2]])  # Positive definite
             non_pd_matrix = np.array([[1, 2], [2, 1]])  # Not positive definite
             
-            self.assert_test(check_positive_definite(pd_matrix), "Positive definite detection (positive case)")
-            self.assert_test(not check_positive_definite(non_pd_matrix), "Positive definite detection (negative case)")
+            self.assert_test(kiem_tra_positive_definite(pd_matrix), "Positive definite detection (positive case)")
+            self.assert_test(not kiem_tra_positive_definite(non_pd_matrix), "Positive definite detection (negative case)")
         except Exception as e:
             self.assert_test(False, "Positive definite check", f"Exception: {e}")
         

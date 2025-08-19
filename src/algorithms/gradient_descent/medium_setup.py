@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 """
 Gradient Descent - Medium Setup
-Learning Rate: 0.01 (medium)
-Max Iterations: 1000
-Tolerance: 1e-5
 
-Đặc điểm:
+=== ỨNG DỤNG THỰC TẾ: GRADIENT DESCENT CHUẨN ===
+
+THAM SỐ:
+- Learning Rate: 0.01 (trung bình)
+- Max Iterations: 1000
+- Tolerance: 1e-5
+
+ĐẶC ĐIỂM:
 - Cân bằng giữa tốc độ và ổn định
 - Learning rate vừa phải
 - Số iterations hợp lý
 - Setup tiêu chuẩn cho hầu hết trường hợp
+- Sử dụng dữ liệu từ 02.1_sampled
 """
 
 import pandas as pd
@@ -18,200 +23,228 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import json
 import time
-import psutil
+import sys
 import os
-from src.utils.data_loader import load_data_chunked
-from src.algorithms.core.results_manager import save_algorithm_results
-from src.algorithms.core.car_price_metrics import calculate_price_metrics
-from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 
-def load_processed_data():
-    """Load dữ liệu đã xử lý"""
-    data_dir = Path("data/02_processed")
+# Add the src directory to path để import utils
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+from utils.optimization_utils import tinh_mse, compute_r2_score, predict
+from utils.visualization_utils import ve_duong_hoi_tu, ve_so_sanh_thuc_te_du_doan
+
+def setup_output_dir():
+    """Tạo thư mục output"""
+    output_dir = Path("data/03_algorithms/gradient_descent/medium_setup")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return output_dir
+
+def load_sampled_data():
+    """Load dữ liệu từ 02.1_sampled (consistent với workflow hiện tại)"""
+    data_dir = Path("data/02.1_sampled")
     required_files = ["X_train.csv", "X_test.csv", "y_train.csv", "y_test.csv"]
     
     for file in required_files:
         if not (data_dir / file).exists():
-            raise FileNotFoundError(f"Processed data not found: {data_dir / file}")
+            raise FileNotFoundError(f"Sampled data not found: {data_dir / file}")
     
-    print("📂 Loading processed data...")
-    X_train = load_data_chunked(data_dir / "X_train.csv").values
-    X_test = load_data_chunked(data_dir / "X_test.csv").values
-    y_train = load_data_chunked(data_dir / "y_train.csv").values.ravel()
-    y_test = load_data_chunked(data_dir / "y_test.csv").values.ravel()
+    print("📂 Loading sampled data...")
+    X_train = pd.read_csv(data_dir / "X_train.csv").values
+    X_test = pd.read_csv(data_dir / "X_test.csv").values
+    y_train = pd.read_csv(data_dir / "y_train.csv").values.ravel()
+    y_test = pd.read_csv(data_dir / "y_test.csv").values.ravel()
     
     print(f"✅ Loaded: Train {X_train.shape}, Test {X_test.shape}")
     return X_train, X_test, y_train, y_test
 
-def compute_cost(X, y, weights):
-    """Tính Mean Squared Error cost"""
-    predictions = X.dot(weights)
+def tinh_chi_phi(X, y, weights, bias=0.0):
+    """Tính Mean Squared Error cost function"""
+    predictions = X.dot(weights) + bias
     errors = predictions - y
     cost = np.mean(errors ** 2)
     return cost
 
-def compute_gradient(X, y, weights):
+def tinh_gradient(X, y, weights, bias=0.0):
     """Tính gradient của MSE cost function"""
     n_samples = X.shape[0]
-    predictions = X.dot(weights)
+    predictions = X.dot(weights) + bias
     errors = predictions - y
-    gradient = (2 / n_samples) * X.T.dot(errors)
-    return gradient
+    gradient_w = (2 / n_samples) * X.T.dot(errors)
+    gradient_b = (2 / n_samples) * np.sum(errors)
+    return gradient_w, gradient_b
 
-def gradient_descent_fit(X, y, learning_rate=0.01, max_iterations=1000, tolerance=1e-5):
+def gradient_descent_chuyen(X, y, learning_rate=0.01, max_iterations=1000, tolerance=1e-5):
     """
-    Medium Gradient Descent Implementation - Balanced
+    Gradient Descent Chuẩn - Cân bằng Tốc độ và Ổn định
     
-    Setup Parameters:
-    - learning_rate: 0.01 (medium, balanced)
-    - max_iterations: 1000 (reasonable)
-    - tolerance: 1e-5 (standard)
+    Tham số:
+    - learning_rate: 0.01 (trung bình, cân bằng)
+    - max_iterations: 1000 (hợp lý)
+    - tolerance: 1e-5 (tiêu chuẩn)
     """
     print("⚖️ Training Medium Gradient Descent...")
-    print(f"   Learning rate: {learning_rate} (MEDIUM - balanced)")
-    print(f"   Max iterations: {max_iterations} (reasonable)")
-    print(f"   Tolerance: {tolerance} (standard)")
+    print(f"   Learning rate: {learning_rate} (TRUNG BÌNH - cân bằng)")
+    print(f"   Max iterations: {max_iterations} (hợp lý)")
+    print(f"   Tolerance: {tolerance} (tiêu chuẩn)")
     
-    # Initialize weights
+    # Khởi tạo parameters
     n_features = X.shape[1]
     weights = np.random.normal(0, 0.01, n_features)
+    bias = 0.0
     
     cost_history = []
     gradient_norms = []
+    train_mse_history = []
     
     start_time = time.time()
     
     for iteration in range(max_iterations):
-        # Compute cost and gradient
-        cost = compute_cost(X, y, weights)
-        gradient = compute_gradient(X, y, weights)
+        # Tính cost và gradient
+        cost = tinh_chi_phi(X, y, weights, bias)
+        gradient_w, gradient_b = tinh_gradient(X, y, weights, bias)
         
-        # Update weights
-        weights -= learning_rate * gradient
+        # Cập nhật parameters
+        weights = weights - learning_rate * gradient_w
+        bias = bias - learning_rate * gradient_b
         
-        # Store history
+        # Lưu lịch sử
         cost_history.append(cost)
-        gradient_norms.append(np.linalg.norm(gradient))
+        gradient_norm = np.sqrt(np.sum(gradient_w**2) + gradient_b**2)
+        gradient_norms.append(gradient_norm)
+        train_mse_history.append(cost)
         
-        # Print progress every 100 iterations
+        # In tiến trình mỗi 100 iterations
         if iteration % 100 == 0:
-            print(f"   Iteration {iteration:4d}: Cost = {cost:.6f}, Gradient norm = {gradient_norms[-1]:.6f}")
+            print(f"   Iteration {iteration:4d}: Cost = {cost:.6f}, Gradient norm = {gradient_norm:.6f}")
         
-        # Convergence check
-        if len(gradient_norms) > 1 and gradient_norms[-1] < tolerance:
-            print(f"   ✅ Converged at iteration {iteration} (gradient norm < {tolerance})")
+        # Kiểm tra hội tụ
+        if gradient_norm < tolerance:
+            print(f"   ✅ Hội tụ tại iteration {iteration} (gradient norm < {tolerance})")
             break
     
     training_time = time.time() - start_time
     
-    print(f"⏱️ Training completed in {training_time:.3f}s")
+    print(f"⏱️ Training hoàn thành trong {training_time:.3f}s")
     print(f"📊 Final cost: {cost:.6f}")
-    print(f"📈 Total iterations: {len(cost_history)}")
+    print(f"📈 Tổng iterations: {len(cost_history)}")
     
-    return weights, cost_history, gradient_norms, training_time
+    return weights, bias, cost_history, gradient_norms, training_time
 
-def get_memory_usage():
-    """Get current memory usage in MB"""
-    process = psutil.Process(os.getpid())
-    return process.memory_info().rss / 1024 / 1024
+def du_doan(X, weights, bias):
+    """Dự đoán kết quả với trọng số và bias"""
+    return X.dot(weights) + bias
+
+def save_results(results, output_dir):
+    """Lưu kết quả vào files"""
+    
+    # 1. Save training history
+    history_df = pd.DataFrame({
+        'iteration': range(len(results['cost_history'])),
+        'cost': results['cost_history'],
+        'gradient_norm': results['gradient_norms'],
+        'train_mse': results['train_mse_history']
+    })
+    history_df.to_csv(output_dir / "training_history.csv", index=False)
+    
+    # 2. Save results summary
+    summary = {
+        'method': 'Gradient Descent',
+        'setup': 'medium_setup',
+        'final_train_mse': results['final_train_mse'],
+        'final_test_mse': results['final_test_mse'],
+        'final_train_r2': results['final_train_r2'],
+        'final_test_r2': results['final_test_r2'],
+        'optimization_time': results['optimization_time'],
+        'convergence_iterations': results['convergence_iterations'],
+        'final_gradient_norm': results['final_gradient_norm'],
+        'n_weights': len(results['weights']),
+        'bias': results['bias']
+    }
+    
+    with open(output_dir / "results.json", 'w') as f:
+        json.dump(summary, f, indent=2)
+    
+    # 3. Save weights
+    weights_df = pd.DataFrame({
+        'feature_index': range(len(results['weights'])),
+        'weight_value': results['weights']
+    })
+    weights_df.to_csv(output_dir / "learned_weights.csv", index=False)
+    
+    print(f"💾 Results saved to {output_dir}")
 
 def main():
-    """Chạy Gradient Descent với Medium Setup - Cân bằng"""
+    """Main function để chạy Gradient Descent medium setup"""
     print("⚖️ GRADIENT DESCENT - MEDIUM SETUP")
     print("Balanced learning rate configuration")
     
-    # Memory monitoring
-    initial_memory = get_memory_usage()
-    
-    # Load data
-    X_train, X_test, y_train, y_test = load_processed_data()
-    
-    # Configuration
-    config = {
-        'algorithm': 'gradient_descent',
-        'setup': 'medium_setup',
-        'learning_rate': 0.01,
-        'max_iterations': 1000,
-        'tolerance': 1e-5,
-        'loss_function': 'mse',
-        'description': 'Balanced learning rate for general use'
-    }
-    
-    # Train model
-    weights, cost_history, gradient_norms, training_time = gradient_descent_fit(X_train, y_train)
-    
-    # Calculate peak memory usage
-    peak_memory = get_memory_usage()
-    memory_usage = peak_memory - initial_memory
-    
-    # Standard evaluation
-    train_pred = X_train.dot(weights)
-    test_pred = X_test.dot(weights)
-    
-    # Standard ML metrics
-    metrics = {
-        'final_train_mse': float(mean_squared_error(y_train, train_pred)),
-        'final_test_mse': float(mean_squared_error(y_test, test_pred)),
-        'final_train_r2': float(r2_score(y_train, train_pred)),
-        'final_test_r2': float(r2_score(y_test, test_pred)),
-        'final_train_mae': float(mean_absolute_error(y_train, train_pred)),
-        'final_test_mae': float(mean_absolute_error(y_test, test_pred)),
-        'convergence_iteration': len(cost_history),
-        'final_gradient_norm': float(gradient_norms[-1]) if gradient_norms else 0.0
-    }
-    
-    # Car price specific metrics
-    car_price_metrics = calculate_price_metrics(y_test, test_pred)
-    
-    # Training history
-    training_history = pd.DataFrame({
-        'iteration': range(len(cost_history)),
-        'train_loss': cost_history,
-        'gradient_norm': gradient_norms,
-        'test_loss': [mean_squared_error(y_test, X_test.dot(weights)) for _ in cost_history]
-    })
-    
-    # Predictions for analysis
-    predictions = {
-        'y_train_actual': y_train,
-        'y_train_pred': train_pred,
-        'y_test_actual': y_test,
-        'y_test_pred': test_pred
-    }
-    
-    # Save results using standardized format
-    output_dir = save_algorithm_results(
-        algorithm='gradient_descent',
-        setup='medium_setup',
-        config=config,
-        training_history=training_history,
-        predictions=predictions,
-        model_weights=weights,
-        metrics=metrics,
-        car_price_metrics=car_price_metrics,
-        training_time=training_time,
-        memory_usage=memory_usage
-    )
-    
-    # Print results
-    print("\n" + "="*50)
-    print("⚖️ MEDIUM SETUP - EVALUATION RESULTS")
-    print("="*50)
-    print(f"Test MSE:  {metrics['final_test_mse']:.6f}")
-    print(f"Test R²:   {metrics['final_test_r2']:.4f}")
-    print(f"Test MAE:  {metrics['final_test_mae']:.6f}")
-    
-    print(f"\n⚖️ BALANCED CHARACTERISTICS:")
-    print(f"   📊 Learning Rate: 0.01 (MEDIUM - balanced)")
-    print(f"   ⏱️ Training Time: {training_time:.3f}s (reasonable)")
-    print(f"   🎯 Convergence: {len(cost_history)} iterations")
-    
-    print(f"\n📊 Car Price Metrics:")
-    print(f"   💰 Mean Absolute Error: ${car_price_metrics['mean_absolute_error_dollars']:,.0f}")
-    print(f"   📍 Predictions within 10%: {car_price_metrics['predictions_within_10pct']:.1%}")
-    print(f"   🎯 Predictions within $5K: {car_price_metrics['predictions_within_5000_dollars']:.1%}")
-    
-    print(f"\n✅ Standardized results saved to: {output_dir}")
+    try:
+        # Setup
+        output_dir = setup_output_dir()
+        
+        # Load data
+        X_train, X_test, y_train, y_test = load_sampled_data()
+        
+        # Run optimization
+        print("🚀 Starting Gradient Descent medium optimization...")
+        weights, bias, cost_history, gradient_norms, training_time = gradient_descent_chuyen(
+            X_train, y_train,
+            learning_rate=0.01,     # Medium setup
+            max_iterations=1000,
+            tolerance=1e-5
+        )
+        
+        # Final evaluation
+        train_predictions = du_doan(X_train, weights, bias)
+        test_predictions = du_doan(X_test, weights, bias)
+        
+        final_train_mse = tinh_mse(y_train, train_predictions)
+        final_test_mse = tinh_mse(y_test, test_predictions)
+        
+        final_train_r2 = compute_r2_score(y_train, train_predictions)
+        final_test_r2 = compute_r2_score(y_test, test_predictions)
+        
+        results = {
+            'weights': weights,
+            'bias': bias,
+            'cost_history': cost_history,
+            'gradient_norms': gradient_norms,
+            'train_mse_history': cost_history,  # Same as cost for MSE
+            'final_train_mse': final_train_mse,
+            'final_test_mse': final_test_mse,
+            'final_train_r2': final_train_r2,
+            'final_test_r2': final_test_r2,
+            'optimization_time': training_time,
+            'convergence_iterations': len(cost_history),
+            'final_gradient_norm': gradient_norms[-1] if gradient_norms else 0.0
+        }
+        
+        # Save results
+        save_results(results, output_dir)
+        
+        # Plot results - use Vietnamese visualization functions
+        print("📈 Creating visualization...")
+        ve_duong_hoi_tu(cost_history, gradient_norms, "Gradient Descent - Medium Setup")
+        ve_so_sanh_thuc_te_du_doan(y_test, test_predictions, "Medium Setup Test Predictions")
+        
+        print("\n" + "="*50)
+        print("⚖️ MEDIUM SETUP - EVALUATION RESULTS")
+        print("="*50)
+        print(f"Test MSE:  {final_test_mse:.6f}")
+        print(f"Test R²:   {final_test_r2:.4f}")
+        
+        print(f"\n⚖️ BALANCED CHARACTERISTICS:")
+        print(f"   📊 Learning Rate: 0.01 (TRUNG BÌNH - cân bằng)")
+        print(f"   ⏱️ Training Time: {training_time:.3f}s (hợp lý)")
+        print(f"   🎯 Convergence: {len(cost_history)} iterations")
+        
+        print(f"\n✅ Results saved to: {output_dir}")
+        print("🎉 Gradient Descent medium optimization completed successfully!")
+        
+        return results
+        
+    except Exception as e:
+        print(f"❌ Error in Gradient Descent medium optimization: {e}")
+        raise
 
 if __name__ == "__main__":
-    main()
+    results = main()

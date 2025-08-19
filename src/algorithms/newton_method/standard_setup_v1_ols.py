@@ -1,15 +1,10 @@
-#!/usr/bin/env python3
 """
-Newton Method - Standard Setup (Fixed for 02.1_sampled data)
-Regularization: 1e-8 (minimal)
-Max Iterations: 50
-
-Đặc điểm:
-- Hội tụ rất nhanh (quadratic convergence)
-- Dùng thông tin bậc 2 (Hessian)
-- Tốt cho bài toán convex
-- Cần ít iterations
-- Sử dụng data từ 02.1_sampled (consistent với workflow hiện tại)
+- Ham loss: OLS = (1/2n) * ||y - Xw||²
+- H: Ma trận Hessian = X^T X / n
+- ∇L(w): Gradient = X^T(Xw - y) / n
+- Regularization: 1e-12
+- Max Iterations: 50
+- Tolerance: 1e-10
 """
 
 import pandas as pd
@@ -40,13 +35,8 @@ def setup_output_dir():
     return output_dir
 
 def load_sampled_data():
-    """Load dữ liệu từ 02.1_sampled (consistent với workflow hiện tại)"""
+    """Load dữ liệu từ 02.1_sampled"""
     data_dir = Path("data/02.1_sampled")
-    required_files = ["X_train.csv", "X_test.csv", "y_train.csv", "y_test.csv"]
-    
-    for file in required_files:
-        if not (data_dir / file).exists():
-            raise FileNotFoundError(f"Sampled data not found: {data_dir / file}")
     
     print("📂 Loading sampled data...")
     X_train = pd.read_csv(data_dir / "X_train.csv").values
@@ -66,7 +56,7 @@ def newton_method_optimization(X_train, y_train, X_test, y_test,
         X_train, y_train: training data
         X_test, y_test: test data
         regularization: λ cho regularization term
-        max_iterations: số iteration tối đa
+        max_iterations: số bước tối đa
         tolerance: tolerance cho convergence
     
     Returns:

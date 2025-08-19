@@ -1,17 +1,34 @@
-from src.utils.data_loader import load_data_chunked
 #!/usr/bin/env python3
 """
-Quasi-Newton Method - BFGS Setup
-Approximates Hessian without computing it
-Max Iterations: 100
+Quasi-Newton Method - BFGS Setup cho Linear Regression
 
-Đặc điểm:
-- Approximates Hessian matrix H ≈ ∇²f
-- Faster than Newton (no Hessian computation)
-- Superlinear convergence
-- Memory efficient than Newton
+=== THAM SỐ SETUP & HÀM LOSS ===
 
-Toán học:
+CÁC HÀM LOSS HỖ TRỢ:
+1. OLS (Ordinary Least Squares): MSE thuần túy
+2. Ridge: MSE + L2 regularization (Ridge = λ * ||w||^2)
+3. Lasso: MSE + L1 regularization (Lasso = λ * ||w||_1)
+
+CÁC SETUP KHÁC NHAU:
+Standard Setup (BFGS):
+- Max Iterations: 100
+- Tolerance: 1e-8
+- Line Search: Backtracking Armijo
+- Sử dụng cho: hầu hết các trường hợp
+
+Robust Setup (BFGS):
+- Max Iterations: 200
+- Tolerance: 1e-6 (relaxed)
+- Sử dụng cho: bài toán ill-conditioned
+
+ĐẶC ĐIỂM:
+- Xấp xỉ Hessian matrix H ≈ ∇²f
+- Nhanh hơn Newton (không tính Hessian)
+- Hội tụ superlinear
+- Hiệu quả bộ nhớ hơn Newton
+- Sử dụng dữ liệu từ 02.1_sampled
+
+TOÁN HỌC:
 - BFGS update: B_{k+1} = B_k + (y_k y_k^T)/(y_k^T s_k) - (B_k s_k s_k^T B_k)/(s_k^T B_k s_k)
 - s_k = x_{k+1} - x_k (step)
 - y_k = ∇f_{k+1} - ∇f_k (gradient change)
@@ -23,55 +40,82 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import json
 import time
+import sys
+import os
+
+# Add the src directory to path để import utils
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+from utils.optimization_utils import (
+    tinh_gradient_hoi_quy_tuyen_tinh,
+    tinh_mse,
+    tinh_r2_score,
+    du_doan
+)
+from utils.visualization_utils import ve_duong_hoi_tu, ve_so_sanh_thuc_te_du_doan
 
 def setup_output_dir():
     """Tạo thư mục output"""
-    output_dir = Path("data/algorithms/quasi_newton/bfgs_setup")
+    output_dir = Path("data/03_algorithms/quasi_newton/bfgs_setup")
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir
 
-def load_processed_data():
-    """Load dữ liệu đã xử lý"""
-    data_dir = Path("data/02_processed")
+def load_sampled_data():
+    """Load dữ liệu từ 02.1_sampled (consistent với workflow hiện tại)"""
+    data_dir = Path("data/02.1_sampled")
     required_files = ["X_train.csv", "X_test.csv", "y_train.csv", "y_test.csv"]
     
     for file in required_files:
         if not (data_dir / file).exists():
-            raise FileNotFoundError(f"Processed data not found: {data_dir / file}")
+            raise FileNotFoundError(f"Sampled data not found: {data_dir / file}")
     
-    print("📂 Loading processed data...")
-    X_train = load_data_chunked(data_dir / "X_train.csv").values
-    X_test = load_data_chunked(data_dir / "X_test.csv").values
-    y_train = load_data_chunked(data_dir / "y_train.csv").values.ravel()
-    y_test = load_data_chunked(data_dir / "y_test.csv").values.ravel()
+    print("📂 Loading sampled data...")
+    X_train = pd.read_csv(data_dir / "X_train.csv").values
+    X_test = pd.read_csv(data_dir / "X_test.csv").values
+    y_train = pd.read_csv(data_dir / "y_train.csv").values.ravel()
+    y_test = pd.read_csv(data_dir / "y_test.csv").values.ravel()
     
     print(f"✅ Loaded: Train {X_train.shape}, Test {X_test.shape}")
     return X_train, X_test, y_train, y_test
 
-def compute_cost_and_gradient(X, y, weights):
-    """Tính cost và gradient"""
-    predictions = X.dot(weights)
-    errors = predictions - y
-    cost = np.mean(errors ** 2)
-    gradient = (2 / len(y)) * X.T.dot(errors)
+def tinh_chi_phi_va_gradient(X, y, trong_so, he_so_tu_do, dieu_chinh=0.0):
+    """Tính cost và gradient cho BFGS"""
+    du_doan_values = du_doan(X, trong_so, he_so_tu_do)
+    mse_cost = tinh_mse(y, du_doan_values)
+    
+    # Thêm regularization term
+    regularization_term = 0.5 * dieu_chinh * np.sum(trong_so**2)
+    cost = mse_cost + regularization_term
+    
+    # Tính gradient cho weights và bias
+    gradient_w, gradient_b = tinh_gradient_hoi_quy_tuyen_tinh(X, y, trong_so, he_so_tu_do, dieu_chinh)
+    
+    # Kết hợp gradient (weights + bias)
+    gradient = np.concatenate([gradient_w, [gradient_b]])
+    
     return cost, gradient
 
-def line_search_backtracking(X, y, weights, direction, gradient, alpha_init=1.0, c1=1e-4, rho=0.9):
+def tim_buoc_nhay_lui(X, y, trong_so, he_so_tu_do, huong_di, gradient, alpha_init=1.0, c1=1e-4, rho=0.9, dieu_chinh=0.0):
     """
     Backtracking line search để tìm step size tối ưu
     Đảm bảo Armijo condition: f(x + αp) ≤ f(x) + c₁α∇f^T p
     """
-    current_cost, _ = compute_cost_and_gradient(X, y, weights)
+    current_cost, _ = tinh_chi_phi_va_gradient(X, y, trong_so, he_so_tu_do, dieu_chinh)
     alpha = alpha_init
     
     # Directional derivative
-    directional_derivative = gradient.dot(direction)
+    directional_derivative = gradient.dot(huong_di)
     
     # Backtracking
     max_iter = 20
     for i in range(max_iter):
-        new_weights = weights + alpha * direction
-        new_cost, _ = compute_cost_and_gradient(X, y, new_weights)
+        # Split combined parameters
+        combined_params = np.concatenate([trong_so, [he_so_tu_do]])
+        new_combined_params = combined_params + alpha * huong_di
+        new_trong_so = new_combined_params[:-1]
+        new_he_so_tu_do = new_combined_params[-1]
+        
+        new_cost, _ = tinh_chi_phi_va_gradient(X, y, new_trong_so, new_he_so_tu_do, dieu_chinh)
         
         # Armijo condition
         if new_cost <= current_cost + c1 * alpha * directional_derivative:
@@ -81,12 +125,12 @@ def line_search_backtracking(X, y, weights, direction, gradient, alpha_init=1.0,
     
     return alpha  # Return last alpha if no good step found
 
-def bfgs_fit(X, y, max_iterations=100, tolerance=1e-8):
+def bfgs_toi_uu_hoa(X, y, max_iterations=100, tolerance=1e-8, dieu_chinh=0.0):
     """
-    BFGS Quasi-Newton Method Implementation
+    BFGS Quasi-Newton Method Implementation với bias handling
     
     Algorithm:
-    1. Initialize B₀ = I (identity matrix)
+    1. Initialize B₀ = I (identity matrix) for combined [weights, bias]
     2. Compute search direction: p_k = -B_k⁻¹ ∇f_k
     3. Line search for step size α_k
     4. Update: x_{k+1} = x_k + α_k p_k
@@ -95,14 +139,17 @@ def bfgs_fit(X, y, max_iterations=100, tolerance=1e-8):
     print("🚀 Training BFGS Quasi-Newton Method...")
     print(f"   Max iterations: {max_iterations}")
     print(f"   Tolerance: {tolerance}")
+    print(f"   Regularization: {dieu_chinh}")
     print("   Approximating Hessian with BFGS updates")
     
-    # Initialize
+    # Initialize weights and bias
     n_features = X.shape[1]
-    weights = np.random.normal(0, 0.01, n_features)
+    trong_so = np.random.normal(0, 0.01, n_features)
+    he_so_tu_do = 0.0
     
-    # Initialize BFGS approximation (B = H⁻¹)
-    B = np.eye(n_features)  # Initial approximation = Identity
+    # Initialize BFGS approximation for combined parameters [weights, bias]
+    n_params = n_features + 1  # weights + bias
+    B = np.eye(n_params)  # Initial approximation = Identity
     
     cost_history = []
     gradient_norms = []
@@ -112,7 +159,7 @@ def bfgs_fit(X, y, max_iterations=100, tolerance=1e-8):
     start_time = time.time()
     
     # First iteration
-    cost, gradient = compute_cost_and_gradient(X, y, weights)
+    cost, gradient = tinh_chi_phi_va_gradient(X, y, trong_so, he_so_tu_do, dieu_chinh)
     cost_history.append(cost)
     gradient_norms.append(np.linalg.norm(gradient))
     
@@ -129,27 +176,30 @@ def bfgs_fit(X, y, max_iterations=100, tolerance=1e-8):
             search_direction = -np.linalg.solve(B, gradient)
         except np.linalg.LinAlgError:
             print("⚠️ BFGS matrix became singular, resetting to identity")
-            B = np.eye(n_features)
+            B = np.eye(n_params)
             search_direction = -gradient
         
         # Line search for step size
-        step_size = line_search_backtracking(X, y, weights, search_direction, gradient)
+        step_size = tim_buoc_nhay_lui(X, y, trong_so, he_so_tu_do, search_direction, gradient, dieu_chinh=dieu_chinh)
         step_sizes.append(step_size)
         
         # Store previous values
-        weights_prev = weights.copy()
+        prev_combined_params = np.concatenate([trong_so, [he_so_tu_do]])
         gradient_prev = gradient.copy()
         
-        # Update weights
-        weights = weights + step_size * search_direction
+        # Update parameters
+        new_combined_params = prev_combined_params + step_size * search_direction
+        trong_so = new_combined_params[:-1]
+        he_so_tu_do = new_combined_params[-1]
         
         # Compute new cost and gradient
-        cost, gradient = compute_cost_and_gradient(X, y, weights)
+        cost, gradient = tinh_chi_phi_va_gradient(X, y, trong_so, he_so_tu_do, dieu_chinh)
         cost_history.append(cost)
         gradient_norms.append(np.linalg.norm(gradient))
         
         # BFGS update
-        s = weights - weights_prev  # step
+        current_combined_params = np.concatenate([trong_so, [he_so_tu_do]])
+        s = current_combined_params - prev_combined_params  # step
         y = gradient - gradient_prev  # gradient change
         
         # Check BFGS condition: s^T y > 0
@@ -186,22 +236,20 @@ def bfgs_fit(X, y, max_iterations=100, tolerance=1e-8):
     print(f"📏 Final gradient norm: {gradient_norms[-1]:.2e}")
     print(f"📐 Final BFGS condition number: {condition_numbers[-1]:.2e}")
     
-    return (weights, cost_history, gradient_norms, step_sizes, 
+    return (trong_so, he_so_tu_do, cost_history, gradient_norms, step_sizes, 
             condition_numbers, training_time, B)
 
-def evaluate_model(weights, X_test, y_test):
-    """Đánh giá model trên test set"""
-    predictions = X_test.dot(weights)
+def evaluate_model(trong_so, he_so_tu_do, X_test, y_test):
+    """Đánh giá model trên test set với weights và bias"""
+    predictions = du_doan(X_test, trong_so, he_so_tu_do)
     
     # Metrics
-    mse = np.mean((predictions - y_test) ** 2)
+    mse = tinh_mse(y_test, predictions)
     rmse = np.sqrt(mse)
     mae = np.mean(np.abs(predictions - y_test))
     
-    # R-squared
-    ss_res = np.sum((y_test - predictions) ** 2)
-    ss_tot = np.sum((y_test - np.mean(y_test)) ** 2)
-    r2 = 1 - (ss_res / ss_tot)
+    # R-squared using utility function
+    r2 = tinh_r2_score(y_test, predictions)
     
     # MAPE
     mape = np.mean(np.abs((y_test - predictions) / y_test)) * 100
@@ -215,7 +263,7 @@ def evaluate_model(weights, X_test, y_test):
     }
 
 def plot_results(cost_history, gradient_norms, step_sizes, condition_numbers, 
-                weights, X_test, y_test, B, output_dir):
+                trong_so, he_so_tu_do, X_test, y_test, B, output_dir):
     """Vẽ các biểu đồ đặc trưng của BFGS"""
     fig, axes = plt.subplots(2, 3, figsize=(18, 12))
     fig.suptitle('BFGS Quasi-Newton Method - Hessian Approximation Analysis', fontsize=16)
@@ -281,7 +329,7 @@ def plot_results(cost_history, gradient_norms, step_sizes, condition_numbers,
     
     # 5. Predictions vs Actual
     ax5 = axes[1, 1]
-    predictions = X_test.dot(weights)
+    predictions = du_doan(X_test, trong_so, he_so_tu_do)
     ax5.scatter(y_test, predictions, alpha=0.6, color='navy')
     
     # Perfect prediction line
@@ -323,7 +371,7 @@ def plot_results(cost_history, gradient_norms, step_sizes, condition_numbers,
     plt.savefig(output_dir / "bfgs_setup_results.png", dpi=300, bbox_inches='tight')
     plt.show()
 
-def save_results(weights, metrics, cost_history, gradient_norms, step_sizes, 
+def save_results(trong_so, he_so_tu_do, metrics, cost_history, gradient_norms, step_sizes, 
                 condition_numbers, training_time, B, output_dir):
     """Lưu kết quả với BFGS analysis"""
     
@@ -365,8 +413,9 @@ def save_results(weights, metrics, cost_history, gradient_norms, step_sizes,
     with open(output_dir / "results.json", "w") as f:
         json.dump(results, f, indent=2, default=str)
     
-    # Save weights and BFGS matrix
-    np.save(output_dir / "weights.npy", weights)
+    # Save weights, bias and BFGS matrix
+    np.save(output_dir / "weights.npy", trong_so)
+    np.save(output_dir / "bias.npy", he_so_tu_do)
     np.save(output_dir / "bfgs_matrix.npy", B)
     
     # Save training history
@@ -469,20 +518,20 @@ def main():
     output_dir = setup_output_dir()
     
     # Load data
-    X_train, X_test, y_train, y_test = load_processed_data()
+    X_train, X_test, y_train, y_test = load_sampled_data()
     
     # Train model
-    weights, cost_history, gradient_norms, step_sizes, condition_numbers, training_time, B = bfgs_fit(X_train, y_train)
+    trong_so, he_so_tu_do, cost_history, gradient_norms, step_sizes, condition_numbers, training_time, B = bfgs_toi_uu_hoa(X_train, y_train)
     
     # Evaluate
-    metrics = evaluate_model(weights, X_test, y_test)
+    metrics = evaluate_model(trong_so, he_so_tu_do, X_test, y_test)
     
     # Plot results
     plot_results(cost_history, gradient_norms, step_sizes, condition_numbers, 
-                weights, X_test, y_test, B, output_dir)
+                trong_so, he_so_tu_do, X_test, y_test, B, output_dir)
     
     # Save everything
-    save_results(weights, metrics, cost_history, gradient_norms, step_sizes, 
+    save_results(trong_so, he_so_tu_do, metrics, cost_history, gradient_norms, step_sizes, 
                 condition_numbers, training_time, B, output_dir)
     
     # Print results

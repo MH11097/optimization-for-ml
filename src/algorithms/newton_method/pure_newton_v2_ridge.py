@@ -1,13 +1,12 @@
-"""Implementation of Pure Newton Method cho Linear Regression
+"""Newton Method v2 - Ridge Regression
 
-=== THAM SỐ SETUP & HÀM LOSS ===
+=== PHIÊN BẢN: RIDGE REGRESSION (L2 REGULARIZATION) ===
 
-CÁC HÀM LOSS HỖ TRỢ:
-1. OLS (Ordinary Least Squares): MSE thuần túy
-2. Ridge: MSE + L2 regularization (Ridge = λ * ||w||^2)
-3. Lasso: MSE + L1 regularization (Lasso = λ * ||w||_1)
+HÀM LOSS: Ridge Regression
+Công thức: L(w) = (1/2n) * Σ(y_i - ŷ_i)² + λ * ||w||²
+Bao gồm L2 regularization để tránh overfitting
 
-CÁC SETUP KHÁC NHAU:
+THAM SỐ TỐI ỨU:
 Standard Setup (OLS/Ridge):
 - Regularization: 1e-8 (minimal)
 - Max Iterations: 50
@@ -44,20 +43,21 @@ from utils.optimization_utils import (
     tinh_condition_number,
     du_doan,
     tinh_mse,
-    tinh_loss_ols,
+    tinh_loss_ridge,
     in_thong_tin_ma_tran,
     in_thong_tin_gradient
 )
 
 
-class BoToiUuHoaNewtonCoBan:
+class BoToiUuHoaNewtonRidge:
     """
-    Bộ tối ưu hóa Newton cơ bản cho Hồi quy tuyến tính
+    Bộ tối ưu hóa Newton cho Ridge Regression (L2 regularization)
     
-    Sử dụng công thức: x_{k+1} = x_k - H^{-1} * ∇f(x_k)
+    Sử dụng công thức: w_{k+1} = w_k - H^{-1} * ∇L(w_k)
     Trong đó:
-    - H: Ma trận Hessian (đạo hàm bậc 2)
-    - ∇f(x_k): Vector gradient tại điểm x_k
+    - L(w): Hàm loss Ridge = (1/2n) * ||y - Xw||² + λ||w||²
+    - H: Ma trận Hessian = X^T X / n + λ I
+    - ∇L(w): Gradient = X^T(Xw - y) / n + λ w
     """
     
     def __init__(self, 
@@ -91,10 +91,10 @@ class BoToiUuHoaNewtonCoBan:
         du_doan = predict(X, trong_so, he_so_tu_do)
         mse = compute_mse(y, du_doan)
         
-        # Thêm thành phần điều chỉnh
-        thanh_phan_dieu_chinh = 0.5 * self.regularization * np.sum(trong_so**2)
+        # Ridge: thêm L2 regularization term
+        l2_regularization = 0.5 * self.regularization * np.sum(trong_so**2)
         
-        return mse + thanh_phan_dieu_chinh
+        return mse + l2_regularization
     
     def _kiem_tra_hoi_tu(self, chuan_gradient: float, 
                         thay_doi_chi_phi: float, vong_lap: int) -> Tuple[bool, str]:
@@ -155,12 +155,12 @@ class BoToiUuHoaNewtonCoBan:
             print()
         
         # Pre-compute Hessian (constant cho linear regression)
-        hessian = tinh_ma_tran_hessian_hoi_quy_tuyen_tinh(X, self.regularization)
-        condition_number = tinh_condition_number(hessian)
-        is_positive_definite = kiem_tra_positive_definite(hessian)
+        hessian = compute_hessian_linear_regression(X, self.regularization)
+        condition_number = compute_condition_number(hessian)
+        is_positive_definite = check_positive_definite(hessian)
         
         if self.verbose:
-            in_thong_tin_ma_tran(hessian, "Hessian Matrix")
+            print_matrix_info(hessian, "Hessian Matrix")
             print(f"Is positive definite: {is_positive_definite}")
             print()
         
@@ -172,7 +172,7 @@ class BoToiUuHoaNewtonCoBan:
         for iteration in range(self.max_iterations + 1):
             # Tính cost và gradient
             current_cost = self._compute_cost(X, y, weights, bias)
-            gradient_w, gradient_b = tinh_gradient_hoi_quy_tuyen_tinh(
+            gradient_w, gradient_b = compute_gradient_linear_regression(
                 X, y, weights, bias, self.regularization
             )
             
@@ -214,7 +214,7 @@ class BoToiUuHoaNewtonCoBan:
             # Thay vì tính H^{-1}, ta giải hệ phương trình
             try:
                 # Giải cho weights step
-                weights_step = giai_he_phuong_trinh_tuyen_tinh(hessian, gradient_w)
+                weights_step = solve_linear_system(hessian, gradient_w)
                 
                 # Bias step (không có cross terms với weights trong Hessian)
                 bias_step = gradient_b
@@ -238,8 +238,8 @@ class BoToiUuHoaNewtonCoBan:
         end_time = time.time()
         
         # Tính final metrics
-        final_predictions = du_doan(X, weights, bias)
-        final_mse = tinh_mse(y, final_predictions)
+        final_predictions = predict(X, weights, bias)
+        final_mse = compute_mse(y, final_predictions)
         
         # Prepare results
         results = {
@@ -333,15 +333,15 @@ def analytical_solution(X: np.ndarray, y: np.ndarray,
     regularized_XTX = XTX + regularization * np.eye(n_features)
     
     # Solve: (X^T X + λI) w = X^T y
-    weights = giai_he_phuong_trinh_tuyen_tinh(regularized_XTX, XTy)
+    weights = solve_linear_system(regularized_XTX, XTy)
     
     # Bias computation (assuming we don't regularize bias)
     predictions_no_bias = X @ weights
     bias = np.mean(y - predictions_no_bias)
     
     # Final predictions and metrics
-    predictions = du_doan(X, weights, bias)
-    mse = tinh_mse(y, predictions)
+    predictions = predict(X, weights, bias)
+    mse = compute_mse(y, predictions)
     
     return {
         'weights': weights,

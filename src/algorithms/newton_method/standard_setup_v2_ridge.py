@@ -1,15 +1,24 @@
 #!/usr/bin/env python3
 """
-Newton Method - Standard Setup (Fixed for 02.1_sampled data)
-Regularization: 1e-8 (minimal)
-Max Iterations: 50
+Standard Setup v2 - Ridge Regression
 
-Đặc điểm:
+=== ỨNG DỤNG THỰC TẾ: STANDARD SETUP + RIDGE ===
+
+HÀM LOSS: Ridge Regression
+Công thức: L(w) = (1/2n) * Σ(y_i - ŷ_i)² + λ * ||w||²
+Bao gồm L2 regularization để tránh overfitting
+
+THAM SỐ TỐI ƯU:
+- Regularization: 1e-6 (cho Ridge regression)
+- Max Iterations: 50
+- Tolerance: 1e-10
+
+ĐẶC ĐIỂM:
 - Hội tụ rất nhanh (quadratic convergence)
-- Dùng thông tin bậc 2 (Hessian)
-- Tốt cho bài toán convex
-- Cần ít iterations
-- Sử dụng data từ 02.1_sampled (consistent với workflow hiện tại)
+- Dùng thông tin bậc 2 (ma trận Hessian)
+- Tốt cho bài toán convex và ill-conditioned
+- Tránh overfitting với L2 regularization
+- Sử dụng dữ liệu từ 02.1_sampled
 """
 
 import pandas as pd

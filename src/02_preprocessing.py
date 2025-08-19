@@ -1,27 +1,18 @@
-#!/usr/bin/env python3
-"""
-02. Data Preprocessing with Advanced Feature Engineering
-Optimized version based on EDA results
-Input: data/00_raw/used_cars_data.csv
-Output: data/02_processed/ (cleaned and engineered features)
-"""
-
 import pandas as pd
 import numpy as np
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler, RobustScaler
-from sklearn.impute import SimpleImputer, KNNImputer
-import re
 import json
 import joblib
 import warnings
-from src.utils.data_loader import load_data_chunked
+from utils.data_process_utils import tai_du_lieu_chunked
 warnings.filterwarnings('ignore')
 
 # ==================== CONFIGURATION ====================
 
-# Columns to load (based on EDA results)
+INPUT = Path(r"D:\used_cars_data.csv\used_cars_data.csv")  # Update this path
+OUTPUT = Path("data/02_processed")
 SELECTED_COLUMNS = [
     # Target
     'price',
@@ -60,38 +51,6 @@ COLUMNS_TO_DROP = [
     'wheel_system_display', 'salvage', 'theft_title',
     'isCab', 'trim_name', 'major_options'
 ]
-
-# ==================== HELPER FUNCTIONS ====================
-
-def setup_environment():
-    """Setup output directory"""
-    output_dir = Path("data/02_processed")
-    output_dir.mkdir(parents=True, exist_ok=True)
-    return output_dir
-
-def load_data_for_preprocessing(file_path=None, columns=None, sample_size=None, chunk_size=10000):
-    """Load data with chunked processing for memory efficiency"""
-    print("📂 Loading data for preprocessing with chunking...")
-    
-    # Default file path
-    if file_path is None:
-        file_path = Path("data/00_raw/used_cars_data.csv")
-    
-    # Use selected columns if not specified
-    if columns is None:
-        columns = SELECTED_COLUMNS
-    
-    # Use the shared chunking function from utils
-    df = load_data_chunked(
-        file_path=file_path,
-        chunk_size=chunk_size,
-        max_rows=sample_size,
-        columns=columns
-    )
-    
-    return df
-
-# optimize_dtypes function removed - now using optimize_dataframe_dtypes from utils
 
 # ==================== CLEANING FUNCTIONS ====================
 
@@ -523,32 +482,6 @@ def encode_categorical_features(df, max_categories=50):
     
     return df
 
-def scale_features(df, method='robust', exclude_cols=['price']):
-    """Scale numeric features"""
-    print("\n" + "="*60)
-    print("📏 FEATURE SCALING")
-    print("="*60)
-    
-    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    
-    # Exclude specified columns
-    scale_cols = [col for col in numeric_cols if col not in exclude_cols]
-    
-    if method == 'robust':
-        scaler = RobustScaler()
-    else:
-        scaler = StandardScaler()
-    
-    # Apply scaling
-    df[scale_cols] = scaler.fit_transform(df[scale_cols])
-    
-    print(f"  Scaled {len(scale_cols)} numeric features using {method} scaling")
-    
-    return df, scaler
-
-# ==================== FINAL PREPARATION ====================
-
-
 def prepare_final_dataset(df, target='price', test_size=0.2, random_state=42):
     """Prepare final dataset for modeling"""
     print("\n" + "="*60)
@@ -659,6 +592,42 @@ def prepare_final_dataset(df, target='price', test_size=0.2, random_state=42):
     print(f"  y_test range: {y_test.min():.2f} - {y_test.max():.2f}")
     
     return X_train, X_test, y_train, y_test, columns_to_keep
+
+def scale_features(X_train, X_test, method='standard'):
+    print("\n" + "="*60)
+    print("📏 FEATURE SCALING")
+    print("="*60)
+    
+    if method == 'standard':
+        scaler = StandardScaler()
+    else:
+        scaler = RobustScaler()
+    
+    print(f"  Using {method} scaling method")
+    print(f"  Original train shape: {X_train.shape}")
+    print(f"  Original test shape: {X_test.shape}")
+    
+    # Fit scaler on train data only
+    scaler.fit(X_train)
+    
+    # Transform both train and test
+    X_train_scaled = pd.DataFrame(
+        scaler.transform(X_train),
+        columns=X_train.columns,
+        index=X_train.index
+    )
+    
+    X_test_scaled = pd.DataFrame(
+        scaler.transform(X_test),
+        columns=X_test.columns,
+        index=X_test.index
+    )
+    
+    print(f"  ✅ Scaled {X_train.shape[1]} features")
+    print(f"  ✅ Train mean: {X_train_scaled.mean().mean():.6f}, std: {X_train_scaled.std().mean():.6f}")
+    print(f"  ✅ Test mean: {X_test_scaled.mean().mean():.6f}, std: {X_test_scaled.std().mean():.6f}")
+    
+    return X_train_scaled, X_test_scaled, scaler
 
 def save_processed_data(X_train, X_test, y_train, y_test, feature_names, 
                         scaler, output_dir):
@@ -816,23 +785,11 @@ def main():
     print("🔧 Starting Data Preprocessing")
     print("=" * 60)
     
-    # Setup environment
-    output_dir = setup_environment()
-    # Configuration
-    DATA_PATH = Path("data/00_raw/used_cars_data.csv")  # Update this path
-    SAMPLE_SIZE = None  # Set to number (e.g., 100000) for faster testing
-    
-    # Load data with selected columns
-    print("\n📂 Data Loading Configuration:")
-    print(f"  - Using {len(SELECTED_COLUMNS)} essential columns")
-    print(f"  - Sample size: {'All rows' if SAMPLE_SIZE is None else f'{SAMPLE_SIZE:,} rows'}")
-    
     # Load initial data
     print("\n📂 Loading data...")
-    df_initial = load_data_for_preprocessing(
-        DATA_PATH,
-        columns=SELECTED_COLUMNS,
-        sample_size=SAMPLE_SIZE
+    df_initial = tai_du_lieu_chunked(
+        file_path=INPUT,
+        columns=SELECTED_COLUMNS
     )
     df = df_initial.copy()
     
@@ -863,17 +820,17 @@ def main():
     # Step 7: Encode categorical features
     df = encode_categorical_features(df)
     
-    # Step 8: Scale features
-    df, scaler = scale_features(df)
-    
-    # Step 9: Prepare final dataset
+    # Step 8: Prepare final dataset (split first)
     X_train, X_test, y_train, y_test, feature_names = prepare_final_dataset(df)
     
+    # Step 9: Scale features (on train data only)
+    X_train, X_test, scaler = scale_features(X_train, X_test)
+    
     # Step 10: Save processed data
-    save_processed_data(X_train, X_test, y_train, y_test, feature_names, scaler, output_dir)
+    save_processed_data(X_train, X_test, y_train, y_test, feature_names, scaler, OUTPUT)
     
     # Step 11: Generate summary
-    summary = generate_preprocessing_summary(df_initial, df, output_dir)
+    summary = generate_preprocessing_summary(df_initial, df, OUTPUT)
     
     # Final summary
     print("\n" + "=" * 60)
@@ -883,7 +840,7 @@ def main():
     print(f"📊 Final shape: {summary['final_data']['shape']}")
     print(f"💾 Memory reduced: {summary['improvements']['memory_reduction_pct']:.1f}%")
     print(f"🕳️ Missing values eliminated: {summary['improvements']['missing_values_eliminated']:,}")
-    print(f"📁 Results saved to: {output_dir}")
+    print(f"📁 Results saved to: {OUTPUT}")
     print("▶️  Next step: Run algorithms for optimization")
     
     return summary

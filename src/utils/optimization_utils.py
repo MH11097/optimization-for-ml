@@ -163,21 +163,21 @@ def tinh_condition_number(matrix: np.ndarray) -> float:
 # 3. ĐÁNH GIÁ MÔ HÌNH VÀ DỰ ĐOÁN
 # ==============================================================================
 
-def du_doan(X: np.ndarray, trong_so: np.ndarray, he_so_tu_do: float) -> np.ndarray:
+def du_doan(X: np.ndarray, w: np.ndarray, he_so_tu_do: float) -> np.ndarray:
     """
     Thực hiện dự đoán với mô hình tuyến tính
     
-    Công thức: ŷ = Xw + b
+    Công thức: ŷ = Xw + he_so_tu_do
     
     Tham số:
         X: ma trận đặc trưng (n_samples, n_features)
-        trong_so: trọng số đã học (n_features,)
+        w: trọng số đã học (n_features,)
         he_so_tu_do: hệ số tự do đã học (scalar)
     
     Trả về:
         predictions: dự đoán (n_samples,)
     """
-    return X @ trong_so + he_so_tu_do
+    return X @ w + he_so_tu_do
 
 
 def tinh_mse(y_that: np.ndarray, y_du_doan: np.ndarray) -> float:

@@ -534,5 +534,140 @@ def luu_bieu_do_theo_batch(figures_list: List[plt.Figure],
     print(f"Đã lưu {len(figures_list)} biểu đồ trong {output_dir}")
 
 
+def ve_duong_dong_muc_optimization(loss_function, weights_history, X, y, 
+                                  feature_indices=None, title="Optimization Trajectory",
+                                  save_path=None):
+    """
+    Vẽ đường đồng mức của hàm loss với trajectory của optimization algorithm
+    
+    Tham số:
+        loss_function: hàm tính loss (e.g., tinh_gia_tri_ham_OLS)
+        weights_history: lịch sử weights qua các iterations (list of arrays)
+        X: ma trận đặc trưng
+        y: vector target
+        feature_indices: tuple (i, j) - chỉ số 2 features để vẽ (None = auto select)
+        title: tiêu đề biểu đồ
+        save_path: đường dẫn lưu file (optional)
+    """
+    if len(weights_history) < 2:
+        print("Cần ít nhất 2 điểm để vẽ trajectory")
+        return
+    
+    # Convert weights_history to array
+    weights_array = np.array(weights_history)
+    n_features = weights_array.shape[1]
+    
+    # Auto select 2 most important features (highest variance in trajectory)
+    if feature_indices is None:
+        variances = np.var(weights_array, axis=0)
+        feature_indices = np.argsort(variances)[-2:]  # 2 features with highest variance
+        feature_indices = tuple(sorted(feature_indices))
+    
+    idx1, idx2 = feature_indices
+    
+    # Extract trajectory for 2 selected features
+    w1_path = weights_array[:, idx1]
+    w2_path = weights_array[:, idx2]
+    
+    # Create meshgrid around trajectory
+    w1_min, w1_max = w1_path.min(), w1_path.max()
+    w2_min, w2_max = w2_path.min(), w2_path.max()
+    
+    # Expand range by 20%
+    w1_range = w1_max - w1_min
+    w2_range = w2_max - w2_min
+    w1_min -= 0.2 * w1_range
+    w1_max += 0.2 * w1_range
+    w2_min -= 0.2 * w2_range
+    w2_max += 0.2 * w2_range
+    
+    # Create grid
+    grid_size = 50
+    w1_grid = np.linspace(w1_min, w1_max, grid_size)
+    w2_grid = np.linspace(w2_min, w2_max, grid_size)
+    W1, W2 = np.meshgrid(w1_grid, w2_grid)
+    
+    # Compute loss at each grid point
+    print("Computing loss surface...")
+    loss_surface = np.zeros_like(W1)
+    
+    for i in range(grid_size):
+        for j in range(grid_size):
+            # Create weight vector with grid values
+            w_test = weights_history[-1].copy()  # Use final weights as base
+            w_test[idx1] = W1[i, j]
+            w_test[idx2] = W2[i, j]
+            
+            # Compute loss
+            try:
+                loss_surface[i, j] = loss_function(X, y, w_test)
+            except:
+                loss_surface[i, j] = np.nan
+    
+    # Create plot
+    fig, ax = plt.subplots(figsize=(12, 10))
+    
+    # Plot contour
+    levels = 20
+    contour = ax.contour(W1, W2, loss_surface, levels=levels, colors='gray', alpha=0.6)
+    contourf = ax.contourf(W1, W2, loss_surface, levels=levels, cmap='viridis', alpha=0.3)
+    
+    # Add colorbar
+    cbar = plt.colorbar(contourf, ax=ax)
+    cbar.set_label('Loss Value', rotation=270, labelpad=15)
+    
+    # Plot trajectory
+    ax.plot(w1_path, w2_path, 'r-', linewidth=3, alpha=0.8, label='Optimization Path')
+    
+    # Add arrows to show direction
+    n_arrows = min(10, len(w1_path)-1)  # Max 10 arrows
+    arrow_indices = np.linspace(0, len(w1_path)-2, n_arrows, dtype=int)
+    
+    for i in arrow_indices:
+        dx = w1_path[i+1] - w1_path[i]
+        dy = w2_path[i+1] - w2_path[i]
+        ax.arrow(w1_path[i], w2_path[i], dx, dy, 
+                head_width=0.02*max(w1_range, w2_range),
+                head_length=0.02*max(w1_range, w2_range),
+                fc='red', ec='red', alpha=0.7)
+    
+    # Mark start and end points
+    ax.plot(w1_path[0], w2_path[0], 'go', markersize=12, label='Start Point', markeredgecolor='black')
+    ax.plot(w1_path[-1], w2_path[-1], 'r*', markersize=15, label='Final Point', markeredgecolor='black')
+    
+    # Customize plot
+    ax.set_xlabel(f'Weight[{idx1}]')
+    ax.set_ylabel(f'Weight[{idx2}]')
+    ax.set_title(f'{title}\nTrajectory in Weight Space (Features {idx1} vs {idx2})')
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    
+    # Add iteration annotations
+    n_annotations = min(5, len(w1_path))
+    annotation_indices = np.linspace(0, len(w1_path)-1, n_annotations, dtype=int)
+    
+    for i, idx in enumerate(annotation_indices):
+        ax.annotate(f'Iter {idx*len(weights_history)//len(annotation_indices)}', 
+                   (w1_path[idx], w2_path[idx]),
+                   xytext=(5, 5), textcoords='offset points',
+                   fontsize=8, alpha=0.7)
+    
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    
+    plt.show()
+    
+    # Print summary
+    loss_start = loss_function(X, y, weights_history[0])
+    loss_end = loss_function(X, y, weights_history[-1])
+    print(f"\n📊 Optimization Summary:")
+    print(f"   Features visualized: {idx1}, {idx2}")
+    print(f"   Starting loss: {loss_start:.6f}")
+    print(f"   Final loss: {loss_end:.6f}")
+    print(f"   Improvement: {loss_start - loss_end:.6f} ({(loss_start-loss_end)/loss_start*100:.2f}%)")
+
+
 # Thiết lập style mặc định khi import module
 thiet_lap_style_bieu_do()

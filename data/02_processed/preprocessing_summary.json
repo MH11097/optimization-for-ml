@@ -4,16 +4,16 @@
       3000040,
       34
     ],
-    "memory_mb": 228.66,
+    "memory_mb": 3770.43,
     "missing_values": 10424476
   },
   "final_data": {
     "shape": [
       2788084,
-      61
+      76
     ],
-    "memory_mb": 1116.66,
-    "missing_values": 33701769
+    "memory_mb": 1251.78,
+    "missing_values": 27880840
   },
   "preprocessing_steps": [
     "Memory optimization",
@@ -24,7 +24,7 @@
     "Train/test split"
   ],
   "improvements": {
-    "memory_reduction_pct": -388.3,
-    "missing_values_eliminated": -23277293
+    "memory_reduction_pct": 66.8,
+    "missing_values_eliminated": -17456364
   }
 }

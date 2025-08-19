@@ -24,44 +24,10 @@ import warnings
 # 1. ĐỌC VÀ TẢI DỮ LIỆU
 # ==============================================================================
 
-def doc_csv_an_toan(file_path: str, **kwargs) -> pd.DataFrame:
-    """
-    Đọc file CSV một cách an toàn với error handling
-    
-    Tự động xử lý các vấn đề thường gặp:
-    - Encoding issues
-    - Memory optimization
-    - Column name cleaning
-    
-    Tham số:
-        file_path: đường dẫn đến file CSV
-        **kwargs: các tham số khác cho pd.read_csv()
-    
-    Trả về:
-        DataFrame: dữ liệu đã được đọc và làm sạch
-    """
-    try:
-        # Thử đọc với UTF-8 trước
-        df = pd.read_csv(file_path, encoding='utf-8', **kwargs)
-    except UnicodeDecodeError:
-        try:
-            # Thử với latin-1 nếu UTF-8 thất bại
-            df = pd.read_csv(file_path, encoding='latin-1', **kwargs)
-        except Exception:
-            # Cuối cùng thử với cp1252
-            df = pd.read_csv(file_path, encoding='cp1252', **kwargs)
-    
-    # Làm sạch tên cột
-    df = lam_sach_ten_cot(df)
-    
-    # Tối ưu hóa memory
-    df = toi_uu_memory_dataframe(df)
-    
-    return df
-
-
-def tai_du_lieu_chunked(file_path: str, chunk_size: int = 10000, 
-                       max_rows: Optional[int] = None) -> pd.DataFrame:
+def tai_du_lieu_chunked(file_path: str, 
+                        chunk_size: int = 10000, 
+                        max_rows: Optional[int] = None,
+                        columns: Optional[List[str]] = None) -> pd.DataFrame:
     """
     Tải dữ liệu lớn theo chunks để tiết kiệm memory
     
@@ -71,6 +37,7 @@ def tai_du_lieu_chunked(file_path: str, chunk_size: int = 10000,
         file_path: đường dẫn đến file
         chunk_size: số rows mỗi chunk
         max_rows: giới hạn tổng số rows (None = không giới hạn)
+        columns: danh sách columns cần load (None = load tất cả)
     
     Trả về:
         DataFrame: dữ liệu đã được gộp từ các chunks
@@ -79,18 +46,19 @@ def tai_du_lieu_chunked(file_path: str, chunk_size: int = 10000,
     total_rows = 0
     
     try:
-        for chunk in pd.read_csv(file_path, chunksize=chunk_size):
+        for chunk in pd.read_csv(file_path, chunksize=chunk_size, usecols=columns):
             # Làm sạch chunk
             chunk = lam_sach_ten_cot(chunk)
             chunk = toi_uu_memory_dataframe(chunk)
             
             chunks.append(chunk)
             total_rows += len(chunk)
-            
+            if total_rows % 100000 == 0:
+                print(f"Loaded {total_rows} rows")
             # Kiểm tra giới hạn rows
             if max_rows and total_rows >= max_rows:
                 break
-    
+
     except Exception as e:
         print(f"Lỗi khi đọc chunks: {e}")
         if chunks:

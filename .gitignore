@@ -95,3 +95,7 @@ Thumbs.db
 *.tmp
 *.temp
 .cache/
+
+
+# Dev files
+toan_test*

@@ -1,11 +1,15 @@
-from ._01_subgradient_constant_step_size import SubgradientConstantStepSize
-import matplotlib.pyplot as plt
+from .base_subgradient import BaseSubgradient
 import numpy as np
 
 
-class SubgradientConstantStepLength(SubgradientConstantStepSize):
+class SubgradientConstantStepLength(BaseSubgradient):
 
-    def get_step_size(self, current_subgradient_vector):
+    def get_step_size(
+        self,
+        current_subgradient_vector,
+        *args,
+        **kwargs,
+    ):
         subgrad_norm = np.linalg.norm(x=current_subgradient_vector)
         FIXED_STEP_LENGTH = 0.05
         return FIXED_STEP_LENGTH / subgrad_norm

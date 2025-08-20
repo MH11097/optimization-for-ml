@@ -2,9 +2,9 @@
 """
 - Ham loss: OLS = (1/2n) * ||y - Xw||²
 - Gradient = X^T(Xw - y) / n
-- Learning Rate: 0.01
-- Max Iterations: 50
-- Tolerance: 1e-10
+- Learning Rate: 0.1
+- Max Iterations (số lần lặp tối đa): 500
+- Tolerance (điểm dừng): 1e-5
 """
 
 import pandas as pd
@@ -35,16 +35,17 @@ def load_du_lieu():
     print(f"Loaded: Train {X_train.shape}, Test {X_test.shape}")
     return X_train, X_test, y_train, y_test
 
-def gradient_descent(X, y, learning_rate=0.01, max_lan_thu=10000, diem_dung=1e-6):
+def gradient_descent(X, y, learning_rate=0.1, max_lan_thu=500, diem_dung=1e-5):
 
-    print("Training Standard Gradient Descent...")
+
+    print("Training Fast OLS Gradient Descent")
     print(f"   Learning rate: {learning_rate}")
     print(f"   Max iterations: {max_lan_thu}")
     print(f"   Tolerance: {diem_dung}")
     
     # Initialize weights
     n_features = X.shape[1]
-    weights = np.random.normal(0, 0.01, n_features) # chon mot diem bat ki de bat dau
+    weights = np.random.normal(0, 0.01, n_features)
     
     OLS_history = []
     gradient_norms = []
@@ -53,9 +54,9 @@ def gradient_descent(X, y, learning_rate=0.01, max_lan_thu=10000, diem_dung=1e-6
     start_time = time.time()
     
     for lan_thu in range(max_lan_thu):
-        # Compute cost, OLS value, and gradient
+        # Compute OLS loss and gradient
         ols_value = tinh_gia_tri_ham_OLS(X, y, weights)
-        gradient_w = tinh_gradient_OLS(X, y, weights)  # Sử dụng hàm từ utils
+        gradient_w = tinh_gradient_OLS(X, y, weights)
         
         # Update weights
         weights = weights - learning_rate * gradient_w
@@ -66,13 +67,13 @@ def gradient_descent(X, y, learning_rate=0.01, max_lan_thu=10000, diem_dung=1e-6
         gradient_norms.append(gradient_norm)
         weights_history.append(weights.copy())
         
-        # Check convergence based on OLS value change
+        # Check convergence (check điều kiện điểm dừng)
         if lan_thu > 0 and abs(OLS_history[-1] - OLS_history[-2]) < diem_dung:
-            print(f"Converged after {lan_thu + 1} lan_thu (OLS change: {abs(OLS_history[-1] - OLS_history[-2]):.2e})")
+            print(f"Converged after {lan_thu + 1} iterations")
             break
         
-        # Progress update with monitoring
-        if (lan_thu + 1) % 100 == 0:
+        # Progress update
+        if (lan_thu + 1) % 50 == 0:
             print(f"Iteration {lan_thu + 1}: OLS = {ols_value:.6f}, Gradient norm = {gradient_norm:.6f}")
     
     training_time = time.time() - start_time
@@ -88,11 +89,11 @@ def gradient_descent(X, y, learning_rate=0.01, max_lan_thu=10000, diem_dung=1e-6
 
 
 def main():
-    """Chạy Gradient Descent với Standard Setup"""
-    print("GRADIENT DESCENT - STANDARD SETUP")
+    """Chạy Fast OLS Gradient Descent"""
+    print("GRADIENT DESCENT - FAST OLS SETUP")
     
     # Setup results directory
-    results_dir = Path("data/03_algorithms/gradient_descent/standard_setup")
+    results_dir = Path("data/03_algorithms/gradient_descent/fast_ols_gd")
     results_dir.mkdir(parents=True, exist_ok=True)
     
     # Load data
@@ -102,18 +103,19 @@ def main():
     weights, OLS_history, gradient_norms, weights_history, training_time = gradient_descent(X_train, y_train)
     
     # Đánh giá model
-    print(f"\nĐánh giá model trên test set...")
+    print(f"\nĐánh giá model trên test set")
     metrics = danh_gia_mo_hinh(weights, X_test, y_test)
-    in_ket_qua_danh_gia(metrics, training_time, "Gradient Descent - Standard Setup")
+    in_ket_qua_danh_gia(metrics, training_time, "Fast OLS Gradient Descent")
     
     # Save results.json
-    print("   Lưu kết quả vào results.json...")
+    print("   Lưu kết quả vào results.json")
     results_data = {
-        "algorithm": "Gradient Descent - Standard Setup",
+        "algorithm": "Fast OLS Gradient Descent",
+        "loss_function": "OLS (Ordinary Least Squares)",
         "parameters": {
-            "learning_rate": 0.01,
-            "max_iterations": 10000,
-            "tolerance": 1e-6
+            "learning_rate": 0.1,
+            "max_iterations": 500,
+            "tolerance": 1e-5
         },
         "metrics": metrics,
         "training_time": training_time,
@@ -128,7 +130,7 @@ def main():
         json.dump(results_data, f, indent=2)
     
     # Save training history
-    print("   Lưu lịch sử training vào training_history.csv...")
+    print("   Lưu lịch sử training vào training_history.csv")
     training_df = pd.DataFrame({
         'iteration': range(len(OLS_history)),
         'loss': OLS_history,
@@ -136,31 +138,30 @@ def main():
     })
     training_df.to_csv(results_dir / "training_history.csv", index=False)
     
-    print(f"\nTạo các biểu đồ visualization...")
-    
+    print(f"\n Tạo các biểu đồ visualization")
     # 1. Convergence curves
-    print("   Vẽ đường hội tụ...")
+    print("   Vẽ đường hội tụ")
     ve_duong_hoi_tu(OLS_history, gradient_norms, 
-                    title="Gradient Descent - Convergence Analysis",
+                    title="Fast OLS GD - Convergence Analysis",
                     save_path=str(results_dir / "convergence_analysis.png"))
     
     # 2. Predictions vs Actual
-    print("   Vẽ so sánh dự đoán với thực tế...")
-    y_pred_test = du_doan(X_test, weights, 0)  # Dự đoán trên test set
+    print("   Vẽ so sánh dự đoán với thực tế")
+    y_pred_test = du_doan(X_test, weights, 0)
     ve_du_doan_vs_thuc_te(y_test, y_pred_test, 
-                         title="Gradient Descent - Predictions vs Actual",
+                         title="Fast OLS GD - Predictions vs Actual",
                          save_path=str(results_dir / "predictions_vs_actual.png"))
     
-    # 3. Contour plot with trajectory (sample every 10th point for performance)
-    print("   Vẽ đường đẳng mực optimization...")
-    sample_frequency = max(1, len(weights_history) // 100)  # Max 100 points
+    # 3. Optimization trajectory
+    print("   Vẽ đường đẳng mực optimization")
+    sample_frequency = max(1, len(weights_history) // 100)
     sampled_weights = weights_history[::sample_frequency]
     
     ve_duong_dong_muc_optimization(
         loss_function=tinh_gia_tri_ham_OLS,
         weights_history=sampled_weights,
         X=X_train, y=y_train,
-        title="Gradient Descent - Optimization Path",
+        title="Fast OLS GD - Optimization Path",
         save_path=str(results_dir / "optimization_trajectory.png")
     )
     

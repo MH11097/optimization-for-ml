@@ -21,7 +21,7 @@ from utils.optimization_utils import (
 )
 
 
-class BoToiUuHoaSubgradient:
+class SubgradientConstantStepSize:
     """
     Bộ tối ưu hóa Subgradient cho Hồi quy tuyến tính
     """
@@ -66,7 +66,7 @@ class BoToiUuHoaSubgradient:
 
         return mse + regularization_term
 
-    def get_step_size(self):
+    def get_step_size(self, current_subgradient_vector, current_iteration: int):
         FIXED_STEP_SIZE = 0.05
         return FIXED_STEP_SIZE
 
@@ -88,7 +88,7 @@ class BoToiUuHoaSubgradient:
         losses = []
 
         # Main optimization loop
-        for _ in range(self.max_iterations + 1):
+        for iteration in range(1, self.max_iterations + 1):
             # Gradient of squared loss
             grad = (1 / n_samples) * X.T @ (X @ weights - y)
 
@@ -100,7 +100,9 @@ class BoToiUuHoaSubgradient:
             full_subgrad = grad + self.lambda_penalty * subgrad
 
             # Step size
-            step_size = self.get_step_size()
+            step_size = self.get_step_size(
+                current_subgradient_vector=full_subgrad, current_iteration=iteration
+            )
 
             # Update weights
             weights = weights - step_size * full_subgrad
@@ -129,7 +131,7 @@ if __name__ == "__main__":
     noise = 0.1 * np.random.randn(n_samples)
     y = X @ true_weights + true_bias + noise
 
-    results = BoToiUuHoaSubgradient().optimize(X=X, y=y)
+    results = SubgradientConstantStepSize().optimize(X=X, y=y)
 
     # Plot losses over iterations
     losses = results["losses"]

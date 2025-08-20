@@ -180,7 +180,7 @@ def ve_du_doan_vs_thuc_te(y_true: np.ndarray, y_pred: np.ndarray,
     ax1.grid(True, alpha=0.3)
     
     # Calculate metrics
-    from .toi_uu_hoa_utils import tinh_mse, tinh_mae, tinh_r2_score
+    from .optimization_utils import tinh_mse, tinh_mae, tinh_r2_score
     mse = tinh_mse(y_true, y_pred)
     mae = tinh_mae(y_true, y_pred)
     r2 = tinh_r2_score(y_true, y_pred)

@@ -1,42 +1,29 @@
 #!/usr/bin/env python3
 """
-Gradient Descent - Standard Setup
-
-=== ỨNG DỤNG THỰC TẾ: GRADIENT DESCENT CỔ ĐIỂN ===
-
-THAM SỐ TỐI ƯU:
-- Learning Rate: 0.01 (vừa phải, ổn định)
-- Max Iterations: 1000 (đủ để hội tụ)
-- Tolerance: 1e-6 (chính xác cao)
-
-ĐẶC ĐIỂM:
-- Hội tụ ổn định và có thể dự đoán
-- Phù hợp cho người mới bắt đầu
-- Setup cơ bản, đáng tin cậy
-- Sử dụng dữ liệu từ 02.1_sampled
-
-
 - Ham loss: OLS = (1/2n) * ||y - Xw||²
-- ∇L(w): Gradient = X^T(Xw - y) / n
-- Regularization: 1e-12
+- Gradient = X^T(Xw - y) / n
+- Learning Rate: 0.01
 - Max Iterations: 50
 - Tolerance: 1e-10
 """
 
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 from pathlib import Path
-import json
 import time
 import sys
 import os
+import json
 
 # Add the src directory to path để import utils
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from utils.optimization_utils import tinh_mse,  du_doan
-from utils.visualization_utils import ve_duong_hoi_tu, ve_duong_dong_muc_optimization
+from utils.optimization_utils import (
+    tinh_mse, du_doan, 
+    tinh_gia_tri_ham_OLS, tinh_gradient_OLS,
+    danh_gia_mo_hinh, in_ket_qua_danh_gia
+)
+from utils.visualization_utils import ve_duong_hoi_tu, ve_duong_dong_muc_optimization, ve_du_doan_vs_thuc_te
 
 def load_du_lieu():
     data_dir = Path("data/02.1_sampled")
@@ -48,50 +35,9 @@ def load_du_lieu():
     print(f"Loaded: Train {X_train.shape}, Test {X_test.shape}")
     return X_train, X_test, y_train, y_test
 
-def tinh_gia_tri_ham_OLS(X, y, w):
-    """
-    Tính giá trị hàm OLS tại điểm w
-    
-    Hàm OLS: L(w) = (1/2n) * ||Xw - y||²
-    
-    Tham số:
-        X: ma trận đặc trưng (n_samples, n_features)
-        y: vector target (n_samples,)
-        w: vector weights (n_features,)
-    
-    Trả về:
-        float: giá trị hàm OLS tại w
-    """
-    n_samples = X.shape[0]
-    
-    # Dự đoán: ŷ = Xw (không có bias)
-    predictions = X @ w
-    
-    # Residuals: e = ŷ - y
-    residuals = predictions - y
-    
-    # OLS loss: L(w) = (1/2n) * ||e||²
-    ols_value = (1 / (2 * n_samples)) * np.sum(residuals ** 2)
-    
-    return ols_value
-
-def tinh_gradient(X, y, w, he_so_tu_do=0):
-    """Tính gradient của MSE cost function cho weights và bias"""
-    n_samples = X.shape[0]
-    du_doan_values = du_doan(X, w, he_so_tu_do)
-    errors = du_doan_values - y
-    
-    # Gradient cho weights
-    gradient_w = (1 / n_samples) * X.T.dot(errors)
-    
-    # Gradient cho bias
-    gradient_b = (2 / n_samples) * np.sum(errors)
-    
-    return gradient_w, gradient_b
-
 def gradient_descent(X, y, learning_rate=0.01, max_lan_thu=10000, diem_dung=1e-6):
 
-    print("🚀 Training Standard Gradient Descent...")
+    print("Training Standard Gradient Descent...")
     print(f"   Learning rate: {learning_rate}")
     print(f"   Max iterations: {max_lan_thu}")
     print(f"   Tolerance: {diem_dung}")
@@ -109,7 +55,7 @@ def gradient_descent(X, y, learning_rate=0.01, max_lan_thu=10000, diem_dung=1e-6
     for lan_thu in range(max_lan_thu):
         # Compute cost, OLS value, and gradient
         ols_value = tinh_gia_tri_ham_OLS(X, y, weights)
-        gradient_w, _ = tinh_gradient(X, y, weights)  # Only use weight gradient
+        gradient_w = tinh_gradient_OLS(X, y, weights)  # Sử dụng hàm từ utils
         
         # Update weights
         weights = weights - learning_rate * gradient_w
@@ -134,9 +80,9 @@ def gradient_descent(X, y, learning_rate=0.01, max_lan_thu=10000, diem_dung=1e-6
     if lan_thu == max_lan_thu - 1:
         print(f"Reached maximum iterations ({max_lan_thu})")
     
-    print(f"⏱️ Training time: {training_time:.2f} seconds")
-    print(f"📉 Final OLS: {OLS_history[-1]:.6f}")
-    print(f"📏 Final gradient norm: {gradient_norm:.6f}")
+    print(f"Training time: {training_time:.2f} seconds")
+    print(f"Final OLS: {OLS_history[-1]:.6f}")
+    print(f"Final gradient norm: {gradient_norm:.6f}")
     
     return weights, OLS_history, gradient_norms, weights_history, training_time
 
@@ -145,7 +91,9 @@ def main():
     """Chạy Gradient Descent với Standard Setup"""
     print("GRADIENT DESCENT - STANDARD SETUP")
     
-    # Setup
+    # Setup results directory
+    results_dir = Path("data/03_algorithms/gradient_descent/standard_setup")
+    results_dir.mkdir(parents=True, exist_ok=True)
     
     # Load data
     X_train, X_test, y_train, y_test = load_du_lieu()
@@ -153,16 +101,58 @@ def main():
     # Train model
     weights, OLS_history, gradient_norms, weights_history, training_time = gradient_descent(X_train, y_train)
     
-    # Evaluate
-    # metrics = evaluate_model(weights, X_test, y_test)
+    # Đánh giá model
+    print(f"\nĐánh giá model trên test set...")
+    metrics = danh_gia_mo_hinh(weights, X_test, y_test)
+    in_ket_qua_danh_gia(metrics, training_time, "Gradient Descent - Standard Setup")
     
-    print(f"\n🎨 Creating visualizations...")
+    # Save results.json
+    print("   Lưu kết quả vào results.json...")
+    results_data = {
+        "algorithm": "Gradient Descent - Standard Setup",
+        "parameters": {
+            "learning_rate": 0.01,
+            "max_iterations": 10000,
+            "tolerance": 1e-6
+        },
+        "metrics": metrics,
+        "training_time": training_time,
+        "convergence": {
+            "iterations": len(OLS_history),
+            "final_loss": float(OLS_history[-1]),
+            "final_gradient_norm": float(gradient_norms[-1])
+        }
+    }
+    
+    with open(results_dir / "results.json", 'w') as f:
+        json.dump(results_data, f, indent=2)
+    
+    # Save training history
+    print("   Lưu lịch sử training vào training_history.csv...")
+    training_df = pd.DataFrame({
+        'iteration': range(len(OLS_history)),
+        'loss': OLS_history,
+        'gradient_norm': gradient_norms
+    })
+    training_df.to_csv(results_dir / "training_history.csv", index=False)
+    
+    print(f"\nTạo các biểu đồ visualization...")
     
     # 1. Convergence curves
+    print("   Vẽ đường hội tụ...")
     ve_duong_hoi_tu(OLS_history, gradient_norms, 
-                    title="Gradient Descent Convergence Analysis")
+                    title="Gradient Descent - Convergence Analysis",
+                    save_path=str(results_dir / "convergence_analysis.png"))
     
-    # 2. Contour plot with trajectory (sample every 10th point for performance)
+    # 2. Predictions vs Actual
+    print("   Vẽ so sánh dự đoán với thực tế...")
+    y_pred_test = du_doan(X_test, weights, 0)  # Dự đoán trên test set
+    ve_du_doan_vs_thuc_te(y_test, y_pred_test, 
+                         title="Gradient Descent - Predictions vs Actual",
+                         save_path=str(results_dir / "predictions_vs_actual.png"))
+    
+    # 3. Contour plot with trajectory (sample every 10th point for performance)
+    print("   Vẽ đường đẳng mực optimization...")
     sample_frequency = max(1, len(weights_history) // 100)  # Max 100 points
     sampled_weights = weights_history[::sample_frequency]
     
@@ -170,10 +160,12 @@ def main():
         loss_function=tinh_gia_tri_ham_OLS,
         weights_history=sampled_weights,
         X=X_train, y=y_train,
-        title="Gradient Descent Optimization Path"
+        title="Gradient Descent - Optimization Path",
+        save_path=str(results_dir / "optimization_trajectory.png")
     )
     
-    print(f"\n✅ Training and visualization completed!")
+    print(f"\nTraining and visualization completed!")
+    print(f"Results saved to: {results_dir.absolute()}")
 
 if __name__ == "__main__":
     main()

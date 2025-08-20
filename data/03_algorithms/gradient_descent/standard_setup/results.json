@@ -1,0 +1,23 @@
+{
+  "algorithm": "Gradient Descent - Standard Setup",
+  "parameters": {
+    "learning_rate": 0.01,
+    "max_iterations": 10000,
+    "tolerance": 1e-06
+  },
+  "metrics": {
+    "mse": 102.43176088525034,
+    "rmse": 10.120857714899975,
+    "mae": 10.118249389811805,
+    "r2": -294.35089580757733,
+    "mape": 100.4009396212826,
+    "max_error": 12.297188692381773,
+    "explained_variance": 0.8477852561766877
+  },
+  "training_time": 7.4040751457214355,
+  "convergence": {
+    "iterations": 1131,
+    "final_loss": 51.179210783083946,
+    "final_gradient_norm": 0.009986180198516399
+  }
+}

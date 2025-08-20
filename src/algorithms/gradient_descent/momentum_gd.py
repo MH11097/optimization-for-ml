@@ -21,7 +21,7 @@ import json
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from utils.optimization_utils import (
-    tinh_mse, du_doan, 
+    du_doan, 
     tinh_gia_tri_ham_OLS, tinh_gradient_OLS,
     danh_gia_mo_hinh, in_ket_qua_danh_gia
 )

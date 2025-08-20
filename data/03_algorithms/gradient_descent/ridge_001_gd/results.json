@@ -1,0 +1,30 @@
+{
+  "algorithm": "Ridge Gradient Descent",
+  "loss_function": "Ridge (MSE + L2 regularization)",
+  "parameters": {
+    "learning_rate": 0.01,
+    "regularization_lambda": 0.01,
+    "max_iterations": 1000,
+    "tolerance": 1e-06
+  },
+  "metrics": {
+    "mse": 102.43067932155039,
+    "rmse": 10.120804282345864,
+    "mae": 10.118241771144055,
+    "r2": -294.34777723571153,
+    "mape": 100.39952994302585,
+    "max_error": 12.233201513525406,
+    "explained_variance": 0.8504592808213264
+  },
+  "training_time": 3.7342116832733154,
+  "convergence": {
+    "iterations": 1000,
+    "final_loss": 51.1803829343637,
+    "final_gradient_norm": 0.010301670147753421
+  },
+  "regularization_analysis": {
+    "weights_l2_norm": 0.40288992526590794,
+    "regularization_strength": "Light (0.01)",
+    "overfitting_prevention": "Moderate"
+  }
+}

@@ -66,6 +66,10 @@ class BoToiUuHoaSubgradient:
 
         return mse + regularization_term
 
+    def get_step_size(self):
+        FIXED_STEP_SIZE = 0.05
+        return FIXED_STEP_SIZE
+
     def optimize(
         self,
         X: np.ndarray,
@@ -81,9 +85,6 @@ class BoToiUuHoaSubgradient:
             weights = initial_weights.copy()
         bias = initial_bias
 
-        FIXED_STEP_SIZE = 0.05
-        step_size = FIXED_STEP_SIZE
-
         losses = []
 
         # Main optimization loop
@@ -97,6 +98,9 @@ class BoToiUuHoaSubgradient:
 
             # Full subgradient
             full_subgrad = grad + self.lambda_penalty * subgrad
+
+            # Step size
+            step_size = self.get_step_size()
 
             # Update weights
             weights = weights - step_size * full_subgrad

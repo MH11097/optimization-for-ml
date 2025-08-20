@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-- Ham loss: OLS = (1/2n) * ||y - Xw||²
-- Update: BFGS formula
-- Line search: Armijo condition
-- Max Iterations: 100
-- Tolerance: 1e-6
+- Ham loss: Ridge = (1/2n) * ||y - Xw||² + λ||w||²
+- Gradient = X^T(Xw - y) / n + λw
+- Hessian = X^T*X / n + λI
+- Regularization: 1e-6
+- Max Iterations: 50
+- Tolerance: 1e-10
 """
 
 import pandas as pd
@@ -20,7 +21,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from utils.optimization_utils import (
     tinh_mse, du_doan, 
-    tinh_gia_tri_ham_OLS, tinh_gradient_OLS,
+    tinh_loss_ridge, tinh_gradient_ridge, tinh_hessian_ridge,
+    giai_he_phuong_trinh_tuyen_tinh,
     danh_gia_mo_hinh, in_ket_qua_danh_gia
 )
 from utils.visualization_utils import ve_duong_hoi_tu, ve_duong_dong_muc_optimization, ve_du_doan_vs_thuc_te
@@ -35,51 +37,37 @@ def load_du_lieu():
     print(f"Loaded: Train {X_train.shape}, Test {X_test.shape}")
     return X_train, X_test, y_train, y_test
 
-def armijo_line_search(X, y, weights, p, gradient, c1=1e-4, max_backtracks=20):
-    """Simple Armijo line search"""
-    alpha = 1.0
-    f0 = tinh_gia_tri_ham_OLS(X, y, weights)
-    slope = c1 * np.dot(gradient, p)
-    
-    for _ in range(max_backtracks):
-        weights_new = weights + alpha * p
-        f_new = tinh_gia_tri_ham_OLS(X, y, weights_new)
-        
-        if f_new <= f0 + alpha * slope:
-            return alpha
-        alpha *= 0.5
-    
-    return alpha
-
-def bfgs_method(X, y, max_lan_thu=100, diem_dung=1e-6):
-
-
-    print("Training BFGS Quasi-Newton Method...")
+def newton_method(X, y, regularization=1e-6, max_lan_thu=50, diem_dung=1e-10):
+    print("Training Pure Newton Method v2 for Ridge...")
+    print(f"   Regularization: {regularization}")
     print(f"   Max iterations: {max_lan_thu}")
     print(f"   Tolerance: {diem_dung}")
     
+    # Initialize weights
     n_features = X.shape[1]
     weights = np.random.normal(0, 0.01, n_features)
-    
-    # Initialize inverse Hessian approximation as identity
-    B_inv = np.eye(n_features)
     
     loss_history = []
     gradient_norms = []
     weights_history = []
     step_sizes = []
-    curvature_info = []
     
     start_time = time.time()
     
+    # Precompute Hessian (constant for Ridge)
+    H = tinh_hessian_ridge(X, regularization)
+    condition_number = np.linalg.cond(H)
+    
+    print(f"   Hessian condition number: {condition_number:.2e}")
+    
     for lan_thu in range(max_lan_thu):
         # Compute loss and gradient
-        loss_value = tinh_gia_tri_ham_OLS(X, y, weights)
-        gradient = tinh_gradient_OLS(X, y, weights)
+        loss_value = tinh_loss_ridge(X, y, weights, regularization)
+        gradient_w = tinh_gradient_ridge(X, y, weights, regularization)
         
         # Store history
         loss_history.append(loss_value)
-        gradient_norm = np.linalg.norm(gradient)
+        gradient_norm = np.linalg.norm(gradient_w)
         gradient_norms.append(gradient_norm)
         weights_history.append(weights.copy())
         
@@ -88,39 +76,21 @@ def bfgs_method(X, y, max_lan_thu=100, diem_dung=1e-6):
             print(f"Converged after {lan_thu + 1} iterations (gradient norm: {gradient_norm:.2e})")
             break
         
-        # BFGS search direction
-        p = -B_inv @ gradient
-        
-        # Line search
-        alpha = armijo_line_search(X, y, weights, p, gradient)
-        step_sizes.append(alpha)
-        
-        # Update weights
-        s = alpha * p
-        weights_new = weights + s
-        
-        # Compute new gradient for BFGS update
-        gradient_new = tinh_gradient_OLS(X, y, weights_new)
-        y_k = gradient_new - gradient
-        
-        # BFGS update of inverse Hessian approximation
-        rho = np.dot(y_k, s)
-        curvature_info.append(rho)
-        
-        if rho > 1e-12:  # Curvature condition
-            # Sherman-Morrison formula for BFGS update
-            rho_inv = 1.0 / rho
-            A1 = np.eye(n_features) - rho_inv * np.outer(s, y_k)
-            A2 = np.eye(n_features) - rho_inv * np.outer(y_k, s)
-            B_inv = A1 @ B_inv @ A2 + rho_inv * np.outer(s, s)
-        else:
-            print(f"   Warning: Curvature condition violated at iteration {lan_thu + 1}")
-        
-        weights = weights_new
+        # Newton step
+        try:
+            delta_w = giai_he_phuong_trinh_tuyen_tinh(H, gradient_w)
+            step_size = np.linalg.norm(delta_w)
+            step_sizes.append(step_size)
+            
+            weights = weights - delta_w
+            
+        except np.linalg.LinAlgError:
+            print(f"Linear algebra error at iteration {lan_thu + 1}")
+            break
         
         # Progress update
         if (lan_thu + 1) % 10 == 0:
-            print(f"Iteration {lan_thu + 1}: Loss = {loss_value:.8f}, Gradient norm = {gradient_norm:.2e}, Step size = {alpha:.4f}")
+            print(f"Iteration {lan_thu + 1}: Loss = {loss_value:.8f}, Gradient norm = {gradient_norm:.2e}")
     
     training_time = time.time() - start_time
     
@@ -130,41 +100,38 @@ def bfgs_method(X, y, max_lan_thu=100, diem_dung=1e-6):
     print(f"Training time: {training_time:.4f} seconds")
     print(f"Final loss: {loss_history[-1]:.8f}")
     print(f"Final gradient norm: {gradient_norms[-1]:.2e}")
-    print(f"Average step size: {np.mean(step_sizes):.4f}")
-    print(f"Curvature violations: {sum(1 for c in curvature_info if c <= 1e-12)}")
     
-    return weights, loss_history, gradient_norms, weights_history, training_time, step_sizes, curvature_info
+    return weights, loss_history, gradient_norms, weights_history, training_time, step_sizes, condition_number
 
 
 def main():
-    """Chạy BFGS Standard"""
-    print("BFGS QUASI-NEWTON - STANDARD SETUP")
+    """Chạy Pure Newton Method v2 cho Ridge"""
+    print("PURE NEWTON METHOD V2 - RIDGE SETUP")
     
     # Setup results directory
-    results_dir = Path("data/03_algorithms/quasi_newton/bfgs_standard")
+    results_dir = Path("data/03_algorithms/newton_method/pure_newton_v2_ridge")
     results_dir.mkdir(parents=True, exist_ok=True)
     
     # Load data
     X_train, X_test, y_train, y_test = load_du_lieu()
     
     # Train model
-    weights, loss_history, gradient_norms, weights_history, training_time, step_sizes, curvature_info = bfgs_method(X_train, y_train)
+    weights, loss_history, gradient_norms, weights_history, training_time, step_sizes, condition_number = newton_method(X_train, y_train)
     
     # Đánh giá model
     print(f"\nĐánh giá model trên test set...")
     metrics = danh_gia_mo_hinh(weights, X_test, y_test)
-    in_ket_qua_danh_gia(metrics, training_time, "BFGS Quasi-Newton - Standard")
+    in_ket_qua_danh_gia(metrics, training_time, "Pure Newton Method v2 - Ridge")
     
     # Save results.json
     print("   Lưu kết quả vào results.json...")
     results_data = {
-        "algorithm": "BFGS Quasi-Newton - Standard",
-        "loss_function": "OLS (Ordinary Least Squares)",
+        "algorithm": "Pure Newton Method v2 - Ridge",
+        "loss_function": "Ridge Regression (L2 Regularization)",
         "parameters": {
-            "max_iterations": 100,
-            "tolerance": 1e-6,
-            "line_search": "Armijo condition",
-            "c1": 1e-4
+            "regularization": 1e-6,
+            "max_iterations": 50,
+            "tolerance": 1e-10
         },
         "metrics": metrics,
         "training_time": training_time,
@@ -173,12 +140,11 @@ def main():
             "final_loss": float(loss_history[-1]),
             "final_gradient_norm": float(gradient_norms[-1])
         },
-        "bfgs_analysis": {
-            "average_step_size": float(np.mean(step_sizes)),
-            "curvature_violations": sum(1 for c in curvature_info if c <= 1e-12),
-            "super_linear_convergence": len(loss_history) <= 30,
-            "hessian_approximation": "Updated via BFGS formula",
-            "memory_usage": "O(n²) for inverse Hessian approximation"
+        "numerical_analysis": {
+            "hessian_condition_number": float(condition_number),
+            "average_step_size": float(np.mean(step_sizes)) if step_sizes else 0,
+            "quadratic_convergence": len(loss_history) <= 20,
+            "regularization_effect": "L2 regularization improves condition number"
         }
     }
     
@@ -192,8 +158,7 @@ def main():
         'iteration': range(max_len),
         'loss': loss_history,
         'gradient_norm': gradient_norms,
-        'step_size': step_sizes + [np.nan] * (max_len - len(step_sizes)),
-        'curvature_info': curvature_info + [np.nan] * (max_len - len(curvature_info))
+        'step_size': step_sizes + [np.nan] * (max_len - len(step_sizes))
     })
     training_df.to_csv(results_dir / "training_history.csv", index=False)
     
@@ -202,14 +167,14 @@ def main():
     # 1. Convergence curves
     print("   Vẽ đường hội tụ...")
     ve_duong_hoi_tu(loss_history, gradient_norms, 
-                    title="BFGS Standard - Convergence Analysis",
+                    title="Pure Newton Method v2 Ridge - Convergence Analysis",
                     save_path=str(results_dir / "convergence_analysis.png"))
     
     # 2. Predictions vs Actual
     print("   Vẽ so sánh dự đoán với thực tế...")
     y_pred_test = du_doan(X_test, weights, 0)
     ve_du_doan_vs_thuc_te(y_test, y_pred_test, 
-                         title="BFGS Standard - Predictions vs Actual",
+                         title="Pure Newton Method v2 Ridge - Predictions vs Actual",
                          save_path=str(results_dir / "predictions_vs_actual.png"))
     
     # 3. Optimization trajectory
@@ -217,11 +182,17 @@ def main():
     sample_frequency = max(1, len(weights_history) // 50)
     sampled_weights = weights_history[::sample_frequency]
     
+    # Create a wrapper function for Ridge loss
+    def ridge_loss_wrapper(X, y):
+        def loss_func(weights):
+            return tinh_loss_ridge(X, y, weights, 1e-6)
+        return loss_func
+    
     ve_duong_dong_muc_optimization(
-        loss_function=tinh_gia_tri_ham_OLS,
+        loss_function=ridge_loss_wrapper(X_train, y_train),
         weights_history=sampled_weights,
         X=X_train, y=y_train,
-        title="BFGS Standard - Optimization Path",
+        title="Pure Newton Method v2 Ridge - Optimization Path",
         save_path=str(results_dir / "optimization_trajectory.png")
     )
     

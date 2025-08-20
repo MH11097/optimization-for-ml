@@ -1,0 +1,30 @@
+{
+  "algorithm": "Pure Newton Method - OLS",
+  "loss_function": "OLS (Ordinary Least Squares)",
+  "parameters": {
+    "regularization": 1e-08,
+    "max_iterations": 50,
+    "tolerance": 1e-10
+  },
+  "metrics": {
+    "mse": 102.43402088177642,
+    "rmse": 10.120969364728678,
+    "mae": 10.118221259429443,
+    "r2": -294.3574122629494,
+    "mape": 100.40344568988783,
+    "max_error": 12.683083653595096,
+    "explained_variance": 0.839627402197373
+  },
+  "training_time": 3.464953899383545,
+  "convergence": {
+    "iterations": 50,
+    "final_loss": 51.17769656219889,
+    "final_gradient_norm": 8.46693969474431e-08
+  },
+  "numerical_analysis": {
+    "hessian_condition_number": 954609907.5074296,
+    "average_step_size": 8.469328993411713,
+    "quadratic_convergence": false,
+    "regularization_effect": "Minimal - only for numerical stability"
+  }
+}

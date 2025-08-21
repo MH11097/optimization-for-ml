@@ -318,7 +318,7 @@ class OptimizationTester:
         
         # Plot final MSE comparison
         ax = axes[1, 1]
-        final_mses = [result.get('final_mse', compute_mse(y, result['predictions'])) 
+        final_mses = [result.get('final_mse', tinh_mse(y, result['predictions'])) 
                      for result in method_results.values()]
         bars = ax.bar(methods, final_mses)
         ax.set_title('Final MSE Comparison')

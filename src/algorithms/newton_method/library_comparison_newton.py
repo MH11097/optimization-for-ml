@@ -27,16 +27,7 @@ from utils.optimization_utils import (
     giai_he_phuong_trinh_tuyen_tinh, tinh_hessian_ridge,
     danh_gia_mo_hinh
 )
-
-def load_du_lieu():
-    data_dir = Path("data/02.1_sampled")
-    X_train = pd.read_csv(data_dir / "X_train.csv").values
-    X_test = pd.read_csv(data_dir / "X_test.csv").values
-    y_train = pd.read_csv(data_dir / "y_train.csv").values.ravel()
-    y_test = pd.read_csv(data_dir / "y_test.csv").values.ravel()
-    
-    print(f"Loaded: Train {X_train.shape}, Test {X_test.shape}")
-    return X_train, X_test, y_train, y_test
+from utils.data_process_utils import load_du_lieu
 
 def our_newton_ols(X, y, max_iter=50, tol=1e-10):
     """Our Newton Method for OLS"""

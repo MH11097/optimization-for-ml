@@ -25,17 +25,10 @@ from utils.optimization_utils import (
     tinh_gia_tri_ham_OLS, tinh_gradient_OLS,
     danh_gia_mo_hinh, in_ket_qua_danh_gia
 )
+from utils.data_process_utils import load_du_lieu
 from utils.visualization_utils import ve_duong_hoi_tu, ve_duong_dong_muc_optimization, ve_du_doan_vs_thuc_te
 
-def load_du_lieu():
-    data_dir = Path("data/02.1_sampled")
-    X_train = pd.read_csv(data_dir / "X_train.csv").values
-    X_test = pd.read_csv(data_dir / "X_test.csv").values
-    y_train = pd.read_csv(data_dir / "y_train.csv").values.ravel()
-    y_test = pd.read_csv(data_dir / "y_test.csv").values.ravel()
-    
-    print(f"Loaded: Train {X_train.shape}, Test {X_test.shape}")
-    return X_train, X_test, y_train, y_test
+
 
 def wolfe_line_search(X, y, weights, direction, gradient,
                      armijo_c1=1e-4, wolfe_c2=0.9, backtrack_rho=0.8, max_line_search_iter=50):

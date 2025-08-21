@@ -26,16 +26,7 @@ from utils.optimization_utils import (
     danh_gia_mo_hinh, in_ket_qua_danh_gia
 )
 from utils.visualization_utils import ve_duong_hoi_tu, ve_duong_dong_muc_optimization, ve_du_doan_vs_thuc_te
-
-def load_du_lieu():
-    data_dir = Path("data/02.1_sampled")
-    X_train = pd.read_csv(data_dir / "X_train.csv").values
-    X_test = pd.read_csv(data_dir / "X_test.csv").values
-    y_train = pd.read_csv(data_dir / "y_train.csv").values.ravel()
-    y_test = pd.read_csv(data_dir / "y_test.csv").values.ravel()
-    
-    print(f"Loaded: Train {X_train.shape}, Test {X_test.shape}")
-    return X_train, X_test, y_train, y_test
+from utils.data_process_utils import load_du_lieu
 
 def newton_method(X, y, regularization=1e-8, max_lan_thu=50, diem_dung=1e-10):
     print("Training Pure Newton Method v1 for OLS...")

@@ -25,16 +25,9 @@ from utils.optimization_utils import (
     tinh_mse, du_doan, tinh_gradient_OLS, tinh_gia_tri_ham_OLS,
     danh_gia_mo_hinh
 )
+from utils.data_process_utils import load_du_lieu
 
-def load_du_lieu():
-    data_dir = Path("data/02.1_sampled")
-    X_train = pd.read_csv(data_dir / "X_train.csv").values
-    X_test = pd.read_csv(data_dir / "X_test.csv").values
-    y_train = pd.read_csv(data_dir / "y_train.csv").values.ravel()
-    y_test = pd.read_csv(data_dir / "y_test.csv").values.ravel()
-    
-    print(f"Loaded: Train {X_train.shape}, Test {X_test.shape}")
-    return X_train, X_test, y_train, y_test
+
 
 def our_bfgs(X, y, max_iter=100, tol=1e-6):
     """Our simplified BFGS implementation"""

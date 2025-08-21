@@ -463,6 +463,23 @@ def chuyen_pandas_to_numpy(df: pd.DataFrame) -> np.ndarray:
     return numeric_df.values.astype(np.float64)
 
 
+def load_du_lieu():
+    """
+    Load dữ liệu từ 02.1_sampled directory
+    
+    Trả về:
+        X_train, X_test, y_train, y_test: numpy arrays
+    """
+    data_dir = Path("data/02.1_sampled")
+    X_train = pd.read_csv(data_dir / "X_train.csv").values
+    X_test = pd.read_csv(data_dir / "X_test.csv").values
+    y_train = pd.read_csv(data_dir / "y_train.csv").values.ravel()
+    y_test = pd.read_csv(data_dir / "y_test.csv").values.ravel()
+    
+    print(f"Loaded: Train {X_train.shape}, Test {X_test.shape}")
+    return X_train, X_test, y_train, y_test
+
+
 def in_thong_tin_du_lieu(df: pd.DataFrame, ten_dataset: str = "Dataset"):
     """
     In thông tin tổng quan về dataset

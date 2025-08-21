@@ -1,0 +1,6 @@
+algorithm_name,loss_function,training_time,converged,iterations,final_loss,final_gradient_norm,avg_step_size,condition_number
+Fast OLS Gradient Descent,OLS (Ordinary Least Squares),2.4969,False,117,51.179277,9.85e-03,,
+Pure Newton Method - OLS,OLS (Ordinary Least Squares),3.465,False,50,51.177697,8.47e-08,8.469328993411713,0.0
+Ridge Gradient Descent,Ridge (MSE + L2 regularization),3.7342,False,1000,51.180383,1.03e-02,,
+Damped Newton Method v3 - Lasso (Smooth),Smooth Lasso (L1 Regularization with smoothing),67.3383,False,150,4.094090149824821e+18,7.89e+05,0.00020628928312431665,0.0
+Gradient Descent - Standard Setup,Unknown,90.1087,False,1154,51.179299,9.99e-03,,

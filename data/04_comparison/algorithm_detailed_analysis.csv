@@ -1,0 +1,3 @@
+,family,total_experiments,converged_experiments,convergence_rate,avg_training_time,min_training_time,max_training_time,avg_iterations,best_final_loss,worst_final_loss,avg_condition_number
+gradient_descent,gradient_descent,3,0,0.0,32.11327767372131,2.496908187866211,90.10871315002441,757.0,51.17927703907374,51.1803829343637,
+newton_method,newton_method,2,0,0.0,35.401610374450684,3.464953899383545,67.33826684951782,100.0,51.17769656219889,4.094090149824821e+18,0.0

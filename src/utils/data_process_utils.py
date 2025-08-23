@@ -470,7 +470,7 @@ def load_du_lieu():
     Trả về:
         X_train, X_test, y_train, y_test: numpy arrays
     """
-    data_dir = Path("data/02.1_sampled")
+    data_dir = Path("data/02_processed")
     X_train = pd.read_csv(data_dir / "X_train.csv").values
     X_test = pd.read_csv(data_dir / "X_test.csv").values
     y_train = pd.read_csv(data_dir / "y_train.csv").values.ravel()

@@ -166,8 +166,10 @@ class BaseSubgradient(ABC):
             self.final_iteration = self.max_iterations
 
         print(f"Training time: {self.training_time:.2f} seconds")
-        print(f"Final loss: {self.loss_history[-1]:.6f}")
-        print(f"Final gradient norm: {self.gradient_norms[-1]:.6f}")
+
+        # Get params with min loss
+        self.weights = deepcopy(min_loss_1["weights"])
+        self.final_iteration = min_loss_1["iteration"]
 
         return {
             "weights": self.weights,

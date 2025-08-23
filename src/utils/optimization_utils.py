@@ -163,7 +163,7 @@ def tinh_condition_number(matrix: np.ndarray) -> float:
 # 3. ĐÁNH GIÁ MÔ HÌNH VÀ DỰ ĐOÁN
 # ==============================================================================
 
-def du_doan(X: np.ndarray, w: np.ndarray, he_so_tu_do: float) -> np.ndarray:
+def du_doan(X: np.ndarray, w: np.ndarray, bias: float) -> np.ndarray:
     """
     Thực hiện dự đoán với mô hình tuyến tính
     
@@ -172,12 +172,18 @@ def du_doan(X: np.ndarray, w: np.ndarray, he_so_tu_do: float) -> np.ndarray:
     Tham số:
         X: ma trận đặc trưng (n_samples, n_features)
         w: trọng số đã học (n_features,)
-        he_so_tu_do: hệ số tự do đã học (scalar)
+        bias: bias term đã học (scalar)
     
     Trả về:
-        predictions: dự đoán (n_samples,)
+        predictions: dự đoán trên log scale (n_samples,)
+        
+    Lưu ý: 
+        - Model được train trên log-transformed targets
+        - Predictions trả về ở log scale để consistency
+        - Sử dụng np.expm1() để chuyển về original scale khi cần
     """
-    return X @ w + he_so_tu_do
+    predictions_log = X @ w + bias
+    return predictions_log
 
 
 def tinh_mse(y_that: np.ndarray, y_du_doan: np.ndarray) -> float:
@@ -353,46 +359,172 @@ def tinh_loss_lasso_smooth(X: np.ndarray, y: np.ndarray, trong_so: np.ndarray,
 # 5.1. CÁC HÀM CHỈ NHẬN WEIGHTS (KHÔNG CÓ BIAS) - CHO GRADIENT DESCENT
 # ==============================================================================
 
-def tinh_gia_tri_ham_OLS(X: np.ndarray, y: np.ndarray, w: np.ndarray) -> float:
+def tinh_gia_tri_ham_OLS(X: np.ndarray, y: np.ndarray, w: np.ndarray, bias: float = 0.0) -> float:
     """
-    Tính giá trị hàm OLS tại điểm w (không có bias)
+    Tính giá trị hàm OLS tại điểm w với bias term
     
-    Hàm OLS: L(w) = (1/2n) * ||Xw - y||²
+    Hàm OLS: L(w,b) = (1/2n) * ||Xw + b - y||²
     
     Tham số:
         X: ma trận đặc trưng (n_samples, n_features)
         y: vector target (n_samples,)
         w: vector weights (n_features,)
+        bias: bias term (scalar, mặc định 0.0)
     
     Trả về:
-        float: giá trị hàm OLS tại w
+        float: giá trị hàm OLS tại w với bias
     """
     n_samples = X.shape[0]
-    predictions = X @ w
+    predictions = X @ w + bias
     residuals = predictions - y
     ols_value = (1 / (2 * n_samples)) * np.sum(residuals ** 2)
     return ols_value
 
 
-def tinh_gradient_OLS(X: np.ndarray, y: np.ndarray, w: np.ndarray) -> np.ndarray:
+def tinh_gradient_OLS(X: np.ndarray, y: np.ndarray, w: np.ndarray, bias: float = 0.0) -> Tuple[np.ndarray, float]:
     """
-    Tính gradient của hàm OLS theo weights (không có bias)
+    Tính gradient của hàm OLS theo weights và bias
     
-    ∇L(w) = (1/n) * X^T(Xw - y)
+    ∇L(w,b) = ((1/n) * X^T(Xw + b - y), (1/n) * Σ(Xw + b - y))
     
     Tham số:
         X: ma trận đặc trưng (n_samples, n_features)
         y: vector target (n_samples,)
         w: vector weights (n_features,)
+        bias: bias term (scalar, mặc định 0.0)
     
     Trả về:
-        gradient: gradient vector (n_features,)
+        gradient_w: gradient theo weights (n_features,)
+        gradient_b: gradient theo bias (scalar)
     """
     n_samples = X.shape[0]
-    predictions = X @ w
+    predictions = X @ w + bias
     errors = predictions - y
-    gradient = (1 / n_samples) * X.T @ errors
-    return gradient
+    
+    gradient_w = (1 / n_samples) * X.T @ errors
+    gradient_b = (1 / n_samples) * np.sum(errors)
+    
+    return gradient_w, gradient_b
+
+
+
+
+
+
+
+def tinh_gia_tri_ham_Ridge_with_bias(X: np.ndarray, y: np.ndarray, w: np.ndarray, b: float, regularization: float) -> float:
+    """
+    Tính giá trị hàm Ridge regression với bias term
+    
+    Hàm Ridge: L(w,b) = (1/2n) * ||Xw + b - y||² + (λ/2) * ||w||²
+    Lưu ý: Không regularize bias term
+    
+    Tham số:
+        X: ma trận đặc trưng (n_samples, n_features)
+        y: vector target (n_samples,)
+        w: vector weights (n_features,)
+        b: bias term (scalar)
+        regularization: hệ số regularization λ
+    
+    Trả về:
+        float: giá trị hàm Ridge tại (w, b)
+    """
+    n_samples = X.shape[0]
+    predictions = X @ w + b
+    residuals = predictions - y
+    data_loss = (1 / (2 * n_samples)) * np.sum(residuals ** 2)
+    reg_loss = (regularization / 2) * np.sum(w ** 2)  # Không regularize bias
+    return data_loss + reg_loss
+
+
+def tinh_gradient_Ridge_with_bias(X: np.ndarray, y: np.ndarray, w: np.ndarray, b: float, regularization: float) -> Tuple[np.ndarray, float]:
+    """
+    Tính gradient của hàm Ridge theo weights và bias
+    
+    ∇L(w,b) = ((1/n) * X^T(Xw + b - y) + λ*w, (1/n) * Σ(Xw + b - y))
+    
+    Tham số:
+        X: ma trận đặc trưng (n_samples, n_features)
+        y: vector target (n_samples,)
+        w: vector weights (n_features,)
+        b: bias term (scalar)
+        regularization: hệ số regularization λ
+    
+    Trả về:
+        gradient_w: gradient theo weights (n_features,)
+        gradient_b: gradient theo bias (scalar)
+    """
+    n_samples = X.shape[0]
+    predictions = X @ w + b
+    errors = predictions - y
+    
+    gradient_w = (1 / n_samples) * X.T @ errors + regularization * w  # Regularize weights
+    gradient_b = (1 / n_samples) * np.sum(errors)  # Không regularize bias
+    
+    return gradient_w, gradient_b
+
+
+def tinh_gia_tri_ham_Lasso_smooth_with_bias(X: np.ndarray, y: np.ndarray, w: np.ndarray, b: float, regularization: float) -> float:
+    """
+    Tính giá trị hàm Lasso (smooth approximation) với bias term
+    
+    Hàm Lasso: L(w,b) = (1/2n) * ||Xw + b - y||² + λ * Σ|w_i|
+    Sử dụng smooth approximation: |x| ≈ √(x² + ε²) với ε = 1e-8
+    
+    Tham số:
+        X: ma trận đặc trưng (n_samples, n_features)
+        y: vector target (n_samples,)
+        w: vector weights (n_features,)
+        b: bias term (scalar)
+        regularization: hệ số regularization λ
+    
+    Trả về:
+        float: giá trị hàm Lasso tại (w, b)
+    """
+    n_samples = X.shape[0]
+    predictions = X @ w + b
+    residuals = predictions - y
+    data_loss = (1 / (2 * n_samples)) * np.sum(residuals ** 2)
+    
+    # Smooth approximation của |w|
+    epsilon = 1e-8
+    reg_loss = regularization * np.sum(np.sqrt(w ** 2 + epsilon))  # Không regularize bias
+    
+    return data_loss + reg_loss
+
+
+def tinh_gradient_Lasso_smooth_with_bias(X: np.ndarray, y: np.ndarray, w: np.ndarray, b: float, regularization: float) -> Tuple[np.ndarray, float]:
+    """
+    Tính gradient của hàm Lasso (smooth) theo weights và bias
+    
+    ∇L(w,b) = ((1/n) * X^T(Xw + b - y) + λ * w/√(w² + ε²), (1/n) * Σ(Xw + b - y))
+    
+    Tham số:
+        X: ma trận đặc trưng (n_samples, n_features)
+        y: vector target (n_samples,)
+        w: vector weights (n_features,)
+        b: bias term (scalar)
+        regularization: hệ số regularization λ
+    
+    Trả về:
+        gradient_w: gradient theo weights (n_features,)
+        gradient_b: gradient theo bias (scalar)
+    """
+    n_samples = X.shape[0]
+    predictions = X @ w + b
+    errors = predictions - y
+    
+    # Gradient của data term
+    gradient_w_data = (1 / n_samples) * X.T @ errors
+    gradient_b = (1 / n_samples) * np.sum(errors)
+    
+    # Gradient của regularization term (smooth approximation)
+    epsilon = 1e-8
+    gradient_w_reg = regularization * w / np.sqrt(w ** 2 + epsilon)
+    
+    gradient_w = gradient_w_data + gradient_w_reg
+    
+    return gradient_w, gradient_b
 
 
 def tinh_hessian_OLS(X: np.ndarray) -> np.ndarray:
@@ -412,44 +544,49 @@ def tinh_hessian_OLS(X: np.ndarray) -> np.ndarray:
     return hessian
 
 
-def tinh_gia_tri_ham_Ridge(X: np.ndarray, y: np.ndarray, w: np.ndarray, lambda_reg: float) -> float:
+def tinh_gia_tri_ham_Ridge(X: np.ndarray, y: np.ndarray, w: np.ndarray, bias: float, lambda_reg: float) -> float:
     """
-    Tính giá trị hàm Ridge tại điểm w (không có bias)
+    Tính giá trị hàm Ridge tại điểm (w, bias)
     
-    Hàm Ridge: L(w) = (1/2n) * ||Xw - y||² + (λ/2) * ||w||²
+    Hàm Ridge: L(w,b) = (1/2n) * ||Xw + b - y||² + (λ/2) * ||w||²
+    Lưu ý: Không regularize bias term
     
     Tham số:
         X: ma trận đặc trưng (n_samples, n_features)
         y: vector target (n_samples,)
         w: vector weights (n_features,)
+        bias: bias term (scalar)
         lambda_reg: hệ số regularization
     
     Trả về:
-        float: giá trị hàm Ridge tại w
+        float: giá trị hàm Ridge tại (w, bias)
     """
-    ols_loss = tinh_gia_tri_ham_OLS(X, y, w)
-    l2_penalty = 0.5 * lambda_reg * np.sum(w ** 2)
+    ols_loss = tinh_gia_tri_ham_OLS(X, y, w, bias)
+    l2_penalty = 0.5 * lambda_reg * np.sum(w ** 2)  # Không regularize bias
     return ols_loss + l2_penalty
 
 
-def tinh_gradient_Ridge(X: np.ndarray, y: np.ndarray, w: np.ndarray, lambda_reg: float) -> np.ndarray:
+def tinh_gradient_Ridge(X: np.ndarray, y: np.ndarray, w: np.ndarray, bias: float, lambda_reg: float) -> Tuple[np.ndarray, float]:
     """
-    Tính gradient của hàm Ridge theo weights (không có bias)
+    Tính gradient của hàm Ridge theo weights và bias
     
-    ∇L(w) = (1/n) * X^T(Xw - y) + λ * w
+    ∇L(w,b) = ((1/n) * X^T(Xw + b - y) + λ*w, (1/n) * Σ(Xw + b - y))
     
     Tham số:
         X: ma trận đặc trưng (n_samples, n_features)
         y: vector target (n_samples,)
         w: vector weights (n_features,)
+        bias: bias term (scalar)
         lambda_reg: hệ số regularization
     
     Trả về:
-        gradient: gradient vector (n_features,)
+        gradient_w: gradient theo weights (n_features,)
+        gradient_b: gradient theo bias (scalar)
     """
-    ols_gradient = tinh_gradient_OLS(X, y, w)
-    l2_gradient = lambda_reg * w
-    return ols_gradient + l2_gradient
+    gradient_w, gradient_b = tinh_gradient_OLS(X, y, w, bias)
+    l2_gradient = lambda_reg * w  # Regularize weights only, not bias
+    gradient_w = gradient_w + l2_gradient
+    return gradient_w, gradient_b
 
 
 def tinh_hessian_Ridge(X: np.ndarray, lambda_reg: float) -> np.ndarray:
@@ -472,47 +609,51 @@ def tinh_hessian_Ridge(X: np.ndarray, lambda_reg: float) -> np.ndarray:
 
 
 def tinh_gia_tri_ham_Lasso_smooth(X: np.ndarray, y: np.ndarray, w: np.ndarray, 
-                                  lambda_reg: float, epsilon: float = 1e-8) -> float:
+                                  bias: float, lambda_reg: float, epsilon: float = 1e-8) -> float:
     """
-    Tính giá trị hàm Lasso với smooth approximation tại điểm w (không có bias)
+    Tính giá trị hàm Lasso với smooth approximation tại điểm (w, bias)
     
-    Hàm Lasso: L(w) = (1/2n) * ||Xw - y||² + λ * Σ√(w²+ ε)
+    Hàm Lasso: L(w,b) = (1/2n) * ||Xw + b - y||² + λ * Σ√(w²+ ε)
     
     Tham số:
         X: ma trận đặc trưng (n_samples, n_features)
         y: vector target (n_samples,)
         w: vector weights (n_features,)
+        bias: bias term (scalar)
         lambda_reg: hệ số regularization
         epsilon: tham số smoothing
     
     Trả về:
-        float: giá trị hàm Lasso tại w
+        float: giá trị hàm Lasso tại (w, bias)
     """
-    ols_loss = tinh_gia_tri_ham_OLS(X, y, w)
-    smooth_l1_penalty = lambda_reg * np.sum(np.sqrt(w ** 2 + epsilon))
+    ols_loss = tinh_gia_tri_ham_OLS(X, y, w, bias)
+    smooth_l1_penalty = lambda_reg * np.sum(np.sqrt(w ** 2 + epsilon))  # Không regularize bias
     return ols_loss + smooth_l1_penalty
 
 
 def tinh_gradient_Lasso_smooth(X: np.ndarray, y: np.ndarray, w: np.ndarray, 
-                              lambda_reg: float, epsilon: float = 1e-8) -> np.ndarray:
+                              bias: float, lambda_reg: float, epsilon: float = 1e-8) -> Tuple[np.ndarray, float]:
     """
-    Tính gradient của hàm Lasso với smooth approximation theo weights (không có bias)
+    Tính gradient của hàm Lasso với smooth approximation theo weights và bias
     
-    ∇L(w) = (1/n) * X^T(Xw - y) + λ * w / √(w² + ε)
+    ∇L(w,b) = ((1/n) * X^T(Xw + b - y) + λ * w / √(w² + ε), (1/n) * Σ(Xw + b - y))
     
     Tham số:
         X: ma trận đặc trưng (n_samples, n_features)
         y: vector target (n_samples,)
         w: vector weights (n_features,)
+        bias: bias term (scalar)
         lambda_reg: hệ số regularization
         epsilon: tham số smoothing
     
     Trả về:
-        gradient: gradient vector (n_features,)
+        gradient_w: gradient theo weights (n_features,)
+        gradient_b: gradient theo bias (scalar)
     """
-    ols_gradient = tinh_gradient_OLS(X, y, w)
+    gradient_w, gradient_b = tinh_gradient_OLS(X, y, w, bias)
     smooth_l1_gradient = lambda_reg * w / np.sqrt(w ** 2 + epsilon)
-    return ols_gradient + smooth_l1_gradient
+    gradient_w = gradient_w + smooth_l1_gradient
+    return gradient_w, gradient_b
 
 
 def tinh_hessian_Lasso_smooth(X: np.ndarray, w: np.ndarray, lambda_reg: float, epsilon: float = 1e-8) -> np.ndarray:
@@ -546,45 +687,65 @@ def tinh_hessian_Lasso_smooth(X: np.ndarray, w: np.ndarray, lambda_reg: float, e
 # 6. ĐÁNH GIÁ MÔ HÌNH
 # ==============================================================================
 
-def danh_gia_mo_hinh(weights: np.ndarray, X_test: np.ndarray, y_test: np.ndarray, he_so_tu_do: float = 0) -> Dict[str, float]:
+def danh_gia_mo_hinh(weights: np.ndarray, X_test: np.ndarray, y_test: np.ndarray, 
+                      bias: float = 0.0) -> Dict[str, float]:
     """
     Đánh giá model trên test set với đầy đủ các metrics
+    
     
     Tham số:
         weights: trọng số đã học (n_features,)
         X_test: ma trận đặc trưng test (n_samples, n_features)
         y_test: giá trị thật test (n_samples,)
-        he_so_tu_do: hệ số tự do (mặc định 0)
+        bias: bias term (mặc định 0.0)
+        is_log_transformed: có phải target đã được log transform không
     
     Trả về:
-        dict: dictionary chứa các metrics đánh giá
+        dict: dictionary chứa các metrics đánh giá trên scale gốc
     """
-    # Dự đoán
-    predictions = du_doan(X_test, weights, he_so_tu_do)
+    # Dự đoán trên log scale (nếu model được train trên log)
+    predictions_log = du_doan(X_test, weights, bias)
     
-    # Tính các metrics cơ bản
-    mse = tinh_mse(y_test, predictions)
+    print("🔄 Chuyển từ log scale về scale gốc...")
+    
+    # Convert cả predictions và test về original scale
+    predictions_original = np.expm1(predictions_log)  # inverse of log1p
+    y_test_original = np.expm1(y_test)                # inverse of log1p
+    
+    # Validation checks
+    print(f"   Dự đoán (log): [{predictions_log.min():.3f}, {predictions_log.max():.3f}]")
+    print(f"   Dự đoán (gốc): [{predictions_original.min():.0f}, {predictions_original.max():.0f}]")
+    print(f"   Target (log): [{y_test.min():.3f}, {y_test.max():.3f}]")
+    print(f"   Target (gốc): [{y_test_original.min():.0f}, {y_test_original.max():.0f}]")
+    
+    # Use original scale for evaluation
+    predictions_eval = predictions_original
+    y_test_eval = y_test_original
+    
+    # Tính các metrics cơ bản trên scale gốc
+    mse = tinh_mse(y_test_eval, predictions_eval)
     rmse = np.sqrt(mse)
-    mae = tinh_mae(y_test, predictions)
-    r2 = tinh_r2_score(y_test, predictions)
+    mae = tinh_mae(y_test_eval, predictions_eval)
+    r2 = tinh_r2_score(y_test_eval, predictions_eval)
     
     # MAPE (Mean Absolute Percentage Error) - cẩn thận với chia cho 0
     with np.errstate(divide='ignore', invalid='ignore'):
-        percentage_errors = np.abs((y_test - predictions) / y_test)
+        percentage_errors = np.abs((y_test_eval - predictions_eval) / y_test_eval)
         # Loại bỏ các giá trị inf và nan
         valid_errors = percentage_errors[np.isfinite(percentage_errors)]
         mape = np.mean(valid_errors) * 100 if len(valid_errors) > 0 else float('inf')
     
     # Thêm một số metrics bổ sung
     # Max Error
-    max_error = np.max(np.abs(y_test - predictions))
+    max_error = np.max(np.abs(y_test_eval - predictions_eval))
     
     # Explained variance score
-    var_y = np.var(y_test)
-    var_residual = np.var(y_test - predictions)
+    var_y = np.var(y_test_eval)
+    var_residual = np.var(y_test_eval - predictions_eval)
     explained_variance = 1 - (var_residual / var_y) if var_y != 0 else 0
     
-    return {
+    # Thêm metrics cho cả log scale (nếu có transform)
+    metrics = {
         'mse': float(mse),
         'rmse': float(rmse),
         'mae': float(mae),
@@ -593,6 +754,97 @@ def danh_gia_mo_hinh(weights: np.ndarray, X_test: np.ndarray, y_test: np.ndarray
         'max_error': float(max_error),
         'explained_variance': float(explained_variance)
     }
+    
+    # Nếu có log transform, thêm metrics trên log scale để so sánh
+    mse_log = tinh_mse(y_test, predictions_log)
+    r2_log = tinh_r2_score(y_test, predictions_log)
+    mae_log = tinh_mae(y_test, predictions_log)
+    
+    metrics.update({
+        'mse_log_scale': float(mse_log),
+        'r2_log_scale': float(r2_log),
+        'mae_log_scale': float(mae_log)
+    })
+    
+    return metrics
+
+def danh_gia_mo_hinh_with_bias(weights: np.ndarray, bias: float, X_test: np.ndarray, y_test: np.ndarray) -> Dict[str, float]:
+    """
+    Đánh giá model trên test set với đầy đủ các metrics (có bias term)
+    
+    Tham số:
+        weights: trọng số đã học (n_features,)
+        bias: bias term đã học (scalar)
+        X_test: ma trận đặc trưng test (n_samples, n_features)
+        y_test: giá trị thật test (n_samples,)
+    
+    Trả về:
+        dict: dictionary chứa các metrics đánh giá trên scale gốc
+    """
+    # Dự đoán trên log scale (nếu model được train trên log)
+    predictions_log = du_doan(X_test, weights, bias)
+    
+    print("🔄 Inverse transforming predictions and targets from log scale to original scale...")
+    
+    # Convert cả predictions và test về original scale
+    predictions_original = np.expm1(predictions_log)  # inverse of log1p
+    y_test_original = np.expm1(y_test)                # inverse of log1p
+    
+    # Validation checks
+    print(f"   Log predictions range: [{predictions_log.min():.3f}, {predictions_log.max():.3f}]")
+    print(f"   Original predictions range: [{predictions_original.min():.0f}, {predictions_original.max():.0f}]")
+    print(f"   Log targets range: [{y_test.min():.3f}, {y_test.max():.3f}]")
+    print(f"   Original targets range: [{y_test_original.min():.0f}, {y_test_original.max():.0f}]")
+    
+    # Use original scale for evaluation
+    predictions_eval = predictions_original
+    y_test_eval = y_test_original
+    
+    # Tính các metrics cơ bản trên scale gốc
+    mse = tinh_mse(y_test_eval, predictions_eval)
+    rmse = np.sqrt(mse)
+    mae = tinh_mae(y_test_eval, predictions_eval)
+    r2 = tinh_r2_score(y_test_eval, predictions_eval)
+    
+    # MAPE (Mean Absolute Percentage Error) - cẩn thận với chia cho 0
+    with np.errstate(divide='ignore', invalid='ignore'):
+        percentage_errors = np.abs((y_test_eval - predictions_eval) / y_test_eval)
+        # Loại bỏ các giá trị inf và nan
+        valid_errors = percentage_errors[np.isfinite(percentage_errors)]
+        mape = np.mean(valid_errors) * 100 if len(valid_errors) > 0 else float('inf')
+    
+    # Thêm một số metrics bổ sung
+    # Max Error
+    max_error = np.max(np.abs(y_test_eval - predictions_eval))
+    
+    # Explained variance score
+    var_y = np.var(y_test_eval)
+    var_residual = np.var(y_test_eval - predictions_eval)
+    explained_variance = 1 - (var_residual / var_y) if var_y != 0 else 0
+    
+    # Thêm metrics cho cả log scale (nếu có transform)
+    metrics = {
+        'mse': float(mse),
+        'rmse': float(rmse),
+        'mae': float(mae),
+        'r2': float(r2),
+        'mape': float(mape),
+        'max_error': float(max_error),
+        'explained_variance': float(explained_variance)
+    }
+    
+    # Nếu có log transform, thêm metrics trên log scale để so sánh
+    mse_log = tinh_mse(y_test, predictions_log)
+    r2_log = tinh_r2_score(y_test, predictions_log)
+    mae_log = tinh_mae(y_test, predictions_log)
+    
+    metrics.update({
+        'mse_log_scale': float(mse_log),
+        'r2_log_scale': float(r2_log),
+        'mae_log_scale': float(mae_log)
+    })
+    
+    return metrics
 
 
 def in_ket_qua_danh_gia(metrics: Dict[str, float], training_time: float = None, 
@@ -609,6 +861,10 @@ def in_ket_qua_danh_gia(metrics: Dict[str, float], training_time: float = None,
     print(f"📊 {algorithm_name.upper()} - EVALUATION RESULTS")
     print("="*60)
     
+    # Thông báo scale đánh giá
+    print(f"🔄 EVALUATION ON ORIGINAL PRICE SCALE (inverse transformed from log):")
+
+    
     print(f"\n🎯 REGRESSION METRICS:")
     print(f"   MSE:      {metrics['mse']:.8f}")
     print(f"   RMSE:     {metrics['rmse']:.6f}")
@@ -622,6 +878,13 @@ def in_ket_qua_danh_gia(metrics: Dict[str, float], training_time: float = None,
         
     print(f"   Max Error: {metrics['max_error']:.6f}")
     print(f"   Explained Variance: {metrics['explained_variance']:.6f}")
+    
+    # Nếu có log transform, hiển thị metrics trên log scale để so sánh
+    if 'mse_log_scale' in metrics:
+        print(f"\n📊 COMPARISON - METRICS ON LOG SCALE:")
+        print(f"   MSE (log):  {metrics['mse_log_scale']:.8f}")
+        print(f"   R² (log):   {metrics['r2_log_scale']:.6f}")
+        print(f"   MAE (log):  {metrics['mae_log_scale']:.6f}")
     
     if training_time is not None:
         print(f"\n⏱️ PERFORMANCE:")
@@ -664,6 +927,11 @@ def in_ket_qua_danh_gia(metrics: Dict[str, float], training_time: float = None,
             mape_color = "🔴"
         
         print(f"   {mape_color} MAPE Assessment: {mape_assessment}")
+    
+    # Thông báo quan trọng nếu có log transform
+    print(f"\n⚠️  IMPORTANT: All metrics above are on ORIGINAL PRICE SCALE")
+    print(f"   Model was trained on log-transformed targets but evaluation")
+    print(f"   was performed after inverse transformation to original scale.")
 
 
 # ==============================================================================

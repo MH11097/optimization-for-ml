@@ -535,7 +535,7 @@ def luu_bieu_do_theo_batch(figures_list: List[plt.Figure],
 
 
 def ve_duong_dong_muc_optimization(loss_function, weights_history, X, y, 
-                                  feature_indices=None, title="Optimization Trajectory",
+                                  bias_history=None, feature_indices=None, title="Quá trình tối ưu",
                                   save_path=None):
     """
     Vẽ đường đồng mức của hàm loss với trajectory của optimization algorithm
@@ -545,12 +545,13 @@ def ve_duong_dong_muc_optimization(loss_function, weights_history, X, y,
         weights_history: lịch sử weights qua các iterations (list of arrays)
         X: ma trận đặc trưng
         y: vector target
+        bias_history: lịch sử bias qua các iterations (optional)
         feature_indices: tuple (i, j) - chỉ số 2 features để vẽ (None = auto select)
         title: tiêu đề biểu đồ
         save_path: đường dẫn lưu file (optional)
     """
     if len(weights_history) < 2:
-        print("Cần ít nhất 2 điểm để vẽ trajectory")
+        print("Cần ít nhất 2 điểm để vẽ quỹ đạo")
         return
     
     # Convert weights_history to array
@@ -588,8 +589,11 @@ def ve_duong_dong_muc_optimization(loss_function, weights_history, X, y,
     W1, W2 = np.meshgrid(w1_grid, w2_grid)
     
     # Compute loss at each grid point
-    print("Computing loss surface...")
+    print("Tính toán bề mặt loss...")
     loss_surface = np.zeros_like(W1)
+    
+    # Use final bias if bias_history is provided
+    final_bias = bias_history[-1] if bias_history else 0.0
     
     for i in range(grid_size):
         for j in range(grid_size):
@@ -598,9 +602,9 @@ def ve_duong_dong_muc_optimization(loss_function, weights_history, X, y,
             w_test[idx1] = W1[i, j]
             w_test[idx2] = W2[i, j]
             
-            # Compute loss
+            # Compute loss with bias
             try:
-                loss_surface[i, j] = loss_function(X, y, w_test)
+                loss_surface[i, j] = loss_function(X, y, w_test, final_bias)
             except:
                 loss_surface[i, j] = np.nan
     
@@ -614,10 +618,10 @@ def ve_duong_dong_muc_optimization(loss_function, weights_history, X, y,
     
     # Add colorbar
     cbar = plt.colorbar(contourf, ax=ax)
-    cbar.set_label('Loss Value', rotation=270, labelpad=15)
+    cbar.set_label('Giá trị Loss', rotation=270, labelpad=15)
     
     # Plot trajectory
-    ax.plot(w1_path, w2_path, 'r-', linewidth=3, alpha=0.8, label='Optimization Path')
+    ax.plot(w1_path, w2_path, 'r-', linewidth=3, alpha=0.8, label='Quỹ đạo tối ưu')
     
     # Add arrows to show direction
     n_arrows = min(10, len(w1_path)-1)  # Max 10 arrows
@@ -632,13 +636,13 @@ def ve_duong_dong_muc_optimization(loss_function, weights_history, X, y,
                 fc='red', ec='red', alpha=0.7)
     
     # Mark start and end points
-    ax.plot(w1_path[0], w2_path[0], 'go', markersize=12, label='Start Point', markeredgecolor='black')
-    ax.plot(w1_path[-1], w2_path[-1], 'r*', markersize=15, label='Final Point', markeredgecolor='black')
+    ax.plot(w1_path[0], w2_path[0], 'go', markersize=12, label='Điểm bắt đầu', markeredgecolor='black')
+    ax.plot(w1_path[-1], w2_path[-1], 'r*', markersize=15, label='Điểm cuối', markeredgecolor='black')
     
     # Customize plot
-    ax.set_xlabel(f'Weight[{idx1}]')
-    ax.set_ylabel(f'Weight[{idx2}]')
-    ax.set_title(f'{title}\nTrajectory in Weight Space (Features {idx1} vs {idx2})')
+    ax.set_xlabel(f'Trọng số[{idx1}]')
+    ax.set_ylabel(f'Trọng số[{idx2}]')
+    ax.set_title(f'{title}\nQuỹ đạo trong không gian trọng số (Tính năng {idx1} vs {idx2})')
     ax.legend()
     ax.grid(True, alpha=0.3)
     
@@ -647,7 +651,7 @@ def ve_duong_dong_muc_optimization(loss_function, weights_history, X, y,
     annotation_indices = np.linspace(0, len(w1_path)-1, n_annotations, dtype=int)
     
     for i, idx in enumerate(annotation_indices):
-        ax.annotate(f'Iter {idx*len(weights_history)//len(annotation_indices)}', 
+        ax.annotate(f'Vòng {idx*len(weights_history)//len(annotation_indices)}', 
                    (w1_path[idx], w2_path[idx]),
                    xytext=(5, 5), textcoords='offset points',
                    fontsize=8, alpha=0.7)
@@ -660,13 +664,17 @@ def ve_duong_dong_muc_optimization(loss_function, weights_history, X, y,
     plt.show()
     
     # Print summary
-    loss_start = loss_function(X, y, weights_history[0])
-    loss_end = loss_function(X, y, weights_history[-1])
-    print(f"\n📊 Optimization Summary:")
-    print(f"   Features visualized: {idx1}, {idx2}")
-    print(f"   Starting loss: {loss_start:.6f}")
-    print(f"   Final loss: {loss_end:.6f}")
-    print(f"   Improvement: {loss_start - loss_end:.6f} ({(loss_start-loss_end)/loss_start*100:.2f}%)")
+    start_bias = bias_history[0] if bias_history else 0.0
+    end_bias = bias_history[-1] if bias_history else 0.0
+    
+    loss_start = loss_function(X, y, weights_history[0], start_bias)
+    loss_end = loss_function(X, y, weights_history[-1], end_bias)
+    
+    print(f"\n📊 Tóm tắt tối ưu:")
+    print(f"   Tính năng hiển thị: {idx1}, {idx2}")
+    print(f"   Loss ban đầu: {loss_start:.6f}")
+    print(f"   Loss cuối: {loss_end:.6f}")
+    print(f"   Cải thiện: {loss_start - loss_end:.6f} ({(loss_start-loss_end)/loss_start*100:.2f}%)")
 
 
 # Thiết lập style mặc định khi import module

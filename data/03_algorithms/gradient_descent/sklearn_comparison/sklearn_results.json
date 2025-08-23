@@ -1,0 +1,26 @@
+{
+  "algorithm": "sklearn_LinearRegression",
+  "training_time": 14.648524761199951,
+  "bias": 10.11788272857666,
+  "n_features": 62,
+  "predictions_log_min": 6.712140083312988,
+  "predictions_log_max": 11.727767944335938,
+  "predictions_original_min": 821.32861328125,
+  "predictions_original_max": 123965.6640625,
+  "metrics_log_scale": {
+    "mse": 0.04018209129571915,
+    "r2": 0.8860015273094177,
+    "mae": 0.1398351788520813
+  },
+  "metrics_original_scale": {
+    "mse": 30038666.0,
+    "rmse": 5480.754145188415,
+    "mae": 3677.893310546875,
+    "r2": 0.8760913610458374,
+    "mape": 14.469531059265137
+  },
+  "assessment": {
+    "r2": "EXCELLENT (R\u00b2 \u2265 0.8)",
+    "mape": "GOOD (MAPE \u2264 20%)"
+  }
+}

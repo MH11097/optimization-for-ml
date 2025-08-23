@@ -18,6 +18,7 @@ import numpy as np
 from pathlib import Path
 from typing import Tuple, List, Optional, Dict, Any
 import warnings
+import json
 
 
 # ==============================================================================
@@ -465,19 +466,46 @@ def chuyen_pandas_to_numpy(df: pd.DataFrame) -> np.ndarray:
 
 def load_du_lieu():
     """
-    Load dữ liệu từ 02.1_sampled directory
+    Load dữ liệu từ 02_processed directory (data đã được preprocessed)
     
     Trả về:
         X_train, X_test, y_train, y_test: numpy arrays
+        
+    Note: Target data đã được log-transformed trong preprocessing pipeline
     """
     data_dir = Path("data/02_processed")
-    X_train = tai_du_lieu_chunked(data_dir / "X_train.csv").values
-    X_test = tai_du_lieu_chunked(data_dir / "X_test.csv").values
-    y_train = tai_du_lieu_chunked(data_dir / "y_train.csv").values.ravel()
-    y_test = tai_du_lieu_chunked(data_dir / "y_test.csv").values.ravel()
     
-    print(f"Loaded: Train {X_train.shape}, Test {X_test.shape}")
-    return X_train, X_test, y_train, y_test
+    # Check if directory exists
+    if not data_dir.exists():
+        raise FileNotFoundError(f"Data directory {data_dir} không tồn tại. Hãy chạy preprocessing trước.")
+    
+    # Load data files
+    try:
+        X_train = tai_du_lieu_chunked(data_dir / "X_train.csv").values
+        X_test = tai_du_lieu_chunked(data_dir / "X_test.csv").values
+        y_train = tai_du_lieu_chunked(data_dir / "y_train.csv").values.ravel()
+        y_test = tai_du_lieu_chunked(data_dir / "y_test.csv").values.ravel()
+        
+        print(f"✅ Đã load dữ liệu: Train {X_train.shape}, Test {X_test.shape}")
+        print(f"   Target (log): y_train [{y_train.min():.3f}, {y_train.max():.3f}]")
+        print(f"   Target (log): y_test [{y_test.min():.3f}, {y_test.max():.3f}]")
+        
+        # Load and display metadata if available
+        feature_info_path = data_dir / "feature_info.json"
+        if feature_info_path.exists():
+            with open(feature_info_path, 'r') as f:
+                feature_info = json.load(f)
+            
+            print(f"   📋 Số features: {feature_info['n_features']}")
+            print(f"   🔄 Biến đổi: {feature_info['target_info']['transformation']}")
+            print(f"   ✅ Sẵn sàng cho thuật toán")
+        
+        return X_train, X_test, y_train, y_test
+        
+    except FileNotFoundError as e:
+        raise FileNotFoundError(f"Không tìm thấy file data: {e}. Hãy chạy preprocessing pipeline trước.")
+    except Exception as e:
+        raise RuntimeError(f"Lỗi khi load data: {e}")
 
 
 def in_thong_tin_du_lieu(df: pd.DataFrame, ten_dataset: str = "Dataset"):

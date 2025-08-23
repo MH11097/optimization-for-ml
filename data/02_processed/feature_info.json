@@ -72,18 +72,41 @@
     557617,
     62
   ],
-  "target_name": "target",
+  "target_info": {
+    "name": "target",
+    "scale": "log_transformed",
+    "transformation": "log1p",
+    "inverse_function": "expm1",
+    "description": "Target variable has been log-transformed using log1p()"
+  },
   "target_stats": {
-    "train_min": 5.111987590789795,
-    "train_max": 11.548225402832031,
-    "train_mean": 10.11788272857666,
-    "test_min": 5.703782558441162,
-    "test_max": 11.54829216003418,
-    "test_mean": 10.117219924926758
+    "log_scale": {
+      "train_min": 5.111987590789795,
+      "train_max": 11.548225402832031,
+      "train_mean": 10.11788272857666,
+      "test_min": 5.703782558441162,
+      "test_max": 11.54829216003418,
+      "test_mean": 10.117219924926758
+    },
+    "original_scale": {
+      "train_min": 164.99996948242188,
+      "train_max": 103592.0390625,
+      "train_mean": 28958.27734375,
+      "test_min": 299.0000305175781,
+      "test_max": 103598.953125,
+      "test_mean": 28937.984375
+    }
   },
   "validation": {
     "features_match_names": true,
     "no_empty_features": true,
-    "no_empty_targets": true
+    "no_empty_targets": true,
+    "log_transformation_applied": true
+  },
+  "notes": {
+    "data_ready_for_algorithms": true,
+    "target_preprocessing": "log1p transformation applied",
+    "feature_preprocessing": "StandardScaler applied",
+    "compatibility": "Compatible with prediction functions expecting log-transformed targets"
   }
 }

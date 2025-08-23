@@ -494,12 +494,23 @@ def prepare_final_dataset(df, target='price', test_size=0.2, random_state=42):
     if target not in df.columns:
         raise ValueError(f"Target column '{target}' not found")
     
-    # Log transform target if skewed
-    target_col = target
-    if df[target].skew() > 1:
-        df['log_price'] = np.log1p(df[target])
-        print("  Applied log transformation to target (high skewness)")
-        target_col = 'log_price'
+    # Always apply log transformation to target for price data
+    print(f"  Original target ('{target}') stats:")
+    print(f"    Min: {df[target].min():,.0f}")
+    print(f"    Max: {df[target].max():,.0f}")
+    print(f"    Mean: {df[target].mean():,.0f}")
+    print(f"    Skewness: {df[target].skew():.3f}")
+    
+    # Apply log transformation (log1p is safer for handling zeros)
+    df['log_price'] = np.log1p(df[target])
+    target_col = 'log_price'
+    
+    print(f"  ✅ Applied log transformation: log1p({target}) -> {target_col}")
+    print(f"  Log-transformed target stats:")
+    print(f"    Min: {df[target_col].min():.3f}")
+    print(f"    Max: {df[target_col].max():.3f}")
+    print(f"    Mean: {df[target_col].mean():.3f}")
+    print(f"    Skewness: {df[target_col].skew():.3f}")
     
     # Separate features and target
     feature_cols = [col for col in df.columns if col not in [target, 'log_price']]
@@ -507,7 +518,7 @@ def prepare_final_dataset(df, target='price', test_size=0.2, random_state=42):
     y = df[target_col].copy()
     
     print(f"  Before filtering - Features: {X.shape[1]} columns")
-    print(f"  Target column: {target_col}")
+    print(f"  Target column: {target_col} (log-transformed)")
     print(f"  Target values count: {len(y.dropna())}")
     
     # Improved dtype handling - don't filter too aggressively
@@ -588,8 +599,8 @@ def prepare_final_dataset(df, target='price', test_size=0.2, random_state=42):
     
     print(f"  Train set: {X_train.shape[0]:,} samples × {X_train.shape[1]} features")
     print(f"  Test set: {X_test.shape[0]:,} samples × {X_test.shape[1]} features")
-    print(f"  y_train range: {y_train.min():.2f} - {y_train.max():.2f}")
-    print(f"  y_test range: {y_test.min():.2f} - {y_test.max():.2f}")
+    print(f"  y_train range: {y_train.min():.3f} - {y_train.max():.3f} (log scale)")
+    print(f"  y_test range: {y_test.min():.3f} - {y_test.max():.3f} (log scale)")
     
     return X_train, X_test, y_train, y_test, columns_to_keep
 
@@ -657,8 +668,8 @@ def save_processed_data(X_train, X_test, y_train, y_test, feature_names,
     
     print(f"  ✅ X_train: {X_train.shape[0]:,} rows × {X_train.shape[1]} features")
     print(f"  ✅ X_test: {X_test.shape[0]:,} rows × {X_test.shape[1]} features")
-    print(f"  ✅ y_train: {len(y_train):,} values (range: {y_train.min():.2f} - {y_train.max():.2f})")
-    print(f"  ✅ y_test: {len(y_test):,} values (range: {y_test.min():.2f} - {y_test.max():.2f})")
+    print(f"  ✅ y_train: {len(y_train):,} values (range: {y_train.min():.3f} - {y_train.max():.3f}) [LOG SCALE]")
+    print(f"  ✅ y_test: {len(y_test):,} values (range: {y_test.min():.3f} - {y_test.max():.3f}) [LOG SCALE]")
     
     # Save datasets with proper formatting
     print("  Saving datasets...")
@@ -667,18 +678,31 @@ def save_processed_data(X_train, X_test, y_train, y_test, feature_names,
     X_train.to_csv(output_dir / "X_train.csv", index=False)
     X_test.to_csv(output_dir / "X_test.csv", index=False)
     
-    # Save targets as proper DataFrames with values
+    # Save log-transformed targets as proper DataFrames
     y_train_df = pd.DataFrame({'target': y_train})
     y_test_df = pd.DataFrame({'target': y_test})
     
     y_train_df.to_csv(output_dir / "y_train.csv", index=False)
     y_test_df.to_csv(output_dir / "y_test.csv", index=False)
     
+    # Also save original scale targets for reference (inverse transform)
+    y_train_original = np.expm1(y_train)  # inverse of log1p
+    y_test_original = np.expm1(y_test)    # inverse of log1p
+    
+    y_train_original_df = pd.DataFrame({'target_original': y_train_original})
+    y_test_original_df = pd.DataFrame({'target_original': y_test_original})
+    
+    y_train_original_df.to_csv(output_dir / "y_train_original.csv", index=False)
+    y_test_original_df.to_csv(output_dir / "y_test_original.csv", index=False)
+    
     # Validate saved files
     print("  Validating saved files...")
     
     # Check if files exist and have content
-    for filename in ["X_train.csv", "X_test.csv", "y_train.csv", "y_test.csv"]:
+    required_files = ["X_train.csv", "X_test.csv", "y_train.csv", "y_test.csv", 
+                     "y_train_original.csv", "y_test_original.csv"]
+    
+    for filename in required_files:
         filepath = output_dir / filename
         if not filepath.exists():
             raise FileNotFoundError(f"Failed to save {filename}")
@@ -688,25 +712,48 @@ def save_processed_data(X_train, X_test, y_train, y_test, feature_names,
         if file_size < 100:  # Less than 100 bytes is suspicious
             print(f"  ⚠️  Warning: {filename} is very small ({file_size} bytes)")
     
-    # Save feature information with updated details
+    # Save enhanced feature information with log transformation details
     feature_info = {
         'n_features': len(feature_names),
         'feature_names': list(feature_names),
         'train_shape': list(X_train.shape),
         'test_shape': list(X_test.shape),
-        'target_name': 'target',
+        'target_info': {
+            'name': 'target',
+            'scale': 'log_transformed',
+            'transformation': 'log1p',
+            'inverse_function': 'expm1',
+            'description': 'Target variable has been log-transformed using log1p()'
+        },
         'target_stats': {
-            'train_min': float(y_train.min()),
-            'train_max': float(y_train.max()),
-            'train_mean': float(y_train.mean()),
-            'test_min': float(y_test.min()),
-            'test_max': float(y_test.max()),
-            'test_mean': float(y_test.mean())
+            'log_scale': {
+                'train_min': float(y_train.min()),
+                'train_max': float(y_train.max()),
+                'train_mean': float(y_train.mean()),
+                'test_min': float(y_test.min()),
+                'test_max': float(y_test.max()),
+                'test_mean': float(y_test.mean())
+            },
+            'original_scale': {
+                'train_min': float(y_train_original.min()),
+                'train_max': float(y_train_original.max()),
+                'train_mean': float(y_train_original.mean()),
+                'test_min': float(y_test_original.min()),
+                'test_max': float(y_test_original.max()),
+                'test_mean': float(y_test_original.mean())
+            }
         },
         'validation': {
             'features_match_names': len(feature_names) == X_train.shape[1],
             'no_empty_features': not X_train.isnull().all().any(),
-            'no_empty_targets': not y_train.isnull().all()
+            'no_empty_targets': not y_train.isnull().all(),
+            'log_transformation_applied': True
+        },
+        'notes': {
+            'data_ready_for_algorithms': True,
+            'target_preprocessing': 'log1p transformation applied',
+            'feature_preprocessing': 'StandardScaler applied',
+            'compatibility': 'Compatible with prediction functions expecting log-transformed targets'
         }
     }
     
@@ -721,9 +768,11 @@ def save_processed_data(X_train, X_test, y_train, y_test, feature_names,
     print("✅ Saved files:")
     print(f"  - X_train.csv: {X_train.shape}")
     print(f"  - X_test.csv: {X_test.shape}")
-    print(f"  - y_train.csv: {len(y_train)} target values")
-    print(f"  - y_test.csv: {len(y_test)} target values")
-    print(f"  - feature_info.json: metadata for {len(feature_names)} features")
+    print(f"  - y_train.csv: {len(y_train)} target values (LOG SCALE)")
+    print(f"  - y_test.csv: {len(y_test)} target values (LOG SCALE)")
+    print(f"  - y_train_original.csv: {len(y_train_original)} target values (ORIGINAL SCALE)")
+    print(f"  - y_test_original.csv: {len(y_test_original)} target values (ORIGINAL SCALE)")
+    print(f"  - feature_info.json: metadata for {len(feature_names)} features + log transformation info")
     if scaler:
         print(f"  - scaler.pkl: fitted scaler object")
     
@@ -732,6 +781,13 @@ def save_processed_data(X_train, X_test, y_train, y_test, feature_names,
     print(f"  - Feature-name consistency: {'✅' if feature_info['validation']['features_match_names'] else '❌'}")
     print(f"  - No empty features: {'✅' if feature_info['validation']['no_empty_features'] else '❌'}")
     print(f"  - Valid targets: {'✅' if feature_info['validation']['no_empty_targets'] else '❌'}")
+    print(f"  - Log transformation: {'✅' if feature_info['validation']['log_transformation_applied'] else '❌'}")
+    
+    print("\n🔄 Target Transformation Summary:")
+    print(f"  - Transformation: log1p() applied")
+    print(f"  - Log scale range: [{y_train.min():.3f}, {y_train.max():.3f}]")
+    print(f"  - Original scale range: [{y_train_original.min():.0f}, {y_train_original.max():.0f}]")
+    print(f"  - Inverse function: np.expm1() for predictions")
     
     return feature_info
 

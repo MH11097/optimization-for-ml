@@ -1,0 +1,39 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from src.utils.data_process_utils import load_du_lieu
+from src.algorithms.subgradient import (
+    SubgradientNonSummableDiminishingStepLength,
+    SubgradientNonSummableDiminishingStepSize,
+    SubgradientConstantStepLength,
+    SubgradientConstantStepSize,
+    SubgradientSquareSummable,
+)
+
+
+def main():
+    # Load data
+    X_train, X_test, y_train, y_test = load_du_lieu()
+
+    model = SubgradientConstantStepSize()
+
+    # Huấn luyện model
+    results = model.fit(X_train, y_train)
+
+    # Đánh giá model
+    metrics = model.evaluate(X_test, y_test)
+
+    # Lưu kết quả với tên file tự động
+    ten_file = "toan_test"
+    results_dir = model.save_results(ten_file)
+
+    # Tạo biểu đồ
+    model.plot_results(X_test, y_test, ten_file)
+
+    print(f"\\nTraining and visualization completed!")
+    print(f"Results saved to: {results_dir.absolute()}")
+
+    return model, results, metrics
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,16 @@
+{
+  "algorithm": "Gradient Descent - OLS",
+  "loss_function": "OLS",
+  "parameters": {
+    "learning_rate": 0.01,
+    "max_iterations": 500,
+    "tolerance": 1e-05
+  },
+  "training_time": 454.7158007621765,
+  "convergence": {
+    "converged": true,
+    "iterations": 274,
+    "final_loss": 51.20065624132247,
+    "final_gradient_norm": 0.03153115022220669
+  }
+}

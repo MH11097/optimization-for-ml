@@ -471,10 +471,10 @@ def load_du_lieu():
         X_train, X_test, y_train, y_test: numpy arrays
     """
     data_dir = Path("data/02_processed")
-    X_train = pd.read_csv(data_dir / "X_train.csv").values
-    X_test = pd.read_csv(data_dir / "X_test.csv").values
-    y_train = pd.read_csv(data_dir / "y_train.csv").values.ravel()
-    y_test = pd.read_csv(data_dir / "y_test.csv").values.ravel()
+    X_train = tai_du_lieu_chunked(data_dir / "X_train.csv").values
+    X_test = tai_du_lieu_chunked(data_dir / "X_test.csv").values
+    y_train = tai_du_lieu_chunked(data_dir / "y_train.csv").values.ravel()
+    y_test = tai_du_lieu_chunked(data_dir / "y_test.csv").values.ravel()
     
     print(f"Loaded: Train {X_train.shape}, Test {X_test.shape}")
     return X_train, X_test, y_train, y_test

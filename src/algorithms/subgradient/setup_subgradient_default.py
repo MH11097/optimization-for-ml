@@ -1,7 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from src.utils.data_process_utils import load_du_lieu
-from src.algorithms.subgradient import (
+import os
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
+from utils.data_process_utils import load_du_lieu
+from algorithms.subgradient import (
     SubgradientNonSummableDiminishingStepLength,
     SubgradientNonSummableDiminishingStepSize,
     SubgradientConstantStepLength,

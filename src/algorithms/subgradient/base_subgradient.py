@@ -30,7 +30,7 @@ class BaseSubgradient(ABC):
 
     def __init__(
         self,
-        lambda_penalty: float = 0.4,
+        lambda_penalty: float = 0.1,
         max_iterations: int = 500,
         tolerance: float = 1e-8,
     ):
@@ -262,7 +262,7 @@ class BaseSubgradient(ABC):
         return results_dir
 
     def plot_results(
-        self, X_test, y_test, ten_file, base_dir="data/03_algorithms/gradient_descent"
+        self, X_test, y_test, ten_file, base_dir="data/03_algorithms/subgradient"
     ):
         """
         Tạo các biểu đồ visualization

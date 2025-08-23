@@ -21,7 +21,7 @@ def main():
     model = SubgradientConstantStepSize()
 
     # Huấn luyện model
-    results = model.fit(X_train, y_train)
+    results = model.fit(X=X_train, y=y_train)
 
     # Đánh giá model
     metrics = model.evaluate(X_test, y_test)

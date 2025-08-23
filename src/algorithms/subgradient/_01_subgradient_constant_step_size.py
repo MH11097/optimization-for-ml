@@ -9,5 +9,5 @@ class SubgradientConstantStepSize(BaseSubgradient):
         *args,
         **kwargs,
     ):
-        FIXED_STEP_SIZE = 0.05
+        FIXED_STEP_SIZE = 0.02
         return FIXED_STEP_SIZE

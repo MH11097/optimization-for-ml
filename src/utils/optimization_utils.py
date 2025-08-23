@@ -251,6 +251,7 @@ def kiem_tra_hoi_tu(gradient_norm: float, cost_change: float, iteration: int,
                    tolerance: float = 1e-6, max_iterations: int = 100) -> Tuple[bool, str]:
     """
     Kiểm tra điều kiện hội tụ cho thuật toán optimization
+    YÊU CẦU ĐỒNG THỜI CẢ HAI ĐIỀU KIỆN: gradient norm VÀ cost change
     
     Tham số:
         gradient_norm: chuẩn của gradient hiện tại
@@ -263,19 +264,25 @@ def kiem_tra_hoi_tu(gradient_norm: float, cost_change: float, iteration: int,
         converged: có hội tụ hay không
         reason: lý do dừng
     """
-    # Hội tụ theo gradient norm
-    if gradient_norm < tolerance:
-        return True, f"Hội tụ theo chuẩn gradient: {gradient_norm:.2e} < {tolerance:.2e}"
-    
-    # Hội tụ theo thay đổi cost
-    if iteration > 0 and abs(cost_change) < tolerance:
-        return True, f"Hội tụ theo thay đổi cost: {abs(cost_change):.2e} < {tolerance:.2e}"
-    
     # Đạt giới hạn iteration
     if iteration >= max_iterations:
         return True, f"Đạt giới hạn iteration: {iteration}"
     
-    return False, ""
+    # Kiểm tra điều kiện gradient norm
+    gradient_converged = gradient_norm < tolerance
+    
+    # Kiểm tra điều kiện thay đổi cost (chỉ sau iteration đầu tiên)  
+    cost_converged = iteration > 0 and abs(cost_change) < tolerance
+    
+    # YÊU CẦU ĐỒNG THỜI CẢ HAI ĐIỀU KIỆN
+    if gradient_converged and cost_converged:
+        return True, f"Hội tụ đồng thời: gradient norm {gradient_norm:.2e} < {tolerance:.2e} VÀ cost change {abs(cost_change):.2e} < {tolerance:.2e}"
+    
+    # Chưa hội tụ - hiển thị trạng thái hiện tại
+    if iteration > 0:
+        return False, f"Chưa hội tụ: gradient={gradient_norm:.2e} ({'✓' if gradient_converged else '✗'}), cost_change={abs(cost_change):.2e} ({'✓' if cost_converged else '✗'})"
+    else:
+        return False, f"Chưa hội tụ: gradient={gradient_norm:.2e} ({'✓' if gradient_converged else '✗'}), cost_change=N/A"
 
 
 def backtracking_line_search(cost_func: Callable, gradient: np.ndarray, 
@@ -1036,3 +1043,92 @@ def tinh_hessian_ridge(X: np.ndarray, lam: float) -> np.ndarray:
     XTX = X.T @ X
     I = np.eye(X.shape[1])
     return XTX / n + lam * I
+
+
+def tinh_gia_tri_ham_loss(ham_loss: str, X: np.ndarray, y: np.ndarray, w: np.ndarray, 
+                         bias: float = 0.0, regularization: float = 0.01, **kwargs) -> float:
+    """
+    Hàm thống nhất để tính giá trị loss function
+    
+    Tham số:
+        ham_loss: loại loss function ('ols', 'ridge', 'lasso')
+        X: ma trận đặc trưng (n_samples, n_features)
+        y: vector target (n_samples,)
+        w: vector weights (n_features,)
+        bias: bias term (scalar, mặc định 0.0)
+        regularization: hệ số regularization (mặc định 0.01)
+        **kwargs: các tham số bổ sung (ví dụ epsilon cho Lasso)
+    
+    Trả về:
+        float: giá trị loss function
+    """
+    ham_loss = ham_loss.lower()
+    
+    if ham_loss == 'ols':
+        return tinh_gia_tri_ham_OLS(X, y, w, bias)
+    elif ham_loss == 'ridge':
+        return tinh_gia_tri_ham_Ridge(X, y, w, bias, regularization)
+    elif ham_loss == 'lasso':
+        epsilon = kwargs.get('epsilon', 1e-8)
+        return tinh_gia_tri_ham_Lasso_smooth(X, y, w, bias, regularization, epsilon)
+    else:
+        raise ValueError(f"Không hỗ trợ loss function: {ham_loss}. Chỉ hỗ trợ: 'ols', 'ridge', 'lasso'")
+
+def tinh_gradient_ham_loss(ham_loss: str, X: np.ndarray, y: np.ndarray, w: np.ndarray,
+                          bias: float = 0.0, regularization: float = 0.01, **kwargs) -> Tuple[np.ndarray, float]:
+    """
+    Hàm thống nhất để tính gradient của loss function
+    
+    Tham số:
+        ham_loss: loại loss function ('ols', 'ridge', 'lasso')
+        X: ma trận đặc trưng (n_samples, n_features)
+        y: vector target (n_samples,)
+        w: vector weights (n_features,)
+        bias: bias term (scalar, mặc định 0.0)
+        regularization: hệ số regularization (mặc định 0.01)
+        **kwargs: các tham số bổ sung (ví dụ epsilon cho Lasso)
+    
+    Trả về:
+        gradient_w: gradient theo weights (n_features,)
+        gradient_b: gradient theo bias (scalar)
+    """
+    ham_loss = ham_loss.lower()
+    
+    if ham_loss == 'ols':
+        return tinh_gradient_OLS(X, y, w, bias)
+    elif ham_loss == 'ridge':
+        return tinh_gradient_Ridge(X, y, w, bias, regularization)
+    elif ham_loss == 'lasso':
+        epsilon = kwargs.get('epsilon', 1e-8)
+        return tinh_gradient_Lasso_smooth(X, y, w, bias, regularization, epsilon)
+    else:
+        raise ValueError(f"Không hỗ trợ loss function: {ham_loss}. Chỉ hỗ trợ: 'ols', 'ridge', 'lasso'")
+
+def tinh_hessian_ham_loss(ham_loss: str, X: np.ndarray, w: np.ndarray = None,
+                         regularization: float = 0.01, **kwargs) -> np.ndarray:
+    """
+    Hàm thống nhất để tính Hessian matrix của loss function
+    
+    Tham số:
+        ham_loss: loại loss function ('ols', 'ridge', 'lasso')
+        X: ma trận đặc trưng (n_samples, n_features)
+        w: vector weights (n_features,) - chỉ cần cho Lasso
+        regularization: hệ số regularization (mặc định 0.01)
+        **kwargs: các tham số bổ sung (ví dụ epsilon cho Lasso)
+    
+    Trả về:
+        np.ndarray: Hessian matrix (n_features, n_features)
+    """
+    ham_loss = ham_loss.lower()
+    
+    if ham_loss == 'ols':
+        return tinh_hessian_OLS(X)
+    elif ham_loss == 'ridge':
+        return tinh_hessian_Ridge(X, regularization)
+    elif ham_loss == 'lasso':
+        if w is None:
+            raise ValueError("Vector weights w cần thiết để tính Hessian cho Lasso")
+        epsilon = kwargs.get('epsilon', 1e-8)
+        return tinh_hessian_Lasso_smooth(X, w, regularization, epsilon)
+    else:
+        raise ValueError(f"Không hỗ trợ loss function: {ham_loss}. Chỉ hỗ trợ: 'ols', 'ridge', 'lasso'")

@@ -20,7 +20,8 @@ from utils.optimization_utils import (
     tinh_gia_tri_ham_OLS, tinh_gradient_OLS,
     tinh_gia_tri_ham_Ridge, tinh_gradient_Ridge,
     tinh_gia_tri_ham_Lasso_smooth, tinh_gradient_Lasso_smooth,
-    danh_gia_mo_hinh, in_ket_qua_danh_gia
+    danh_gia_mo_hinh, in_ket_qua_danh_gia, kiem_tra_hoi_tu,
+    tinh_gia_tri_ham_loss, tinh_gradient_ham_loss, tinh_hessian_ham_loss
 )
 from utils.visualization_utils import (
     ve_duong_hoi_tu, ve_duong_dong_muc_optimization, ve_du_doan_vs_thuc_te
@@ -56,18 +57,13 @@ class QuasiNewtonModel:
         self.max_line_search_iter = max_line_search_iter
         self.damping = damping
         
-        # Chọn loss function và gradient function
-        if self.ham_loss == 'ols':
-            self.loss_func = tinh_gia_tri_ham_OLS
-            self.grad_func = tinh_gradient_OLS
-        elif self.ham_loss == 'ridge':
-            self.loss_func = lambda X, y, w: tinh_gia_tri_ham_Ridge(X, y, w, self.regularization)
-            self.grad_func = lambda X, y, w: tinh_gradient_Ridge(X, y, w, self.regularization)
-        elif self.ham_loss == 'lasso':
-            self.loss_func = lambda X, y, w: tinh_gia_tri_ham_Lasso_smooth(X, y, w, self.regularization)
-            self.grad_func = lambda X, y, w: tinh_gradient_Lasso_smooth(X, y, w, self.regularization)
-        else:
+        # Validate supported loss function
+        if self.ham_loss not in ['ols', 'ridge', 'lasso']:
             raise ValueError(f"Không hỗ trợ loss function: {ham_loss}")
+        
+        # Sử dụng unified functions thay vì if-else logic
+        self.loss_func = lambda X, y, w: tinh_gia_tri_ham_loss(self.ham_loss, X, y, w, 0.0, self.regularization)
+        self.grad_func = lambda X, y, w: tinh_gradient_ham_loss(self.ham_loss, X, y, w, 0.0, self.regularization)[0]  # chỉ lấy gradient_w
         
         # Khởi tạo các thuộc tính lưu kết quả
         self.weights = None
@@ -188,9 +184,18 @@ class QuasiNewtonModel:
             self.gradient_norms.append(gradient_norm)
             self.weights_history.append(self.weights.copy())
             
-            # Check convergence
-            if gradient_norm < self.diem_dung:
-                print(f"Converged after {lan_thu + 1} iterations (gradient norm: {gradient_norm:.2e})")
+            # Check convergence using updated function (requires both conditions)
+            cost_change = 0.0 if lan_thu == 0 else (self.loss_history[-2] - self.loss_history[-1])
+            converged, reason = kiem_tra_hoi_tu(
+                gradient_norm=gradient_norm,
+                cost_change=cost_change,
+                iteration=lan_thu,
+                tolerance=self.diem_dung,
+                max_iterations=self.so_lan_thu
+            )
+            
+            if converged:
+                print(f"BFGS Quasi-Newton stopped: {reason}")
                 self.converged = True
                 self.final_iteration = lan_thu + 1
                 break
@@ -329,7 +334,7 @@ class QuasiNewtonModel:
         })
         training_df.to_csv(results_dir / "training_history.csv", index=False)
         
-        print(f"\\n Kết quả đã được lưu vào: {results_dir.absolute()}")
+        print(f"\n Kết quả đã được lưu vào: {results_dir.absolute()}")
         return results_dir
     
     def plot_results(self, X_test, y_test, ten_file, base_dir="data/03_algorithms/quasi_newton"):
@@ -390,5 +395,19 @@ class QuasiNewtonModel:
         ve_du_doan_vs_thuc_te(y_test, y_pred_test, 
                              title=f"BFGS Quasi-Newton {self.ham_loss.upper()} - Predictions vs Actual",
                              save_path=str(results_dir / "predictions_vs_actual.png"))
+        
+        # 3. Optimization trajectory (đường đồng mực)
+        print("   Vẽ đường đồng mực optimization")
+        sample_frequency = max(1, len(self.weights_history) // 50)
+        sampled_weights = self.weights_history[::sample_frequency]
+        
+        ve_duong_dong_muc_optimization(
+            loss_function=self.loss_func,
+            weights_history=sampled_weights,
+            X=X_test, y=y_test,
+            bias_history=None,  # Quasi-Newton doesn't use bias
+            title=f"BFGS Quasi-Newton {self.ham_loss.upper()} - Optimization Path",
+            save_path=str(results_dir / "optimization_trajectory.png")
+        )
         
         print(f"   Biểu đồ đã được lưu vào: {results_dir.absolute()}")

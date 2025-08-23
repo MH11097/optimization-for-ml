@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Master Optimization{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-6 fw-bold text-primary">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Optimization Dashboard
+                    </h1>
+                    <p class="lead text-muted">Monitor and analyze your optimization experiments</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('create_experiment') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-plus-circle me-2"></i>New Experiment
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ summary.total_experiments or 0 }}</h4>
+                            <p class="card-text">Total Experiments</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-flask fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ "%.1f"|format(summary.convergence_rate or 0) }}%</h4>
+                            <p class="card-text">Convergence Rate</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-check-circle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ summary.algorithm_families or 0 }}</h4>
+                            <p class="card-text">Algorithm Types</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-cogs fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-warning text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ "%.2f"|format(summary.avg_training_time or 0) }}s</h4>
+                            <p class="card-text">Avg Training Time</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-clock fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-rocket me-2"></i>Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="d-grid">
+                                <a href="{{ url_for('create_experiment') }}" class="btn btn-outline-primary btn-lg">
+                                    <i class="fas fa-plus-circle me-2"></i>
+                                    Create New Experiment
+                                </a>
+                            </div>
+                            <small class="text-muted">Configure and generate new optimization setup</small>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="d-grid">
+                                <a href="{{ url_for('model_browser') }}" class="btn btn-outline-success btn-lg">
+                                    <i class="fas fa-folder-open me-2"></i>
+                                    Browse Saved Models
+                                </a>
+                            </div>
+                            <small class="text-muted">View and manage trained models</small>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="d-grid">
+                                <a href="{{ url_for('predict') }}" class="btn btn-outline-info btn-lg">
+                                    <i class="fas fa-brain me-2"></i>
+                                    Make Predictions
+                                </a>
+                            </div>
+                            <small class="text-muted">Use trained models to predict new data</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Experiments & Top Performers -->
+    <div class="row mb-4">
+        <!-- Recent Experiments -->
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-history me-2"></i>Recent Experiments
+                    </h5>
+                    <a href="{{ url_for('model_browser') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    {% if recent_experiments %}
+                        <div class="list-group list-group-flush">
+                            {% for exp in recent_experiments[:5] %}
+                            <div class="list-group-item d-flex justify-content-between align-items-start">
+                                <div class="ms-2 me-auto">
+                                    <div class="fw-bold">{{ exp.get('experiment_name', 'Unknown') }}</div>
+                                    <small class="text-muted">{{ exp.get('algorithm', 'Unknown') }} - {{ exp.get('loss_function', 'N/A') }}</small>
+                                </div>
+                                <div class="text-end">
+                                    {% if exp.get('converged', False) %}
+                                        <span class="badge bg-success rounded-pill">Converged</span>
+                                    {% else %}
+                                        <span class="badge bg-warning rounded-pill">No Convergence</span>
+                                    {% endif %}
+                                    <br>
+                                    <small class="text-muted">{{ "%.2f"|format(exp.get('training_time', 0)) }}s</small>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-flask fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No experiments found</p>
+                            <a href="{{ url_for('create_experiment') }}" class="btn btn-primary">
+                                Create Your First Experiment
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Performers -->
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-trophy me-2"></i>Top Performers
+                    </h5>
+                    <a href="{{ url_for('compare_algorithms') }}" class="btn btn-sm btn-outline-success">Compare All</a>
+                </div>
+                <div class="card-body">
+                    {% if top_performers %}
+                        <div class="list-group list-group-flush">
+                            {% for exp in top_performers[:5] %}
+                            <div class="list-group-item d-flex justify-content-between align-items-start">
+                                <div class="ms-2 me-auto">
+                                    <div class="fw-bold">{{ exp.get('experiment_name', 'Unknown') }}</div>
+                                    <small class="text-muted">{{ exp.get('algorithm', 'Unknown') }} - {{ exp.get('loss_function', 'N/A') }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-primary rounded-pill">{{ "%.1f"|format(exp.get('final_loss', 0) or 0) }}</span>
+                                    <br>
+                                    <small class="text-muted">Score</small>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No performance data available</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Algorithm Categories Overview -->
+    {% if summary.category_performance %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-sitemap me-2"></i>Algorithm Categories Performance
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for category, stats in summary.category_performance.items() %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card border">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ category }}</h6>
+                                    <div class="row text-center">
+                                        <div class="col">
+                                            <div class="fw-bold text-primary">{{ "%.1f"|format(stats.get('avg_performance', 0) or 0) }}</div>
+                                            <small class="text-muted">Avg Score</small>
+                                        </div>
+                                        <div class="col">
+                                            <div class="fw-bold text-success">{{ "%.1f"|format(stats.converged) }}%</div>
+                                            <small class="text-muted">Convergence</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Quick Insights -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>Quick Insights
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <i class="fas fa-star fa-2x text-warning mb-2"></i>
+                                <h6>Best Algorithm</h6>
+                                <p class="text-muted">{{ summary.top_algorithm or 'N/A' }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <i class="fas fa-tachometer-alt fa-2x text-info mb-2"></i>
+                                <h6>Fastest Training</h6>
+                                <p class="text-muted">{{ summary.fastest_algorithm or 'N/A' }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <i class="fas fa-medal fa-2x text-success mb-2"></i>
+                                <h6>Best Performance Score</h6>
+                                <p class="text-muted">{{ "%.1f"|format(summary.best_performance or 0) }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Auto-refresh dashboard every 30 seconds
+setTimeout(() => {
+    location.reload();
+}, 30000);
+
+// Add some interactivity
+document.addEventListener('DOMContentLoaded', function() {
+    // Animate cards on load
+    const cards = document.querySelectorAll('.card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            card.style.transition = 'opacity 0.5s, transform 0.5s';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+</script>
+{% endblock %}

@@ -18,10 +18,11 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from utils.optimization_utils import (
     tinh_mse, du_doan, 
     tinh_gia_tri_ham_OLS, tinh_gradient_OLS,
-    danh_gia_mo_hinh, in_ket_qua_danh_gia
+    danh_gia_mo_hinh, in_ket_qua_danh_gia, kiem_tra_hoi_tu,
+    tinh_gia_tri_ham_loss, tinh_gradient_ham_loss, tinh_hessian_ham_loss
 )
 from utils.visualization_utils import (
-    ve_duong_hoi_tu, ve_du_doan_vs_thuc_te
+    ve_duong_hoi_tu, ve_duong_dong_muc_optimization, ve_du_doan_vs_thuc_te
 )
 
 
@@ -49,6 +50,9 @@ class ProximalGDModel:
         
         if self.ham_loss not in ['lasso', 'elastic_net']:
             raise ValueError(f"Không hỗ trợ loss function: {ham_loss}. Chỉ hỗ trợ 'lasso' và 'elastic_net'.")
+        
+        # Sử dụng unified function cho gradient của phần smooth (OLS)
+        self.grad_smooth_func = lambda X, y, w: tinh_gradient_ham_loss('ols', X, y, w, 0.0)[0]  # chỉ lấy gradient_w
         
         # Khởi tạo các thuộc tính lưu kết quả
         self.weights = None
@@ -128,7 +132,7 @@ class ProximalGDModel:
         
         for lan_thu in range(self.so_lan_thu):
             # Forward step: z = w - α∇f(w)
-            gradient = tinh_gradient_OLS(X, y, self.weights)
+            gradient = self.grad_smooth_func(X, y, self.weights)
             z = self.weights - self.learning_rate * gradient
             
             # Proximal step: w = prox_λ(z)
@@ -146,9 +150,18 @@ class ProximalGDModel:
             self.sparsity_history.append(sparsity)
             self.weights_history.append(self.weights.copy())
             
-            # Check convergence
-            if lan_thu > 0 and abs(self.loss_history[-1] - self.loss_history[-2]) < self.diem_dung:
-                print(f"Converged after {lan_thu + 1} iterations")
+            # Check convergence using updated function (requires both conditions)
+            cost_change = 0.0 if lan_thu == 0 else (self.loss_history[-2] - self.loss_history[-1])
+            converged, reason = kiem_tra_hoi_tu(
+                gradient_norm=gradient_norm,
+                cost_change=cost_change,
+                iteration=lan_thu,
+                tolerance=self.diem_dung,
+                max_iterations=self.so_lan_thu
+            )
+            
+            if converged:
+                print(f"Proximal GD stopped: {reason}")
                 self.converged = True
                 self.final_iteration = lan_thu + 1
                 break
@@ -251,7 +264,7 @@ class ProximalGDModel:
         })
         training_df.to_csv(results_dir / "training_history.csv", index=False)
         
-        print(f"\\n Kết quả đã được lưu vào: {results_dir.absolute()}")
+        print(f"\n Kết quả đã được lưu vào: {results_dir.absolute()}")
         return results_dir
     
     def plot_results(self, X_test, y_test, ten_file, base_dir="data/03_algorithms/proximal_gd"):
@@ -318,5 +331,23 @@ class ProximalGDModel:
         ve_du_doan_vs_thuc_te(y_test, y_pred_test, 
                              title=f"Proximal GD {self.ham_loss.upper()} - Predictions vs Actual",
                              save_path=str(results_dir / "predictions_vs_actual.png"))
+        
+        # 3. Optimization trajectory (đường đồng mực)
+        print("   Vẽ đường đồng mực optimization")
+        sample_frequency = max(1, len(self.weights_history) // 50)
+        sampled_weights = self.weights_history[::sample_frequency]
+        
+        # Use OLS loss for smooth part (Proximal GD separates smooth and non-smooth)
+        def smooth_loss_func(X, y, w, b=0.0):
+            return tinh_gia_tri_ham_loss('ols', X, y, w, b)
+        
+        ve_duong_dong_muc_optimization(
+            loss_function=smooth_loss_func,
+            weights_history=sampled_weights,
+            X=X_test, y=y_test,
+            bias_history=None,  # Proximal GD doesn't use bias
+            title=f"Proximal GD {self.ham_loss.upper()} - Optimization Path (Smooth Part)",
+            save_path=str(results_dir / "optimization_trajectory.png")
+        )
         
         print(f"   Biểu đồ đã được lưu vào: {results_dir.absolute()}")

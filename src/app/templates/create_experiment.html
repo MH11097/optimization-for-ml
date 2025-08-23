@@ -1,0 +1,480 @@
+{% extends "base.html" %}
+
+{% block title %}Create Experiment - Master Optimization{% endblock %}
+
+{% block extra_head %}
+<style>
+.algorithm-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+.algorithm-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.algorithm-card.selected {
+    border-color: #0d6efd;
+    background-color: rgba(13, 110, 253, 0.1);
+}
+.variant-option {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.variant-option:hover {
+    background-color: rgba(13, 110, 253, 0.1);
+}
+.variant-option.selected {
+    background-color: rgba(13, 110, 253, 0.2);
+    border-color: #0d6efd;
+}
+.param-input {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-6 fw-bold text-primary">
+                        <i class="fas fa-plus-circle me-2"></i>
+                        Create New Experiment
+                    </h1>
+                    <p class="lead text-muted">Configure optimization algorithm parameters and generate setup file</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form id="experimentForm" method="POST">
+        {{ form.hidden_tag() }}
+        
+        <!-- Step 1: Algorithm Selection -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <span class="badge bg-primary me-2">1</span>
+                            Select Algorithm
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            {% for category, algorithms in algorithms_by_category.items() %}
+                            <div class="col-12 mb-3">
+                                <h6 class="text-muted fw-bold">{{ category }}</h6>
+                                <div class="row">
+                                    {% for algorithm in algorithms %}
+                                    <div class="col-md-6 col-lg-4 mb-3">
+                                        <div class="card algorithm-card h-100" data-algorithm="{{ algorithm.name }}">
+                                            <div class="card-body">
+                                                <h6 class="card-title">{{ algorithm.display_name }}</h6>
+                                                <p class="card-text small text-muted">{{ algorithm.description }}</p>
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <small class="text-muted">{{ algorithm.variants|length }} variant(s)</small>
+                                                    <i class="fas fa-check-circle text-success" style="display: none;"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Variant Selection -->
+        <div class="row mb-4" id="variantSection" style="display: none;">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <span class="badge bg-primary me-2">2</span>
+                            Select Algorithm Variant
+                        </h5>
+                    </div>
+                    <div class="card-body" id="variantOptions">
+                        <!-- Dynamic content -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Parameter Configuration -->
+        <div class="row mb-4" id="parameterSection" style="display: none;">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <span class="badge bg-primary me-2">3</span>
+                            Configure Parameters
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="parameterInputs">
+                            <!-- Dynamic content -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Preview & Generate -->
+        <div class="row mb-4" id="previewSection" style="display: none;">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <span class="badge bg-primary me-2">4</span>
+                            Preview & Generate
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Setup File Preview:</label>
+                                    <div class="card bg-light">
+                                        <div class="card-body">
+                                            <h6>Generated Filename:</h6>
+                                            <code id="generatedFilename">-</code>
+                                            
+                                            <h6 class="mt-3">Configuration Summary:</h6>
+                                            <div id="configSummary">
+                                                <ul class="list-unstyled">
+                                                    <li><strong>Algorithm:</strong> <span id="summaryAlgorithm">-</span></li>
+                                                    <li><strong>Variant:</strong> <span id="summaryVariant">-</span></li>
+                                                    <li><strong>Parameters:</strong></li>
+                                                    <ul id="summaryParams">
+                                                        <!-- Dynamic content -->
+                                                    </ul>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Action Options:</label>
+                                    <div class="d-grid gap-2">
+                                        <button type="submit" name="action" value="generate" class="btn btn-primary btn-lg">
+                                            <i class="fas fa-file-code me-2"></i>
+                                            Generate Setup File
+                                        </button>
+                                        <button type="submit" name="action" value="generate_and_run" class="btn btn-success btn-lg">
+                                            <i class="fas fa-play me-2"></i>
+                                            Generate & Run
+                                        </button>
+                                        <hr>
+                                        <button type="button" class="btn btn-outline-info" onclick="downloadSetup()">
+                                            <i class="fas fa-download me-2"></i>
+                                            Download Only
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Hidden form inputs for dynamic data -->
+<input type="hidden" id="selectedAlgorithm" name="algorithm">
+<input type="hidden" id="selectedVariant" name="variant">
+<input type="hidden" id="parametersJson" name="parameters">
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Algorithm registry data passed from Flask
+const ALGORITHMS = {{ algorithms_json | safe }};
+
+let selectedAlgorithm = null;
+let selectedVariant = null;
+let currentParameters = {};
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeExperimentForm();
+});
+
+function initializeExperimentForm() {
+    // Algorithm selection
+    document.querySelectorAll('.algorithm-card').forEach(card => {
+        card.addEventListener('click', function() {
+            const algorithmName = this.dataset.algorithm;
+            selectAlgorithm(algorithmName);
+        });
+    });
+}
+
+function selectAlgorithm(algorithmName) {
+    // Clear previous selection
+    document.querySelectorAll('.algorithm-card').forEach(card => {
+        card.classList.remove('selected');
+        card.querySelector('.fa-check-circle').style.display = 'none';
+    });
+    
+    // Select current algorithm
+    const selectedCard = document.querySelector(`[data-algorithm="${algorithmName}"]`);
+    selectedCard.classList.add('selected');
+    selectedCard.querySelector('.fa-check-circle').style.display = 'block';
+    
+    selectedAlgorithm = algorithmName;
+    document.getElementById('selectedAlgorithm').value = algorithmName;
+    
+    // Show variants
+    showVariants(algorithmName);
+}
+
+function showVariants(algorithmName) {
+    const algorithm = ALGORITHMS[algorithmName];
+    const variantSection = document.getElementById('variantSection');
+    const variantOptions = document.getElementById('variantOptions');
+    
+    if (!algorithm || !algorithm.variants) {
+        variantSection.style.display = 'none';
+        return;
+    }
+    
+    // Create variant options
+    let html = '<div class="row">';
+    algorithm.variants.forEach(variant => {
+        html += `
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card variant-option h-100" data-variant="${variant.name}">
+                    <div class="card-body">
+                        <h6 class="card-title">${variant.display_name}</h6>
+                        <p class="card-text small text-muted">Loss: ${variant.loss_function}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">${variant.parameters.length} parameter(s)</small>
+                            <i class="fas fa-check-circle text-success" style="display: none;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    
+    variantOptions.innerHTML = html;
+    variantSection.style.display = 'block';
+    
+    // Add click handlers
+    document.querySelectorAll('.variant-option').forEach(option => {
+        option.addEventListener('click', function() {
+            const variantName = this.dataset.variant;
+            selectVariant(algorithmName, variantName);
+        });
+    });
+}
+
+function selectVariant(algorithmName, variantName) {
+    // Clear previous selection
+    document.querySelectorAll('.variant-option').forEach(option => {
+        option.classList.remove('selected');
+        option.querySelector('.fa-check-circle').style.display = 'none';
+    });
+    
+    // Select current variant
+    const selectedOption = document.querySelector(`[data-variant="${variantName}"]`);
+    selectedOption.classList.add('selected');
+    selectedOption.querySelector('.fa-check-circle').style.display = 'block';
+    
+    selectedVariant = variantName;
+    document.getElementById('selectedVariant').value = variantName;
+    
+    // Show parameters
+    showParameters(algorithmName, variantName);
+}
+
+function showParameters(algorithmName, variantName) {
+    const algorithm = ALGORITHMS[algorithmName];
+    const variant = algorithm.variants.find(v => v.name === variantName);
+    
+    if (!variant || !variant.parameters) {
+        document.getElementById('parameterSection').style.display = 'none';
+        return;
+    }
+    
+    const parameterInputs = document.getElementById('parameterInputs');
+    let html = '';
+    
+    variant.parameters.forEach(param => {
+        html += createParameterInput(param);
+    });
+    
+    parameterInputs.innerHTML = html;
+    document.getElementById('parameterSection').style.display = 'block';
+    
+    // Initialize parameter change handlers
+    variant.parameters.forEach(param => {
+        const input = document.getElementById(`param_${param.name}`);
+        if (input) {
+            input.addEventListener('change', updateParameters);
+            // Set default value
+            currentParameters[param.name] = param.default_value;
+        }
+    });
+    
+    updateParameters();
+}
+
+function createParameterInput(param) {
+    let inputHtml = '';
+    
+    switch(param.param_type) {
+        case 'choice':
+            inputHtml = `
+                <select class="form-select param-input" id="param_${param.name}">
+                    ${param.choices.map(choice => 
+                        `<option value="${choice}" ${choice === param.default_value ? 'selected' : ''}>${choice}</option>`
+                    ).join('')}
+                </select>
+            `;
+            break;
+        case 'integer':
+            inputHtml = `
+                <input type="number" class="form-control param-input" id="param_${param.name}" 
+                       min="${param.min_value}" max="${param.max_value}" 
+                       value="${param.default_value}" step="1">
+            `;
+            break;
+        case 'float':
+            inputHtml = `
+                <input type="number" class="form-control param-input" id="param_${param.name}" 
+                       min="${param.min_value}" max="${param.max_value}" 
+                       value="${param.default_value}" step="${param.step || 'any'}">
+            `;
+            break;
+        case 'boolean':
+            inputHtml = `
+                <div class="form-check form-switch">
+                    <input type="checkbox" class="form-check-input param-input" id="param_${param.name}" 
+                           ${param.default_value ? 'checked' : ''}>
+                    <label class="form-check-label" for="param_${param.name}">Enable</label>
+                </div>
+            `;
+            break;
+        default:
+            inputHtml = `
+                <input type="text" class="form-control param-input" id="param_${param.name}" 
+                       value="${param.default_value}">
+            `;
+    }
+    
+    return `
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <label for="param_${param.name}" class="form-label fw-bold">${param.name}</label>
+                    ${inputHtml}
+                    <small class="text-muted">${param.description}</small>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function updateParameters() {
+    // Collect current parameter values
+    Object.keys(currentParameters).forEach(paramName => {
+        const input = document.getElementById(`param_${paramName}`);
+        if (input) {
+            if (input.type === 'checkbox') {
+                currentParameters[paramName] = input.checked;
+            } else {
+                currentParameters[paramName] = input.value;
+            }
+        }
+    });
+    
+    // Update hidden input
+    document.getElementById('parametersJson').value = JSON.stringify(currentParameters);
+    
+    // Update preview
+    updatePreview();
+}
+
+function updatePreview() {
+    if (!selectedAlgorithm || !selectedVariant) return;
+    
+    const algorithm = ALGORITHMS[selectedAlgorithm];
+    const variant = algorithm.variants.find(v => v.name === selectedVariant);
+    
+    // Generate filename
+    let filename = variant.setup_template;
+    Object.keys(currentParameters).forEach(paramName => {
+        const value = currentParameters[paramName];
+        let valueStr = value.toString();
+        if (typeof value === 'number' && value < 1 && value > 0) {
+            valueStr = valueStr.replace('0.', '0').replace('.', '');
+        }
+        filename = filename.replace(`{${paramName}}`, valueStr);
+    });
+    
+    // Update preview
+    document.getElementById('generatedFilename').textContent = filename + '.py';
+    document.getElementById('summaryAlgorithm').textContent = algorithm.display_name;
+    document.getElementById('summaryVariant').textContent = variant.display_name;
+    
+    // Update parameters list
+    const paramsList = document.getElementById('summaryParams');
+    paramsList.innerHTML = '';
+    Object.keys(currentParameters).forEach(paramName => {
+        const li = document.createElement('li');
+        li.innerHTML = `<code>${paramName}</code>: ${currentParameters[paramName]}`;
+        paramsList.appendChild(li);
+    });
+    
+    // Show preview section
+    document.getElementById('previewSection').style.display = 'block';
+}
+
+function downloadSetup() {
+    // Create form data for download
+    const formData = new FormData();
+    formData.append('algorithm', selectedAlgorithm);
+    formData.append('variant', selectedVariant);
+    formData.append('parameters', JSON.stringify(currentParameters));
+    formData.append('action', 'download');
+    
+    // Submit form for download
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = window.location.href;
+    
+    for (let [key, value] of formData.entries()) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
+    }
+    
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+}
+</script>
+{% endblock %}

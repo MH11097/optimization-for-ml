@@ -473,7 +473,7 @@ def load_du_lieu():
         
     Note: Target data đã được log-transformed trong preprocessing pipeline
     """
-    data_dir = Path("data/02_processed")
+    data_dir = Path("data/02.1_sampled")
     
     # Check if directory exists
     if not data_dir.exists():
@@ -486,20 +486,10 @@ def load_du_lieu():
         y_train = tai_du_lieu_chunked(data_dir / "y_train.csv").values.ravel()
         y_test = tai_du_lieu_chunked(data_dir / "y_test.csv").values.ravel()
         
-        print(f"✅ Đã load dữ liệu: Train {X_train.shape}, Test {X_test.shape}")
-        print(f"   Target (log): y_train [{y_train.min():.3f}, {y_train.max():.3f}]")
-        print(f"   Target (log): y_test [{y_test.min():.3f}, {y_test.max():.3f}]")
-        
-        # Load and display metadata if available
-        feature_info_path = data_dir / "feature_info.json"
-        if feature_info_path.exists():
-            with open(feature_info_path, 'r') as f:
-                feature_info = json.load(f)
-            
-            print(f"   📋 Số features: {feature_info['n_features']}")
-            print(f"   🔄 Biến đổi: {feature_info['target_info']['transformation']}")
-            print(f"   ✅ Sẵn sàng cho thuật toán")
-        
+        print(f"✅ Loaded processed data: Train {X_train.shape}, Test {X_test.shape}")
+        print(f"   Target range (log scale): y_train [{y_train.min():.3f}, {y_train.max():.3f}]")
+        print(f"   Target range (log scale): y_test [{y_test.min():.3f}, {y_test.max():.3f}]")
+                
         return X_train, X_test, y_train, y_test
         
     except FileNotFoundError as e:

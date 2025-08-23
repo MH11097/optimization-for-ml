@@ -21,7 +21,8 @@ from utils.optimization_utils import (
     tinh_gia_tri_ham_Ridge, tinh_gradient_Ridge, tinh_hessian_Ridge,
     tinh_gia_tri_ham_Lasso_smooth, tinh_gradient_Lasso_smooth, tinh_hessian_Lasso_smooth,
     giai_he_phuong_trinh_tuyen_tinh,
-    danh_gia_mo_hinh, in_ket_qua_danh_gia
+    danh_gia_mo_hinh, in_ket_qua_danh_gia, kiem_tra_hoi_tu,
+    tinh_gia_tri_ham_loss, tinh_gradient_ham_loss, tinh_hessian_ham_loss
 )
 from utils.visualization_utils import (
     ve_duong_hoi_tu, ve_duong_dong_muc_optimization, ve_du_doan_vs_thuc_te
@@ -48,21 +49,14 @@ class NewtonModel:
         self.diem_dung = diem_dung
         self.numerical_regularization = numerical_regularization
         
-        # Chọn loss function, gradient function và hessian function
-        if self.ham_loss == 'ols':
-            self.loss_func = tinh_gia_tri_ham_OLS
-            self.grad_func = tinh_gradient_OLS
-            self.hess_func = tinh_hessian_OLS
-        elif self.ham_loss == 'ridge':
-            self.loss_func = lambda X, y, w: tinh_gia_tri_ham_Ridge(X, y, w, self.regularization)
-            self.grad_func = lambda X, y, w: tinh_gradient_Ridge(X, y, w, self.regularization)
-            self.hess_func = lambda X: tinh_hessian_Ridge(X, self.regularization)
-        elif self.ham_loss == 'lasso':
-            self.loss_func = lambda X, y, w: tinh_gia_tri_ham_Lasso_smooth(X, y, w, self.regularization)
-            self.grad_func = lambda X, y, w: tinh_gradient_Lasso_smooth(X, y, w, self.regularization)
-            self.hess_func = lambda X: tinh_hessian_Lasso_smooth(X, self.regularization)
-        else:
+        # Validate supported loss function
+        if self.ham_loss not in ['ols', 'ridge', 'lasso']:
             raise ValueError(f"Không hỗ trợ loss function: {ham_loss}")
+        
+        # Sử dụng unified functions thay vì if-else logic
+        self.loss_func = lambda X, y, w: tinh_gia_tri_ham_loss(self.ham_loss, X, y, w, 0.0, self.regularization)
+        self.grad_func = lambda X, y, w: tinh_gradient_ham_loss(self.ham_loss, X, y, w, 0.0, self.regularization)[0]  # chỉ lấy gradient_w
+        self.hess_func = lambda X: tinh_hessian_ham_loss(self.ham_loss, X, None, self.regularization)
         
         # Khởi tạo các thuộc tính lưu kết quả
         self.weights = None
@@ -100,13 +94,8 @@ class NewtonModel:
         
         start_time = time.time()
         
-        # Precompute Hessian (constant for quadratic functions)
-        if self.ham_loss == 'ols':
-            H = self.hess_func(X)
-        elif self.ham_loss == 'ridge':
-            H = self.hess_func(X)
-        else:  # lasso - Hessian may change with weights
-            H = self.hess_func(X)
+        # Precompute Hessian using unified function
+        H = self.hess_func(X)
         
         # Add numerical regularization for stability
         H_reg = H + self.numerical_regularization * np.eye(n_features)
@@ -125,9 +114,18 @@ class NewtonModel:
             self.gradient_norms.append(gradient_norm)
             self.weights_history.append(self.weights.copy())
             
-            # Check convergence
-            if gradient_norm < self.diem_dung:
-                print(f"Converged after {lan_thu + 1} iterations (gradient norm: {gradient_norm:.2e})")
+            # Check convergence using updated function (requires both conditions)
+            cost_change = 0.0 if lan_thu == 0 else (self.loss_history[-2] - self.loss_history[-1])
+            converged, reason = kiem_tra_hoi_tu(
+                gradient_norm=gradient_norm,
+                cost_change=cost_change, 
+                iteration=lan_thu,
+                tolerance=self.diem_dung,
+                max_iterations=self.so_lan_thu
+            )
+            
+            if converged:
+                print(f"Newton Method stopped: {reason}")
                 self.converged = True
                 self.final_iteration = lan_thu + 1
                 break
@@ -247,7 +245,7 @@ class NewtonModel:
         })
         training_df.to_csv(results_dir / "training_history.csv", index=False)
         
-        print(f"\\n Kết quả đã được lưu vào: {results_dir.absolute()}")
+        print(f"\n Kết quả đã được lưu vào: {results_dir.absolute()}")
         return results_dir
     
     def plot_results(self, X_test, y_test, ten_file, base_dir="data/03_algorithms/newton_method"):
@@ -280,18 +278,18 @@ class NewtonModel:
                              title=f"Newton Method {self.ham_loss.upper()} - Predictions vs Actual",
                              save_path=str(results_dir / "predictions_vs_actual.png"))
         
-        # 3. Optimization trajectory (chỉ cho OLS để tránh quá phức tạp)
-        if self.ham_loss == 'ols':
-            print("   Vẽ đường đẳng mực optimization")
-            sample_frequency = max(1, len(self.weights_history) // 50)
-            sampled_weights = self.weights_history[::sample_frequency]
-            
-            ve_duong_dong_muc_optimization(
-                loss_function=self.loss_func,
-                weights_history=sampled_weights,
-                X=None, y=None,  # Sẽ được cung cấp trong function
-                title=f"Newton Method {self.ham_loss.upper()} - Optimization Path",
-                save_path=str(results_dir / "optimization_trajectory.png")
-            )
+        # 3. Optimization trajectory (đường đồng mực) - hỗ trợ tất cả loss types
+        print("   Vẽ đường đẳng mực optimization")
+        sample_frequency = max(1, len(self.weights_history) // 50)
+        sampled_weights = self.weights_history[::sample_frequency]
+        
+        ve_duong_dong_muc_optimization(
+            loss_function=self.loss_func,
+            weights_history=sampled_weights,
+            X=X_test, y=y_test,
+            bias_history=None,  # Newton Method doesn't use bias
+            title=f"Newton Method {self.ham_loss.upper()} - Optimization Path",
+            save_path=str(results_dir / "optimization_trajectory.png")
+        )
         
         print(f"   Biểu đồ đã được lưu vào: {results_dir.absolute()}")

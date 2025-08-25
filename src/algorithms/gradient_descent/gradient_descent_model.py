@@ -17,7 +17,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from utils.optimization_utils import (
     du_doan, danh_gia_mo_hinh, in_ket_qua_danh_gia, kiem_tra_hoi_tu,
-    tinh_gia_tri_ham_loss, tinh_gradient_ham_loss, tinh_hessian_ham_loss
+    tinh_gia_tri_ham_loss, tinh_gradient_ham_loss, tinh_hessian_ham_loss,
+    add_bias_column
 )
 from utils.visualization_utils import (
     ve_duong_hoi_tu, ve_duong_dong_muc_optimization, ve_du_doan_vs_thuc_te
@@ -45,17 +46,15 @@ class GradientDescentModel:
         if self.ham_loss not in ['ols', 'ridge', 'lasso']:
             raise ValueError(f"Không hỗ trợ loss function: {ham_loss}")
         
-        # Sử dụng unified functions thay vì if-else logic
-        self.loss_func = lambda X, y, w, b: tinh_gia_tri_ham_loss(self.ham_loss, X, y, w, b, self.regularization)
-        self.grad_func = lambda X, y, w, b: tinh_gradient_ham_loss(self.ham_loss, X, y, w, b, self.regularization)
+        # Sử dụng unified functions với format mới (bias trong X)
+        self.loss_func = lambda X, y, w: tinh_gia_tri_ham_loss(self.ham_loss, X, y, w, None, self.regularization)
+        self.grad_func = lambda X, y, w: tinh_gradient_ham_loss(self.ham_loss, X, y, w, None, self.regularization)
         
         # Khởi tạo các thuộc tính lưu kết quả
         self.weights = None
-        self.bias = None  
         self.loss_history = []
         self.gradient_norms = []
         self.weights_history = []
-        self.bias_history = []  
         self.training_time = 0
         self.converged = False
         self.final_iteration = 0
@@ -72,34 +71,34 @@ class GradientDescentModel:
         if self.ham_loss in ['ridge', 'lasso']:
             print(f"   Regularization: {self.regularization}")
         
-        # Initialize weights and bias
-        n_features = X.shape[1]
-        self.weights = np.random.normal(0, 0.01, n_features)
-        self.bias = np.random.normal(0, 0.01)  
+        # Thêm cột bias vào X
+        X_with_bias = add_bias_column(X)
+        print(f"   Original features: {X.shape[1]}, With bias: {X_with_bias.shape[1]}")
+        
+        # Initialize weights (bao gồm bias ở cuối)
+        n_features_with_bias = X_with_bias.shape[1]
+        self.weights = np.random.normal(0, 0.01, n_features_with_bias)
         
         # Reset histories
         self.loss_history = []
         self.gradient_norms = []
         self.weights_history = []
-        self.bias_history = []
         
         start_time = time.time()
         
         for lan_thu in range(self.so_lan_thu):
             # Tính giá trị hàm loss và gradient hàm loss
-            loss_value = self.loss_func(X, y, self.weights, self.bias)
-            gradient_w, gradient_b = self.grad_func(X, y, self.weights, self.bias)
+            loss_value = self.loss_func(X_with_bias, y, self.weights)
+            gradient_w, _ = self.grad_func(X_with_bias, y, self.weights) 
             
-            # Update weights and bias
+            # Update weights (bao gồm bias)
             self.weights = self.weights - self.learning_rate * gradient_w
-            self.bias = self.bias - self.learning_rate * gradient_b
             
             # Store history
             self.loss_history.append(loss_value)
-            gradient_norm = np.sqrt(np.linalg.norm(gradient_w)**2 + gradient_b**2)
+            gradient_norm = np.linalg.norm(gradient_w)
             self.gradient_norms.append(gradient_norm)
             self.weights_history.append(self.weights.copy())
-            self.bias_history.append(self.bias)
             
             # Check convergence using updated function (requires both conditions)
             cost_change = 0.0 if lan_thu == 0 else (self.loss_history[-2] - self.loss_history[-1])
@@ -129,15 +128,15 @@ class GradientDescentModel:
         
         print(f"Thời gian training: {self.training_time:.2f}s")
         print(f"Loss cuối: {self.loss_history[-1]:.6f}")
-        print(f"Bias cuối: {self.bias:.6f}")
+        print(f"Bias cuối: {self.weights[-1]:.6f}")  # Bias là phần tử cuối của weights
+        print(f"Số weights (bao gồm bias): {len(self.weights)}")
         
         return {
-            'weights': self.weights,
-            'bias': self.bias,
+            'weights': self.weights,  # Bao gồm bias ở cuối
+            'bias': self.weights[-1],  # Bias riêng để tương thích
             'loss_history': self.loss_history,
             'gradient_norms': self.gradient_norms,
             'weights_history': self.weights_history,
-            'bias_history': self.bias_history,
             'training_time': self.training_time,
             'converged': self.converged,
             'final_iteration': self.final_iteration
@@ -152,20 +151,26 @@ class GradientDescentModel:
         Lưu ý:
             - Model được train trên log-transformed targets
             - Dự đoán trả về ở log scale
-            - Bao gồm bias term: y = Xw + b
+            - Bias đã được tích hợp vào weights: y = Xw (với X đã có cột bias)
             - Sử dụng np.expm1() để chuyển về giá gốc khi cần
         """
-        if self.weights is None or self.bias is None:
+        if self.weights is None:
             raise ValueError("Model chưa được huấn luyện. Hãy gọi fit() trước.")
-        return du_doan(X, self.weights, self.bias)
+        
+        # Thêm cột bias vào X cho prediction
+        X_with_bias = add_bias_column(X)
+        return du_doan(X_with_bias, self.weights, None)
     
     def evaluate(self, X_test, y_test):
         """Đánh giá model trên test set"""
-        if self.weights is None or self.bias is None:
+        if self.weights is None:
             raise ValueError("Model chưa được huấn luyện. Hãy gọi fit() trước.")
         
         print(f"\n📋 Đánh giá model...")
-        metrics = danh_gia_mo_hinh(self.weights, X_test, y_test, self.bias)
+        # Sử dụng bias từ weights (phần tử cuối) để tương thích với hàm cũ
+        bias_value = self.weights[-1]
+        weights_without_bias = self.weights[:-1]
+        metrics = danh_gia_mo_hinh(weights_without_bias, X_test, y_test, bias_value)
         in_ket_qua_danh_gia(metrics, self.training_time, 
                            f"Gradient Descent - {self.ham_loss.upper()}")
         return metrics
@@ -185,7 +190,7 @@ class GradientDescentModel:
         results_dir = Path(base_dir) / ten_file
         results_dir.mkdir(parents=True, exist_ok=True)
         
-        # Save results.json
+        # Save comprehensive results.json
         print(f"   Lưu kết quả vào {results_dir}/results.json")
         results_data = {
             "algorithm": f"Gradient Descent - {self.ham_loss.upper()}",
@@ -195,12 +200,37 @@ class GradientDescentModel:
                 "max_iterations": self.so_lan_thu,
                 "tolerance": self.diem_dung
             },
-            "training_time": self.training_time,
-            "convergence": {
+            "training_results": {
+                "training_time": self.training_time,
                 "converged": self.converged,
-                "iterations": self.final_iteration,
+                "final_iteration": self.final_iteration,
+                "total_iterations": self.so_lan_thu,
                 "final_loss": float(self.loss_history[-1]),
                 "final_gradient_norm": float(self.gradient_norms[-1])
+            },
+            "weights_analysis": {
+                "n_features": len(self.weights) - 1,  # Không tính bias
+                "n_weights_total": len(self.weights),  # Tính cả bias
+                "bias_value": float(self.weights[-1]),
+                "weights_without_bias": self.weights[:-1].tolist(),
+                "complete_weight_vector": self.weights.tolist(),
+                "weights_stats": {
+                    "min": float(np.min(self.weights[:-1])),  # Stats chỉ của weights, không tính bias
+                    "max": float(np.max(self.weights[:-1])),
+                    "mean": float(np.mean(self.weights[:-1])),
+                    "std": float(np.std(self.weights[:-1]))
+                }
+            },
+            "convergence_analysis": {
+                "iterations_to_converge": self.final_iteration,
+                "final_cost_change": float(self.loss_history[-1] - self.loss_history[-2]) if len(self.loss_history) > 1 else 0.0,
+                "convergence_rate": "linear",  # Gradient Descent có convergence rate tuyến tính
+                "loss_reduction_ratio": float(self.loss_history[0] / self.loss_history[-1]) if len(self.loss_history) > 0 else 1.0
+            },
+            "algorithm_specific": {
+                "gradient_descent_type": "standard",
+                "step_size_constant": True,
+                "momentum_used": False
             }
         }
         
@@ -256,13 +286,15 @@ class GradientDescentModel:
         print("   - Vẽ đường đồng mực optimization")
         sample_frequency = max(1, len(self.weights_history) // 50)
         sampled_weights = self.weights_history[::sample_frequency]
-        sampled_bias = self.bias_history[::sample_frequency]
+        
+        # Chuẩn bị X_test với bias cho visualization
+        X_test_with_bias = add_bias_column(X_test)
         
         ve_duong_dong_muc_optimization(
             loss_function=self.loss_func,
             weights_history=sampled_weights,
-            X=X_test, y=y_test,
-            bias_history=sampled_bias,
+            X=X_test_with_bias, y=y_test,
+            bias_history=None,  # Không cần bias riêng nữa
             title=f"Gradient Descent {self.ham_loss.upper()} - Optimization Path",
             save_path=str(results_dir / "optimization_trajectory.png")
         )

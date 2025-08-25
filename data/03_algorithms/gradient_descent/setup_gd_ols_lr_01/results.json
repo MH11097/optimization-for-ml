@@ -6,11 +6,11 @@
     "max_iterations": 500,
     "tolerance": 1e-05
   },
-  "training_time": 408.4176993370056,
+  "training_time": 108.54795861244202,
   "convergence": {
-    "converged": true,
-    "iterations": 95,
-    "final_loss": 0.01257856190378705,
-    "final_gradient_norm": 0.009896470897988079
+    "converged": false,
+    "iterations": 500,
+    "final_loss": 0.011982955651568141,
+    "final_gradient_norm": 0.001496185792796402
   }
 }

@@ -17,8 +17,9 @@ import pickle
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from utils.optimization_utils import (
-    tinh_mse, du_doan, danh_gia_mo_hinh, in_ket_qua_danh_gia, kiem_tra_hoi_tu,
-    tinh_gia_tri_ham_loss, tinh_gradient_ham_loss, tinh_hessian_ham_loss
+    du_doan, danh_gia_mo_hinh, in_ket_qua_danh_gia, kiem_tra_hoi_tu,
+    tinh_gia_tri_ham_loss, tinh_gradient_ham_loss, tinh_hessian_ham_loss,
+    add_bias_column
 )
 from utils.visualization_utils import (
     ve_duong_hoi_tu, ve_du_doan_vs_thuc_te, ve_duong_dong_muc_optimization
@@ -55,12 +56,12 @@ class SGDModel:
         if self.ham_loss == 'mse':
             self.ham_loss = 'ols'
         
-        # Sử dụng unified functions
-        self.loss_func = lambda X, y, w: tinh_gia_tri_ham_loss(self.ham_loss, X, y, w, 0.0, self.regularization)
-        self.grad_func = lambda X, y, w: tinh_gradient_ham_loss(self.ham_loss, X, y, w, 0.0, self.regularization)[0]  # chỉ lấy gradient_w
+        # Sử dụng unified functions với format mới (bias trong X)
+        self.loss_func = lambda X, y, w: tinh_gia_tri_ham_loss(self.ham_loss, X, y, w, None, self.regularization)
+        self.grad_func = lambda X, y, w: tinh_gradient_ham_loss(self.ham_loss, X, y, w, None, self.regularization)
         
         # Khởi tạo các thuộc tính lưu kết quả
-        self.weights = None
+        self.weights = None  # Bây giờ bao gồm bias ở cuối
         self.cost_history = []
         self.gradient_norms = []
         self.weights_history = []
@@ -76,11 +77,11 @@ class SGDModel:
     def _tinh_gradient_sample(self, xi, yi, weights):
         """Tính gradient cho một sample sử dụng unified function"""
         # Reshape để tương thích với unified function
-        X_sample = xi.reshape(1, -1)  # (1, n_features)
+        X_sample = xi.reshape(1, -1)  # (1, n_features) - đã bao gồm bias
         y_sample = np.array([yi])     # (1,)
         
         # Sử dụng unified function và lấy gradient weights
-        gradient_w = self.grad_func(X_sample, y_sample, weights)
+        gradient_w, _ = self.grad_func(X_sample, y_sample, weights)  # _ vì không cần gradient_b riêng
         return gradient_w
     
     def fit(self, X, y):
@@ -90,17 +91,19 @@ class SGDModel:
         Returns:
         - dict: Kết quả training bao gồm weights, cost_history, etc.
         """
-        print(f"Training Stochastic Gradient Descent - {self.ham_loss.upper()}")
+        print(f"🚀 Training Stochastic Gradient Descent - {self.ham_loss.upper()}")
         print(f"   Learning rate: {self.learning_rate}")
-        print(f"   Epochs: {self.so_epochs}")
-        print(f"   Batch size: {self.batch_size}")
+        print(f"   Epochs: {self.so_epochs}, Batch size: {self.batch_size}")
         print(f"   Random state: {self.random_state}")
-        print(f"   Tolerance: {self.tolerance}")
         
         np.random.seed(self.random_state)
         
-        n_samples, n_features = X.shape
-        self.weights = np.random.normal(0, 0.01, n_features)
+        # Thêm cột bias vào X
+        X_with_bias = add_bias_column(X)
+        print(f"   Original features: {X.shape[1]}, With bias: {X_with_bias.shape[1]}")
+        
+        n_samples, n_features_with_bias = X_with_bias.shape
+        self.weights = np.random.normal(0, 0.01, n_features_with_bias)
         
         # Reset histories
         self.cost_history = []
@@ -116,7 +119,7 @@ class SGDModel:
         for epoch in range(self.so_epochs):
             # Shuffle data for each epoch
             indices = np.random.permutation(n_samples)
-            X_shuffled = X[indices]
+            X_shuffled = X_with_bias[indices]
             y_shuffled = y[indices]
             
             epoch_gradients = []
@@ -128,7 +131,7 @@ class SGDModel:
                 y_batch = y_shuffled[i:end_idx]
                 
                 # Tính gradient cho batch
-                batch_gradient = np.zeros(n_features)
+                batch_gradient = np.zeros(n_features_with_bias)
                 
                 for j in range(len(X_batch)):
                     xi = X_batch[j]
@@ -144,7 +147,7 @@ class SGDModel:
                 self.weights -= self.learning_rate * batch_gradient
             
             # Calculate cost for entire dataset at end of epoch
-            epoch_cost = self._tinh_chi_phi(X, y, self.weights)
+            epoch_cost = self._tinh_chi_phi(X_with_bias, y, self.weights)
             self.cost_history.append(epoch_cost)
             
             # Store weights history
@@ -166,30 +169,33 @@ class SGDModel:
             )
             
             if converged:
-                print(f"SGD stopped: {reason}")
+                print(f"✅ SGD stopped: {reason}")
                 self.converged = True
                 self.final_epoch = epoch + 1
                 break
             
             # Progress update
             if (epoch + 1) % 20 == 0:
-                print(f"   Epoch {epoch + 1}: Cost = {epoch_cost:.6f}, Gradient norm = {gradient_norm:.6f}")
+                print(f"   Epoch {epoch + 1}: Cost = {epoch_cost:.6f}, Gradient = {gradient_norm:.6f}")
         
         self.training_time = time.time() - start_time
         self.final_cost = self.cost_history[-1]
         
         if not self.converged:
-            print(f"Reached maximum epochs ({self.so_epochs})")
+            print(f"⏹️ Đạt tối đa {self.so_epochs} epochs")
             self.final_epoch = self.so_epochs
             
-        print(f"Training time: {self.training_time:.2f} seconds")
-        print(f"Final cost: {self.final_cost:.6f}")
-        print(f"Final gradient norm: {self.gradient_norms[-1]:.6f}")
+        print(f"Thời gian training: {self.training_time:.2f}s")
+        print(f"Loss cuối: {self.final_cost:.6f}")
+        print(f"Bias cuối: {self.weights[-1]:.6f}")  # Bias là phần tử cuối của weights
+        print(f"Số weights (bao gồm bias): {len(self.weights)}")
         
         return {
-            'weights': self.weights,
+            'weights': self.weights,  # Bao gồm bias ở cuối
+            'bias': self.weights[-1],  # Bias riêng để tương thích
             'cost_history': self.cost_history,
             'gradient_norms': self.gradient_norms,
+            'weights_history': self.weights_history,
             'training_time': self.training_time,
             'final_cost': self.final_cost,
             'converged': self.converged,
@@ -197,47 +203,36 @@ class SGDModel:
         }
     
     def predict(self, X):
-        """Dự đoán với dữ liệu X"""
+        """Dự đoán với dữ liệu X 
+        
+        Trả về:
+            predictions: Dự đoán trên log scale
+            
+        Lưu ý:
+            - Model được train trên log-transformed targets
+            - Dự đoán trả về ở log scale
+            - Bias đã được tích hợp vào weights: y = Xw (với X đã có cột bias)
+            - Sử dụng np.expm1() để chuyển về giá gốc khi cần
+        """
         if self.weights is None:
             raise ValueError("Model chưa được huấn luyện. Hãy gọi fit() trước.")
-        return X.dot(self.weights)
+        
+        # Thêm cột bias vào X cho prediction
+        X_with_bias = add_bias_column(X)
+        return du_doan(X_with_bias, self.weights, None)
     
     def evaluate(self, X_test, y_test):
         """Đánh giá model trên test set"""
         if self.weights is None:
             raise ValueError("Model chưa được huấn luyện. Hãy gọi fit() trước.")
         
-        print(f"\\nĐánh giá model trên test set")
-        
-        # Tính các metrics thủ công
-        y_pred = self.predict(X_test)
-        
-        mse = np.mean((y_test - y_pred) ** 2)
-        rmse = np.sqrt(mse)
-        mae = np.mean(np.abs(y_test - y_pred))
-        
-        # R-squared
-        ss_res = np.sum((y_test - y_pred) ** 2)
-        ss_tot = np.sum((y_test - np.mean(y_test)) ** 2)
-        r2 = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
-        
-        # MAPE (Mean Absolute Percentage Error)
-        mape = np.mean(np.abs((y_test - y_pred) / y_test)) * 100
-        
-        metrics = {
-            'mse': float(mse),
-            'rmse': float(rmse),
-            'mae': float(mae),
-            'r2': float(r2),
-            'mape': float(mape)
-        }
-        
-        print(f"   MSE:  {metrics['mse']:.6f}")
-        print(f"   RMSE: {metrics['rmse']:.6f}")
-        print(f"   MAE:  {metrics['mae']:.6f}")
-        print(f"   R²:   {metrics['r2']:.6f}")
-        print(f"   MAPE: {metrics['mape']:.2f}%")
-        
+        print(f"\n📋 Đánh giá model...")
+        # Sử dụng bias từ weights (phần tử cuối) để tương thích với hàm cũ
+        bias_value = self.weights[-1]
+        weights_without_bias = self.weights[:-1]
+        metrics = danh_gia_mo_hinh(weights_without_bias, X_test, y_test, bias_value)
+        in_ket_qua_danh_gia(metrics, self.training_time, 
+                           f"Stochastic Gradient Descent - {self.ham_loss.upper()}")
         return metrics
     
     def save_results(self, ten_file, base_dir="data/03_algorithms/stochastic_gd"):
@@ -274,21 +269,53 @@ class SGDModel:
         with open(results_dir / "model.pkl", "wb") as f:
             pickle.dump(model_data, f)
         
-        # Save results.json
+        # Save comprehensive results.json
         print(f"   Lưu kết quả vào {results_dir}/results.json")
         results_data = {
-            "algorithm": f"Stochastic Gradient Descent",
+            "algorithm": f"Stochastic Gradient Descent - {self.ham_loss.upper()}",
             "loss_function": self.ham_loss.upper(),
             "parameters": {
                 "learning_rate": self.learning_rate,
                 "epochs": self.so_epochs,
                 "batch_size": self.batch_size,
-                "random_state": self.random_state
+                "random_state": self.random_state,
+                "tolerance": self.tolerance
             },
-            "training_time": self.training_time,
-            "convergence": {
-                "epochs": self.so_epochs,
-                "final_cost": float(self.final_cost)
+            "training_results": {
+                "training_time": self.training_time,
+                "converged": self.converged,
+                "final_epoch": self.final_epoch,
+                "total_epochs": self.so_epochs,
+                "final_cost": float(self.final_cost),
+                "final_gradient_norm": float(self.gradient_norms[-1]) if self.gradient_norms else 0
+            },
+            "weights_analysis": {
+                "n_features": len(self.weights) - 1,  # Không tính bias
+                "n_weights_total": len(self.weights),  # Tính cả bias
+                "bias_value": float(self.weights[-1]),
+                "weights_without_bias": self.weights[:-1].tolist(),
+                "complete_weight_vector": self.weights.tolist(),
+                "weights_stats": {
+                    "min": float(np.min(self.weights[:-1])),  # Stats chỉ của weights, không tính bias
+                    "max": float(np.max(self.weights[:-1])),
+                    "mean": float(np.mean(self.weights[:-1])),
+                    "std": float(np.std(self.weights[:-1]))
+                }
+            },
+            "convergence_analysis": {
+                "epochs_to_converge": self.final_epoch,
+                "final_cost_change": float(self.cost_history[-1] - self.cost_history[-2]) if len(self.cost_history) > 1 else 0.0,
+                "convergence_rate": "sublinear",  # SGD có sublinear convergence
+                "cost_reduction_ratio": float(self.cost_history[0] / self.cost_history[-1]) if len(self.cost_history) > 0 else 1.0
+            },
+            "algorithm_specific": {
+                "method_type": "stochastic_gradient_descent",
+                "batch_processing": True,
+                "batch_size": self.batch_size,
+                "epoch_based_training": True,
+                "data_shuffling": True,
+                "noisy_gradients": "inherent_in_SGD",
+                "convergence_type": "probabilistic"
             }
         }
         
@@ -321,10 +348,10 @@ class SGDModel:
         results_dir = Path(base_dir) / ten_file
         results_dir.mkdir(parents=True, exist_ok=True)
         
-        print(f"\\n Tạo các biểu đồ visualization")
+        print(f"\n📊 Tạo biểu đồ...")
         
         # 1. Training curve (cost over epochs)
-        print("   Vẽ đường training cost")
+        print("   - Vẽ đường training cost")
         import matplotlib.pyplot as plt
         
         plt.figure(figsize=(10, 6))
@@ -339,7 +366,7 @@ class SGDModel:
         plt.close()
         
         # 2. Predictions vs Actual
-        print("   Vẽ so sánh dự đoán với thực tế")
+        print("   - So sánh dự đoán vs thực tế")
         y_pred_test = self.predict(X_test)
         
         plt.figure(figsize=(10, 8))
@@ -367,21 +394,24 @@ class SGDModel:
         plt.close()
         
         # 3. Optimization trajectory (contour plot)
-        print("   Vẽ đường đồng mức optimization trajectory")
+        print("   - Vẽ đường đồng mực optimization")
         if hasattr(self, 'weights_history') and len(self.weights_history) > 0:
             # Sample weights history for performance (every 10th point)
             step = max(1, len(self.weights_history) // 100)
             sampled_weights = np.array(self.weights_history[::step])
             
+            # Chuẩn bị X_test với bias cho visualization
+            X_test_with_bias = add_bias_column(X_test)
+            
             ve_duong_dong_muc_optimization(
                 loss_function=self.loss_func,
                 weights_history=sampled_weights,
-                X=X_test, y=y_test,
-                bias_history=None,  # SGD model doesn't use bias
+                X=X_test_with_bias, y=y_test,
+                bias_history=None,  # Không cần bias riêng nữa
                 title=f"Stochastic GD {self.ham_loss.upper()} - Optimization Path",
                 save_path=str(results_dir / "optimization_trajectory.png")
             )
         else:
             print("     Không có weights history để vẽ contour plot")
         
-        print(f"   Biểu đồ đã được lưu vào: {results_dir.absolute()}")
+        print(f"✅ Biểu đồ đã lưu vào: {results_dir.absolute()}")

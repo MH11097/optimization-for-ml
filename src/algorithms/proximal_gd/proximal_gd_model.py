@@ -16,10 +16,9 @@ import json
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from utils.optimization_utils import (
-    tinh_mse, du_doan, 
-    tinh_gia_tri_ham_OLS, tinh_gradient_OLS,
-    danh_gia_mo_hinh, in_ket_qua_danh_gia, kiem_tra_hoi_tu,
-    tinh_gia_tri_ham_loss, tinh_gradient_ham_loss, tinh_hessian_ham_loss
+    du_doan, danh_gia_mo_hinh, in_ket_qua_danh_gia, kiem_tra_hoi_tu,
+    tinh_gia_tri_ham_loss, tinh_gradient_ham_loss, tinh_hessian_ham_loss,
+    add_bias_column
 )
 from utils.visualization_utils import (
     ve_duong_hoi_tu, ve_duong_dong_muc_optimization, ve_du_doan_vs_thuc_te
@@ -51,14 +50,14 @@ class ProximalGDModel:
         if self.ham_loss not in ['lasso', 'elastic_net']:
             raise ValueError(f"Không hỗ trợ loss function: {ham_loss}. Chỉ hỗ trợ 'lasso' và 'elastic_net'.")
         
-        # Sử dụng unified function cho gradient của phần smooth (OLS)
-        self.grad_smooth_func = lambda X, y, w: tinh_gradient_ham_loss('ols', X, y, w, 0.0)[0]  # chỉ lấy gradient_w
+        # Sử dụng unified function cho gradient của phần smooth (OLS) với format mới (bias trong X)
+        self.grad_smooth_func = lambda X, y, w: tinh_gradient_ham_loss('ols', X, y, w, None)
         
         # Khởi tạo các thuộc tính lưu kết quả
-        self.weights = None
+        self.weights = None  # Bây giờ bao gồm bias ở cuối
         self.loss_history = []
         self.gradient_norms = []
-        self.sparsity_history = []  # Số lượng weights = 0
+        self.sparsity_history = []  # Số lượng weights = 0 (không tính bias)
         self.weights_history = []
         self.training_time = 0
         self.converged = False
@@ -73,35 +72,43 @@ class ProximalGDModel:
     def _proximal_operator(self, z):
         """
         Proximal operator for L1 (và L2 nếu có)
+        Lưu ý: Không áp dụng regularization cho bias (phần tử cuối)
         """
+        result = z.copy()
+        
         if self.ham_loss == 'lasso':
-            # Pure L1: soft thresholding
-            return self._soft_threshold(z, self.learning_rate * self.lambda_l1)
+            # Pure L1: soft thresholding cho tất cả trừ bias
+            result[:-1] = self._soft_threshold(z[:-1], self.learning_rate * self.lambda_l1)
+            # Giữ nguyên bias (không regularize)
+            result[-1] = z[-1]
         
         elif self.ham_loss == 'elastic_net':
-            # Elastic Net: L1 + L2
-            # Proximal operator: soft_threshold(z, λ1*α) / (1 + λ2*α)
-            soft_thresh = self._soft_threshold(z, self.learning_rate * self.lambda_l1)
-            return soft_thresh / (1 + self.learning_rate * self.lambda_l2)
+            # Elastic Net: L1 + L2 cho tất cả trừ bias
+            soft_thresh = self._soft_threshold(z[:-1], self.learning_rate * self.lambda_l1)
+            result[:-1] = soft_thresh / (1 + self.learning_rate * self.lambda_l2)
+            # Giữ nguyên bias (không regularize)
+            result[-1] = z[-1]
+            
+        return result
     
     def _compute_loss(self, X, y, weights):
-        """Tính loss function"""
+        """Tính loss function - không regularize bias (phần tử cuối)"""
         # MSE loss
-        mse_loss = tinh_gia_tri_ham_OLS(X, y, weights)
+        mse_loss = tinh_gia_tri_ham_loss('ols', X, y, weights, None)
         
-        # L1 regularization
-        l1_penalty = self.lambda_l1 * np.sum(np.abs(weights))
+        # L1 regularization (không áp dụng cho bias)
+        l1_penalty = self.lambda_l1 * np.sum(np.abs(weights[:-1]))
         
-        # L2 regularization (cho Elastic Net)
+        # L2 regularization (cho Elastic Net, không áp dụng cho bias)
         l2_penalty = 0
         if self.ham_loss == 'elastic_net':
-            l2_penalty = 0.5 * self.lambda_l2 * np.sum(weights ** 2)
+            l2_penalty = 0.5 * self.lambda_l2 * np.sum(weights[:-1] ** 2)
         
         return mse_loss + l1_penalty + l2_penalty
     
     def _compute_sparsity(self, weights, threshold=1e-8):
-        """Tính số lượng weights gần bằng 0 (sparsity)"""
-        return np.sum(np.abs(weights) < threshold)
+        """Tính số lượng weights gần bằng 0 (sparsity) - không tính bias"""
+        return np.sum(np.abs(weights[:-1]) < threshold)
         
     def fit(self, X, y):
         """
@@ -110,17 +117,20 @@ class ProximalGDModel:
         Returns:
         - dict: Kết quả training bao gồm weights, loss_history, etc.
         """
-        print(f"Training Proximal Gradient Descent - {self.ham_loss.upper()}")
+        print(f"🚀 Training Proximal Gradient Descent - {self.ham_loss.upper()}")
         print(f"   Learning rate: {self.learning_rate}")
         print(f"   Lambda L1: {self.lambda_l1}")
         if self.ham_loss == 'elastic_net':
             print(f"   Lambda L2: {self.lambda_l2}")
         print(f"   Max iterations: {self.so_lan_thu}")
-        print(f"   Tolerance: {self.diem_dung}")
         
-        # Initialize weights
-        n_features = X.shape[1]
-        self.weights = np.random.normal(0, 0.01, n_features)
+        # Thêm cột bias vào X
+        X_with_bias = add_bias_column(X)
+        print(f"   Original features: {X.shape[1]}, With bias: {X_with_bias.shape[1]}")
+        
+        # Initialize weights (bao gồm bias ở cuối)
+        n_features_with_bias = X_with_bias.shape[1]
+        self.weights = np.random.normal(0, 0.01, n_features_with_bias)
         
         # Reset histories
         self.loss_history = []
@@ -132,14 +142,14 @@ class ProximalGDModel:
         
         for lan_thu in range(self.so_lan_thu):
             # Forward step: z = w - α∇f(w)
-            gradient = self.grad_smooth_func(X, y, self.weights)
+            gradient, _ = self.grad_smooth_func(X_with_bias, y, self.weights)  # _ vì không cần gradient_b riêng
             z = self.weights - self.learning_rate * gradient
             
             # Proximal step: w = prox_λ(z)
             self.weights = self._proximal_operator(z)
             
             # Compute loss (with regularization)
-            loss_value = self._compute_loss(X, y, self.weights)
+            loss_value = self._compute_loss(X_with_bias, y, self.weights)
             
             # Store history
             self.loss_history.append(loss_value)
@@ -161,29 +171,33 @@ class ProximalGDModel:
             )
             
             if converged:
-                print(f"Proximal GD stopped: {reason}")
+                print(f"✅ Proximal GD stopped: {reason}")
                 self.converged = True
                 self.final_iteration = lan_thu + 1
                 break
             
             # Progress update
             if (lan_thu + 1) % 100 == 0:
-                print(f"Iteration {lan_thu + 1}: Loss = {loss_value:.6f}, Gradient norm = {gradient_norm:.6f}, Sparsity = {sparsity}/{n_features}")
+                n_weights_without_bias = n_features_with_bias - 1
+                print(f"   Vòng {lan_thu + 1}: Loss = {loss_value:.6f}, Gradient = {gradient_norm:.6f}, Sparsity = {sparsity}/{n_weights_without_bias}")
         
         self.training_time = time.time() - start_time
         
         if not self.converged:
-            print(f"Reached maximum iterations ({self.so_lan_thu})")
+            print(f"⏹️ Đạt tối đa {self.so_lan_thu} vòng lặp")
             self.final_iteration = self.so_lan_thu
         
         final_sparsity = self._compute_sparsity(self.weights)
-        print(f"Training time: {self.training_time:.2f} seconds")
-        print(f"Final loss: {self.loss_history[-1]:.6f}")
-        print(f"Final gradient norm: {self.gradient_norms[-1]:.6f}")
-        print(f"Final sparsity: {final_sparsity}/{n_features} ({final_sparsity/n_features*100:.1f}%)")
+        n_weights_without_bias = n_features_with_bias - 1
+        print(f"Thời gian training: {self.training_time:.2f}s")
+        print(f"Loss cuối: {self.loss_history[-1]:.6f}")
+        print(f"Bias cuối: {self.weights[-1]:.6f}")  # Bias là phần tử cuối của weights
+        print(f"Final sparsity: {final_sparsity}/{n_weights_without_bias} ({final_sparsity/n_weights_without_bias*100:.1f}%)")
+        print(f"Số weights (bao gồm bias): {len(self.weights)}")
         
         return {
-            'weights': self.weights,
+            'weights': self.weights,  # Bao gồm bias ở cuối
+            'bias': self.weights[-1],  # Bias riêng để tương thích
             'loss_history': self.loss_history,
             'gradient_norms': self.gradient_norms,
             'sparsity_history': self.sparsity_history,
@@ -195,18 +209,34 @@ class ProximalGDModel:
         }
     
     def predict(self, X):
-        """Dự đoán với dữ liệu X"""
+        """Dự đoán với dữ liệu X 
+        
+        Trả về:
+            predictions: Dự đoán trên log scale
+            
+        Lưu ý:
+            - Model được train trên log-transformed targets
+            - Dự đoán trả về ở log scale
+            - Bias đã được tích hợp vào weights: y = Xw (với X đã có cột bias)
+            - Sử dụng np.expm1() để chuyển về giá gốc khi cần
+        """
         if self.weights is None:
             raise ValueError("Model chưa được huấn luyện. Hãy gọi fit() trước.")
-        return du_doan(X, self.weights, 0)
+        
+        # Thêm cột bias vào X cho prediction
+        X_with_bias = add_bias_column(X)
+        return du_doan(X_with_bias, self.weights, None)
     
     def evaluate(self, X_test, y_test):
         """Đánh giá model trên test set"""
         if self.weights is None:
             raise ValueError("Model chưa được huấn luyện. Hãy gọi fit() trước.")
         
-        print(f"\\nĐánh giá model trên test set")
-        metrics = danh_gia_mo_hinh(self.weights, X_test, y_test)
+        print(f"\n📋 Đánh giá model...")
+        # Sử dụng bias từ weights (phần tử cuối) để tương thích với hàm cũ
+        bias_value = self.weights[-1]
+        weights_without_bias = self.weights[:-1]
+        metrics = danh_gia_mo_hinh(weights_without_bias, X_test, y_test, bias_value)
         in_ket_qua_danh_gia(metrics, self.training_time, 
                            f"Proximal Gradient Descent - {self.ham_loss.upper()}")
         return metrics
@@ -222,7 +252,7 @@ class ProximalGDModel:
         results_dir = Path(base_dir) / ten_file
         results_dir.mkdir(parents=True, exist_ok=True)
         
-        # Save results.json
+        # Save comprehensive results.json
         print(f"   Lưu kết quả vào {results_dir}/results.json")
         results_data = {
             "algorithm": f"Proximal Gradient Descent - {self.ham_loss.upper()}",
@@ -233,18 +263,48 @@ class ProximalGDModel:
                 "max_iterations": self.so_lan_thu,
                 "tolerance": self.diem_dung
             },
-            "training_time": self.training_time,
-            "convergence": {
+            "training_results": {
+                "training_time": self.training_time,
                 "converged": self.converged,
-                "iterations": self.final_iteration,
+                "final_iteration": self.final_iteration,
+                "total_iterations": self.so_lan_thu,
                 "final_loss": float(self.loss_history[-1]),
                 "final_gradient_norm": float(self.gradient_norms[-1])
             },
+            "weights_analysis": {
+                "n_features": len(self.weights) - 1,  # Không tính bias
+                "n_weights_total": len(self.weights),  # Tính cả bias
+                "bias_value": float(self.weights[-1]),
+                "weights_without_bias": self.weights[:-1].tolist(),
+                "complete_weight_vector": self.weights.tolist(),
+                "weights_stats": {
+                    "min": float(np.min(self.weights[:-1])),  # Stats chỉ của weights, không tính bias
+                    "max": float(np.max(self.weights[:-1])),
+                    "mean": float(np.mean(self.weights[:-1])),
+                    "std": float(np.std(self.weights[:-1]))
+                }
+            },
+            "convergence_analysis": {
+                "iterations_to_converge": self.final_iteration,
+                "final_cost_change": float(self.loss_history[-1] - self.loss_history[-2]) if len(self.loss_history) > 1 else 0.0,
+                "convergence_rate": "linear",  # Proximal GD có linear convergence
+                "loss_reduction_ratio": float(self.loss_history[0] / self.loss_history[-1]) if len(self.loss_history) > 0 else 1.0
+            },
             "sparsity_analysis": {
                 "final_sparsity": int(self.sparsity_history[-1]) if self.sparsity_history else 0,
-                "total_features": len(self.weights),
-                "sparsity_ratio": float(self.sparsity_history[-1] / len(self.weights)) if self.sparsity_history else 0,
-                "non_zero_weights": int(len(self.weights) - self.sparsity_history[-1]) if self.sparsity_history else len(self.weights)
+                "total_features": len(self.weights) - 1,  # Không tính bias
+                "sparsity_ratio": float(self.sparsity_history[-1] / (len(self.weights) - 1)) if self.sparsity_history else 0,
+                "non_zero_weights": int((len(self.weights) - 1) - self.sparsity_history[-1]) if self.sparsity_history else (len(self.weights) - 1),
+                "sparsity_evolution": "L1_regularization_induced_sparsity",
+                "regularization_effect": "Feature_selection_via_soft_thresholding"
+            },
+            "algorithm_specific": {
+                "method_type": "proximal_gradient",
+                "regularization_type": self.ham_loss,
+                "proximal_operator": "soft_thresholding" if self.ham_loss == "lasso" else "elastic_net_prox",
+                "sparsity_inducing": True,
+                "feature_selection": True,
+                "non_smooth_optimization": True
             }
         }
         
@@ -277,10 +337,10 @@ class ProximalGDModel:
         results_dir = Path(base_dir) / ten_file
         results_dir.mkdir(parents=True, exist_ok=True)
         
-        print(f"\\n Tạo các biểu đồ visualization")
+        print(f"\n📊 Tạo biểu đồ...")
         
         # 1. Convergence curves với sparsity
-        print("   Vẽ đường hội tụ với sparsity analysis")
+        print("   - Vẽ đường hội tụ với sparsity analysis")
         import matplotlib.pyplot as plt
         
         fig, axes = plt.subplots(2, 2, figsize=(15, 10))
@@ -326,28 +386,31 @@ class ProximalGDModel:
         plt.close()
         
         # 2. Predictions vs Actual
-        print("   Vẽ so sánh dự đoán với thực tế")
+        print("   - So sánh dự đoán vs thực tế")
         y_pred_test = self.predict(X_test)
         ve_du_doan_vs_thuc_te(y_test, y_pred_test, 
                              title=f"Proximal GD {self.ham_loss.upper()} - Predictions vs Actual",
                              save_path=str(results_dir / "predictions_vs_actual.png"))
         
         # 3. Optimization trajectory (đường đồng mực)
-        print("   Vẽ đường đồng mực optimization")
+        print("   - Vẽ đường đồng mực optimization")
         sample_frequency = max(1, len(self.weights_history) // 50)
         sampled_weights = self.weights_history[::sample_frequency]
         
+        # Chuẩn bị X_test với bias cho visualization
+        X_test_with_bias = add_bias_column(X_test)
+        
         # Use OLS loss for smooth part (Proximal GD separates smooth and non-smooth)
-        def smooth_loss_func(X, y, w, b=0.0):
-            return tinh_gia_tri_ham_loss('ols', X, y, w, b)
+        def smooth_loss_func(X, y, w):
+            return tinh_gia_tri_ham_loss('ols', X, y, w, None)
         
         ve_duong_dong_muc_optimization(
             loss_function=smooth_loss_func,
             weights_history=sampled_weights,
-            X=X_test, y=y_test,
-            bias_history=None,  # Proximal GD doesn't use bias
+            X=X_test_with_bias, y=y_test,
+            bias_history=None,  # Không cần bias riêng nữa
             title=f"Proximal GD {self.ham_loss.upper()} - Optimization Path (Smooth Part)",
             save_path=str(results_dir / "optimization_trajectory.png")
         )
         
-        print(f"   Biểu đồ đã được lưu vào: {results_dir.absolute()}")
+        print(f"✅ Biểu đồ đã lưu vào: {results_dir.absolute()}")

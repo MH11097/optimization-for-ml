@@ -19,6 +19,30 @@ from typing import Callable, Tuple, Optional, Dict, List
 
 
 # ==============================================================================
+# 0. DATA PREPROCESSING UTILITIES
+# ==============================================================================
+
+def add_bias_column(X: np.ndarray) -> np.ndarray:
+    """
+    Thêm cột bias (cột toàn số 1) vào cuối ma trận X
+    
+    Chuyển từ format: Xw + b = y
+    Sang format: X_new @ w_new = y (với w_new = [w; b])
+    
+    Tham số:
+        X: ma trận đặc trưng (n_samples, n_features)
+    
+    Trả về:
+        X_with_bias: ma trận mở rộng (n_samples, n_features + 1)
+                     với cột cuối cùng là cột bias (toàn số 1)
+    """
+    n_samples = X.shape[0]
+    bias_column = np.ones((n_samples, 1))
+    X_with_bias = np.hstack([X, bias_column])
+    return X_with_bias
+
+
+# ==============================================================================
 # 1. TÍNH TOÁN GRADIENT VÀ HESSIAN
 # ==============================================================================
 
@@ -163,16 +187,18 @@ def tinh_condition_number(matrix: np.ndarray) -> float:
 # 3. ĐÁNH GIÁ MÔ HÌNH VÀ DỰ ĐOÁN
 # ==============================================================================
 
-def du_doan(X: np.ndarray, w: np.ndarray, bias: float) -> np.ndarray:
+def du_doan(X: np.ndarray, w: np.ndarray, bias: float = None) -> np.ndarray:
     """
     Thực hiện dự đoán với mô hình tuyến tính
     
-    Công thức: ŷ = Xw + he_so_tu_do
+    Hỗ trợ cả 2 format:
+    - Format cũ: ŷ = Xw + bias (khi bias != None)
+    - Format mới: ŷ = Xw (khi X đã bao gồm cột bias và w bao gồm bias weight)
     
     Tham số:
-        X: ma trận đặc trưng (n_samples, n_features)
-        w: trọng số đã học (n_features,)
-        bias: bias term đã học (scalar)
+        X: ma trận đặc trưng (n_samples, n_features) hoặc (n_samples, n_features + 1) với bias
+        w: trọng số đã học (n_features,) hoặc (n_features + 1,) với bias
+        bias: bias term (scalar, deprecated - sử dụng None cho format mới)
     
     Trả về:
         predictions: dự đoán trên log scale (n_samples,)
@@ -182,7 +208,12 @@ def du_doan(X: np.ndarray, w: np.ndarray, bias: float) -> np.ndarray:
         - Predictions trả về ở log scale để consistency
         - Sử dụng np.expm1() để chuyển về original scale khi cần
     """
-    predictions_log = X @ w + bias
+    if bias is not None:
+        # Format cũ: Xw + bias
+        predictions_log = X @ w + bias
+    else:
+        # Format mới: Xw (với X đã bao gồm cột bias)
+        predictions_log = X @ w
     return predictions_log
 
 
@@ -366,52 +397,68 @@ def tinh_loss_lasso_smooth(X: np.ndarray, y: np.ndarray, trong_so: np.ndarray,
 # 5.1. CÁC HÀM CHỈ NHẬN WEIGHTS (KHÔNG CÓ BIAS) - CHO GRADIENT DESCENT
 # ==============================================================================
 
-def tinh_gia_tri_ham_OLS(X: np.ndarray, y: np.ndarray, w: np.ndarray, bias: float = 0.0) -> float:
+def tinh_gia_tri_ham_OLS(X: np.ndarray, y: np.ndarray, w: np.ndarray, bias: float = None) -> float:
     """
-    Tính giá trị hàm OLS tại điểm w với bias term
+    Tính giá trị hàm OLS tại điểm w
     
-    Hàm OLS: L(w,b) = (1/2n) * ||Xw + b - y||²
+    Hỗ trợ cả 2 format:
+    - Format cũ: L(w,b) = (1/2n) * ||Xw + b - y||² (khi bias != None)
+    - Format mới: L(w) = (1/2n) * ||Xw - y||² (khi X đã bao gồm cột bias)
     
     Tham số:
-        X: ma trận đặc trưng (n_samples, n_features)
+        X: ma trận đặc trưng (n_samples, n_features) hoặc (n_samples, n_features + 1) với bias
         y: vector target (n_samples,)
-        w: vector weights (n_features,)
-        bias: bias term (scalar, mặc định 0.0)
+        w: vector weights (n_features,) hoặc (n_features + 1,) với bias
+        bias: bias term (scalar, deprecated - sử dụng None cho format mới)
     
     Trả về:
-        float: giá trị hàm OLS tại w với bias
+        float: giá trị hàm OLS
     """
     n_samples = X.shape[0]
-    predictions = X @ w + bias
+    if bias is not None:
+        # Format cũ: Xw + bias
+        predictions = X @ w + bias
+    else:
+        # Format mới: Xw (với X đã bao gồm cột bias)
+        predictions = X @ w
     residuals = predictions - y
     ols_value = (1 / (2 * n_samples)) * np.sum(residuals ** 2)
     return ols_value
 
 
-def tinh_gradient_OLS(X: np.ndarray, y: np.ndarray, w: np.ndarray, bias: float = 0.0) -> Tuple[np.ndarray, float]:
+def tinh_gradient_OLS(X: np.ndarray, y: np.ndarray, w: np.ndarray, bias: float = None) -> Tuple[np.ndarray, float]:
     """
-    Tính gradient của hàm OLS theo weights và bias
+    Tính gradient của hàm OLS theo weights
     
-    ∇L(w,b) = ((1/n) * X^T(Xw + b - y), (1/n) * Σ(Xw + b - y))
+    Hỗ trợ cả 2 format:
+    - Format cũ: ∇L(w,b) = ((1/n) * X^T(Xw + b - y), (1/n) * Σ(Xw + b - y)) (khi bias != None)
+    - Format mới: ∇L(w) = (1/n) * X^T(Xw - y) (khi X đã bao gồm cột bias)
     
     Tham số:
-        X: ma trận đặc trưng (n_samples, n_features)
+        X: ma trận đặc trưng (n_samples, n_features) hoặc (n_samples, n_features + 1) với bias
         y: vector target (n_samples,)
-        w: vector weights (n_features,)
-        bias: bias term (scalar, mặc định 0.0)
+        w: vector weights (n_features,) hoặc (n_features + 1,) với bias
+        bias: bias term (scalar, deprecated - sử dụng None cho format mới)
     
     Trả về:
-        gradient_w: gradient theo weights (n_features,)
-        gradient_b: gradient theo bias (scalar)
+        gradient_w: gradient theo weights (n_features,) hoặc (n_features + 1,)
+        gradient_b: gradient theo bias (scalar, hoặc 0.0 cho format mới)
     """
     n_samples = X.shape[0]
-    predictions = X @ w + bias
-    errors = predictions - y
     
-    gradient_w = (1 / n_samples) * X.T @ errors
-    gradient_b = (1 / n_samples) * np.sum(errors)
-    
-    return gradient_w, gradient_b
+    if bias is not None:
+        # Format cũ: tách riêng gradient cho w và b
+        predictions = X @ w + bias
+        errors = predictions - y
+        gradient_w = (1 / n_samples) * X.T @ errors
+        gradient_b = (1 / n_samples) * np.sum(errors)
+        return gradient_w, gradient_b
+    else:
+        # Format mới: gradient thống nhất cho w (bao gồm bias)
+        predictions = X @ w
+        errors = predictions - y
+        gradient_w = (1 / n_samples) * X.T @ errors
+        return gradient_w, 0.0
 
 
 
@@ -551,49 +598,72 @@ def tinh_hessian_OLS(X: np.ndarray) -> np.ndarray:
     return hessian
 
 
-def tinh_gia_tri_ham_Ridge(X: np.ndarray, y: np.ndarray, w: np.ndarray, bias: float, lambda_reg: float) -> float:
+def tinh_gia_tri_ham_Ridge(X: np.ndarray, y: np.ndarray, w: np.ndarray, bias: float = None, lambda_reg: float = 0.01) -> float:
     """
-    Tính giá trị hàm Ridge tại điểm (w, bias)
+    Tính giá trị hàm Ridge
     
-    Hàm Ridge: L(w,b) = (1/2n) * ||Xw + b - y||² + (λ/2) * ||w||²
-    Lưu ý: Không regularize bias term
+    Hỗ trợ cả 2 format:
+    - Format cũ: L(w,b) = (1/2n) * ||Xw + b - y||² + (λ/2) * ||w||² (khi bias != None)
+    - Format mới: L(w) = (1/2n) * ||Xw - y||² + (λ/2) * ||w[:-1]||² (khi X đã bao gồm cột bias)
+    
+    Lưu ý: Không regularize bias term trong cả 2 format
     
     Tham số:
-        X: ma trận đặc trưng (n_samples, n_features)
+        X: ma trận đặc trưng (n_samples, n_features) hoặc (n_samples, n_features + 1) với bias
         y: vector target (n_samples,)
-        w: vector weights (n_features,)
-        bias: bias term (scalar)
+        w: vector weights (n_features,) hoặc (n_features + 1,) với bias
+        bias: bias term (scalar, deprecated - sử dụng None cho format mới)
         lambda_reg: hệ số regularization
     
     Trả về:
-        float: giá trị hàm Ridge tại (w, bias)
+        float: giá trị hàm Ridge
     """
     ols_loss = tinh_gia_tri_ham_OLS(X, y, w, bias)
-    l2_penalty = 0.5 * lambda_reg * np.sum(w ** 2)  # Không regularize bias
+    
+    if bias is not None:
+        # Format cũ: chỉ regularize weights, không regularize bias
+        l2_penalty = 0.5 * lambda_reg * np.sum(w ** 2)
+    else:
+        # Format mới: chỉ regularize weights (không bao gồm bias ở cuối)
+        l2_penalty = 0.5 * lambda_reg * np.sum(w[:-1] ** 2)
+    
     return ols_loss + l2_penalty
 
 
-def tinh_gradient_Ridge(X: np.ndarray, y: np.ndarray, w: np.ndarray, bias: float, lambda_reg: float) -> Tuple[np.ndarray, float]:
+def tinh_gradient_Ridge(X: np.ndarray, y: np.ndarray, w: np.ndarray, bias: float = None, lambda_reg: float = 0.01) -> Tuple[np.ndarray, float]:
     """
-    Tính gradient của hàm Ridge theo weights và bias
+    Tính gradient của hàm Ridge theo weights
     
-    ∇L(w,b) = ((1/n) * X^T(Xw + b - y) + λ*w, (1/n) * Σ(Xw + b - y))
+    Hỗ trợ cả 2 format:
+    - Format cũ: ∇L(w,b) = ((1/n) * X^T(Xw + b - y) + λ*w, (1/n) * Σ(Xw + b - y)) (khi bias != None)
+    - Format mới: ∇L(w) = (1/n) * X^T(Xw - y) + λ*[w[:-1]; 0] (khi X đã bao gồm cột bias)
+    
+    Lưu ý: Không regularize bias term trong cả 2 format
     
     Tham số:
-        X: ma trận đặc trưng (n_samples, n_features)
+        X: ma trận đặc trưng (n_samples, n_features) hoặc (n_samples, n_features + 1) với bias
         y: vector target (n_samples,)
-        w: vector weights (n_features,)
-        bias: bias term (scalar)
+        w: vector weights (n_features,) hoặc (n_features + 1,) với bias
+        bias: bias term (scalar, deprecated - sử dụng None cho format mới)
         lambda_reg: hệ số regularization
     
     Trả về:
-        gradient_w: gradient theo weights (n_features,)
-        gradient_b: gradient theo bias (scalar)
+        gradient_w: gradient theo weights (n_features,) hoặc (n_features + 1,)
+        gradient_b: gradient theo bias (scalar, hoặc 0.0 cho format mới)
     """
     gradient_w, gradient_b = tinh_gradient_OLS(X, y, w, bias)
-    l2_gradient = lambda_reg * w  # Regularize weights only, not bias
-    gradient_w = gradient_w + l2_gradient
-    return gradient_w, gradient_b
+    
+    if bias is not None:
+        # Format cũ: chỉ regularize weights, không regularize bias
+        l2_gradient = lambda_reg * w
+        gradient_w = gradient_w + l2_gradient
+        return gradient_w, gradient_b
+    else:
+        # Format mới: chỉ regularize weights (không bao gồm bias ở cuối)
+        l2_gradient = np.zeros_like(w)
+        l2_gradient[:-1] = lambda_reg * w[:-1]  # Không regularize bias (phần tử cuối)
+        gradient_w = gradient_w + l2_gradient
+        return gradient_w, 0.0
 
 
 def tinh_hessian_Ridge(X: np.ndarray, lambda_reg: float) -> np.ndarray:
@@ -616,51 +686,75 @@ def tinh_hessian_Ridge(X: np.ndarray, lambda_reg: float) -> np.ndarray:
 
 
 def tinh_gia_tri_ham_Lasso_smooth(X: np.ndarray, y: np.ndarray, w: np.ndarray, 
-                                  bias: float, lambda_reg: float, epsilon: float = 1e-8) -> float:
+                                  bias: float = None, lambda_reg: float = 0.01, epsilon: float = 1e-8) -> float:
     """
-    Tính giá trị hàm Lasso với smooth approximation tại điểm (w, bias)
+    Tính giá trị hàm Lasso với smooth approximation
     
-    Hàm Lasso: L(w,b) = (1/2n) * ||Xw + b - y||² + λ * Σ√(w²+ ε)
+    Hỗ trợ cả 2 format:
+    - Format cũ: L(w,b) = (1/2n) * ||Xw + b - y||² + λ * Σ√(w²+ ε) (khi bias != None)
+    - Format mới: L(w) = (1/2n) * ||Xw - y||² + λ * Σ√(w[:-1]²+ ε) (khi X đã bao gồm cột bias)
+    
+    Lưu ý: Không regularize bias term trong cả 2 format
     
     Tham số:
-        X: ma trận đặc trưng (n_samples, n_features)
+        X: ma trận đặc trưng (n_samples, n_features) hoặc (n_samples, n_features + 1) với bias
         y: vector target (n_samples,)
-        w: vector weights (n_features,)
-        bias: bias term (scalar)
+        w: vector weights (n_features,) hoặc (n_features + 1,) với bias
+        bias: bias term (scalar, deprecated - sử dụng None cho format mới)
         lambda_reg: hệ số regularization
         epsilon: tham số smoothing
     
     Trả về:
-        float: giá trị hàm Lasso tại (w, bias)
+        float: giá trị hàm Lasso
     """
     ols_loss = tinh_gia_tri_ham_OLS(X, y, w, bias)
-    smooth_l1_penalty = lambda_reg * np.sum(np.sqrt(w ** 2 + epsilon))  # Không regularize bias
+    
+    if bias is not None:
+        # Format cũ: chỉ regularize weights, không regularize bias
+        smooth_l1_penalty = lambda_reg * np.sum(np.sqrt(w ** 2 + epsilon))
+    else:
+        # Format mới: chỉ regularize weights (không bao gồm bias ở cuối)
+        smooth_l1_penalty = lambda_reg * np.sum(np.sqrt(w[:-1] ** 2 + epsilon))
+        
     return ols_loss + smooth_l1_penalty
 
 
 def tinh_gradient_Lasso_smooth(X: np.ndarray, y: np.ndarray, w: np.ndarray, 
-                              bias: float, lambda_reg: float, epsilon: float = 1e-8) -> Tuple[np.ndarray, float]:
+                              bias: float = None, lambda_reg: float = 0.01, epsilon: float = 1e-8) -> Tuple[np.ndarray, float]:
     """
-    Tính gradient của hàm Lasso với smooth approximation theo weights và bias
+    Tính gradient của hàm Lasso với smooth approximation theo weights
     
-    ∇L(w,b) = ((1/n) * X^T(Xw + b - y) + λ * w / √(w² + ε), (1/n) * Σ(Xw + b - y))
+    Hỗ trợ cả 2 format:
+    - Format cũ: ∇L(w,b) = ((1/n) * X^T(Xw + b - y) + λ * w / √(w² + ε), (1/n) * Σ(Xw + b - y)) (khi bias != None)
+    - Format mới: ∇L(w) = (1/n) * X^T(Xw - y) + λ * [w[:-1] / √(w[:-1]² + ε); 0] (khi X đã bao gồm cột bias)
+    
+    Lưu ý: Không regularize bias term trong cả 2 format
     
     Tham số:
-        X: ma trận đặc trưng (n_samples, n_features)
+        X: ma trận đặc trưng (n_samples, n_features) hoặc (n_samples, n_features + 1) với bias
         y: vector target (n_samples,)
-        w: vector weights (n_features,)
-        bias: bias term (scalar)
+        w: vector weights (n_features,) hoặc (n_features + 1,) với bias
+        bias: bias term (scalar, deprecated - sử dụng None cho format mới)
         lambda_reg: hệ số regularization
         epsilon: tham số smoothing
     
     Trả về:
-        gradient_w: gradient theo weights (n_features,)
-        gradient_b: gradient theo bias (scalar)
+        gradient_w: gradient theo weights (n_features,) hoặc (n_features + 1,)
+        gradient_b: gradient theo bias (scalar, hoặc 0.0 cho format mới)
     """
     gradient_w, gradient_b = tinh_gradient_OLS(X, y, w, bias)
-    smooth_l1_gradient = lambda_reg * w / np.sqrt(w ** 2 + epsilon)
-    gradient_w = gradient_w + smooth_l1_gradient
-    return gradient_w, gradient_b
+    
+    if bias is not None:
+        # Format cũ: chỉ regularize weights, không regularize bias
+        smooth_l1_gradient = lambda_reg * w / np.sqrt(w ** 2 + epsilon)
+        gradient_w = gradient_w + smooth_l1_gradient
+        return gradient_w, gradient_b
+    else:
+        # Format mới: chỉ regularize weights (không bao gồm bias ở cuối)
+        smooth_l1_gradient = np.zeros_like(w)
+        smooth_l1_gradient[:-1] = lambda_reg * w[:-1] / np.sqrt(w[:-1] ** 2 + epsilon)
+        gradient_w = gradient_w + smooth_l1_gradient
+        return gradient_w, 0.0
 
 
 def tinh_hessian_Lasso_smooth(X: np.ndarray, w: np.ndarray, lambda_reg: float, epsilon: float = 1e-8) -> np.ndarray:
@@ -1046,16 +1140,20 @@ def tinh_hessian_ridge(X: np.ndarray, lam: float) -> np.ndarray:
 
 
 def tinh_gia_tri_ham_loss(ham_loss: str, X: np.ndarray, y: np.ndarray, w: np.ndarray, 
-                         bias: float = 0.0, regularization: float = 0.01, **kwargs) -> float:
+                         bias: float = None, regularization: float = 0.01, **kwargs) -> float:
     """
     Hàm thống nhất để tính giá trị loss function
     
+    Hỗ trợ cả 2 format:
+    - Format cũ: loss với bias riêng (khi bias != None)
+    - Format mới: loss với bias trong X (khi bias = None)
+    
     Tham số:
         ham_loss: loại loss function ('ols', 'ridge', 'lasso')
-        X: ma trận đặc trưng (n_samples, n_features)
+        X: ma trận đặc trưng (n_samples, n_features) hoặc (n_samples, n_features + 1) với bias
         y: vector target (n_samples,)
-        w: vector weights (n_features,)
-        bias: bias term (scalar, mặc định 0.0)
+        w: vector weights (n_features,) hoặc (n_features + 1,) với bias
+        bias: bias term (scalar, deprecated - sử dụng None cho format mới)
         regularization: hệ số regularization (mặc định 0.01)
         **kwargs: các tham số bổ sung (ví dụ epsilon cho Lasso)
     
@@ -1075,22 +1173,26 @@ def tinh_gia_tri_ham_loss(ham_loss: str, X: np.ndarray, y: np.ndarray, w: np.nda
         raise ValueError(f"Không hỗ trợ loss function: {ham_loss}. Chỉ hỗ trợ: 'ols', 'ridge', 'lasso'")
 
 def tinh_gradient_ham_loss(ham_loss: str, X: np.ndarray, y: np.ndarray, w: np.ndarray,
-                          bias: float = 0.0, regularization: float = 0.01, **kwargs) -> Tuple[np.ndarray, float]:
+                          bias: float = None, regularization: float = 0.01, **kwargs) -> Tuple[np.ndarray, float]:
     """
     Hàm thống nhất để tính gradient của loss function
     
+    Hỗ trợ cả 2 format:
+    - Format cũ: gradient với bias riêng (khi bias != None)
+    - Format mới: gradient với bias trong X (khi bias = None)
+    
     Tham số:
         ham_loss: loại loss function ('ols', 'ridge', 'lasso')
-        X: ma trận đặc trưng (n_samples, n_features)
+        X: ma trận đặc trưng (n_samples, n_features) hoặc (n_samples, n_features + 1) với bias
         y: vector target (n_samples,)
-        w: vector weights (n_features,)
-        bias: bias term (scalar, mặc định 0.0)
+        w: vector weights (n_features,) hoặc (n_features + 1,) với bias
+        bias: bias term (scalar, deprecated - sử dụng None cho format mới)
         regularization: hệ số regularization (mặc định 0.01)
         **kwargs: các tham số bổ sung (ví dụ epsilon cho Lasso)
     
     Trả về:
-        gradient_w: gradient theo weights (n_features,)
-        gradient_b: gradient theo bias (scalar)
+        gradient_w: gradient theo weights (n_features,) hoặc (n_features + 1,)
+        gradient_b: gradient theo bias (scalar, hoặc 0.0 cho format mới)
     """
     ham_loss = ham_loss.lower()
     

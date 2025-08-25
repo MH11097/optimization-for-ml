@@ -25,6 +25,7 @@ PIPFILE.lock
 # Virtual environments
 .venv
 .wvenv
+.w2venv
 env/
 venv/
 ENV/

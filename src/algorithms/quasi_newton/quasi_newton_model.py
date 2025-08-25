@@ -16,12 +16,9 @@ import json
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from utils.optimization_utils import (
-    tinh_mse, du_doan, 
-    tinh_gia_tri_ham_OLS, tinh_gradient_OLS,
-    tinh_gia_tri_ham_Ridge, tinh_gradient_Ridge,
-    tinh_gia_tri_ham_Lasso_smooth, tinh_gradient_Lasso_smooth,
-    danh_gia_mo_hinh, in_ket_qua_danh_gia, kiem_tra_hoi_tu,
-    tinh_gia_tri_ham_loss, tinh_gradient_ham_loss, tinh_hessian_ham_loss
+    du_doan, danh_gia_mo_hinh, in_ket_qua_danh_gia, kiem_tra_hoi_tu,
+    tinh_gia_tri_ham_loss, tinh_gradient_ham_loss, tinh_hessian_ham_loss,
+    add_bias_column
 )
 from utils.visualization_utils import (
     ve_duong_hoi_tu, ve_duong_dong_muc_optimization, ve_du_doan_vs_thuc_te
@@ -61,12 +58,12 @@ class QuasiNewtonModel:
         if self.ham_loss not in ['ols', 'ridge', 'lasso']:
             raise ValueError(f"Không hỗ trợ loss function: {ham_loss}")
         
-        # Sử dụng unified functions thay vì if-else logic
-        self.loss_func = lambda X, y, w: tinh_gia_tri_ham_loss(self.ham_loss, X, y, w, 0.0, self.regularization)
-        self.grad_func = lambda X, y, w: tinh_gradient_ham_loss(self.ham_loss, X, y, w, 0.0, self.regularization)[0]  # chỉ lấy gradient_w
+        # Sử dụng unified functions với format mới (bias trong X)
+        self.loss_func = lambda X, y, w: tinh_gia_tri_ham_loss(self.ham_loss, X, y, w, None, self.regularization)
+        self.grad_func = lambda X, y, w: tinh_gradient_ham_loss(self.ham_loss, X, y, w, None, self.regularization)
         
         # Khởi tạo các thuộc tính lưu kết quả
-        self.weights = None
+        self.weights = None  # Bây giờ bao gồm bias ở cuối
         self.H_inv = None  # Inverse Hessian approximation
         self.loss_history = []
         self.gradient_norms = []
@@ -147,18 +144,20 @@ class QuasiNewtonModel:
         Returns:
         - dict: Kết quả training bao gồm weights, loss_history, etc.
         """
-        print(f"Training BFGS Quasi-Newton Method - {self.ham_loss.upper()}")
+        print(f"🚀 Training BFGS Quasi-Newton Method - {self.ham_loss.upper()}")
         print(f"   Max iterations: {self.so_lan_thu}")
-        print(f"   Tolerance: {self.diem_dung}")
         if self.ham_loss in ['ridge', 'lasso']:
             print(f"   Regularization: {self.regularization}")
-        print(f"   Armijo c1: {self.armijo_c1}")
-        print(f"   Wolfe c2: {self.wolfe_c2}")
+        print(f"   Armijo c1: {self.armijo_c1}, Wolfe c2: {self.wolfe_c2}")
         
-        # Initialize weights và inverse Hessian approximation
-        n_features = X.shape[1]
-        self.weights = np.random.normal(0, 0.01, n_features)
-        self.H_inv = np.eye(n_features)  # Initial approximation
+        # Thêm cột bias vào X
+        X_with_bias = add_bias_column(X)
+        print(f"   Original features: {X.shape[1]}, With bias: {X_with_bias.shape[1]}")
+        
+        # Initialize weights và inverse Hessian approximation (bao gồm bias ở cuối)
+        n_features_with_bias = X_with_bias.shape[1]
+        self.weights = np.random.normal(0, 0.01, n_features_with_bias)
+        self.H_inv = np.eye(n_features_with_bias)  # Initial approximation
         
         # Reset histories
         self.loss_history = []
@@ -171,12 +170,12 @@ class QuasiNewtonModel:
         start_time = time.time()
         
         # Initial gradient
-        gradient_prev = self.grad_func(X, y, self.weights)
+        gradient_prev, _ = self.grad_func(X_with_bias, y, self.weights)  # _ vì không cần gradient_b riêng
         
         for lan_thu in range(self.so_lan_thu):
-            # Compute loss and gradient
-            loss_value = self.loss_func(X, y, self.weights)
-            gradient_curr = self.grad_func(X, y, self.weights)
+            # Tính giá trị hàm loss và gradient hàm loss
+            loss_value = self.loss_func(X_with_bias, y, self.weights)
+            gradient_curr, _ = self.grad_func(X_with_bias, y, self.weights)  # _ vì không cần gradient_b riêng
             
             # Store history
             self.loss_history.append(loss_value)
@@ -195,7 +194,7 @@ class QuasiNewtonModel:
             )
             
             if converged:
-                print(f"BFGS Quasi-Newton stopped: {reason}")
+                print(f"✅ BFGS Quasi-Newton stopped: {reason}")
                 self.converged = True
                 self.final_iteration = lan_thu + 1
                 break
@@ -205,7 +204,7 @@ class QuasiNewtonModel:
             
             # Line search để tìm step size
             step_size, ls_iter, gradient_new = self._wolfe_line_search(
-                X, y, self.weights, direction, gradient_curr
+                X_with_bias, y, self.weights, direction, gradient_curr
             )
             
             self.step_sizes.append(step_size)
@@ -230,23 +229,25 @@ class QuasiNewtonModel:
             
             # Progress update
             if (lan_thu + 1) % 10 == 0:
-                print(f"Iteration {lan_thu + 1}: Loss = {loss_value:.8f}, Gradient norm = {gradient_norm:.2e}, Step size = {step_size:.6f}, Cond = {cond_num:.2e}")
+                print(f"   Vòng {lan_thu + 1}: Loss = {loss_value:.8f}, Gradient = {gradient_norm:.2e}, Step = {step_size:.6f}, Cond = {cond_num:.2e}")
         
         self.training_time = time.time() - start_time
         
         if not self.converged:
-            print(f"Reached maximum iterations ({self.so_lan_thu})")
+            print(f"⏹️ Đạt tối đa {self.so_lan_thu} vòng lặp")
             self.final_iteration = self.so_lan_thu
         
-        print(f"Training time: {self.training_time:.4f} seconds")
-        print(f"Final loss: {self.loss_history[-1]:.8f}")
-        print(f"Final gradient norm: {self.gradient_norms[-1]:.2e}")
+        print(f"Thời gian training: {self.training_time:.4f}s")
+        print(f"Loss cuối: {self.loss_history[-1]:.8f}")
+        print(f"Bias cuối: {self.weights[-1]:.6f}")  # Bias là phần tử cuối của weights
+        print(f"Số weights (bao gồm bias): {len(self.weights)}")
         if self.step_sizes:
             print(f"Average step size: {np.mean(self.step_sizes):.6f}")
             print(f"Average line search iterations: {np.mean(self.line_search_iterations):.1f}")
         
         return {
-            'weights': self.weights,
+            'weights': self.weights,  # Bao gồm bias ở cuối
+            'bias': self.weights[-1],  # Bias riêng để tương thích
             'H_inv': self.H_inv,
             'loss_history': self.loss_history,
             'gradient_norms': self.gradient_norms,
@@ -260,18 +261,34 @@ class QuasiNewtonModel:
         }
     
     def predict(self, X):
-        """Dự đoán với dữ liệu X"""
+        """Dự đoán với dữ liệu X 
+        
+        Trả về:
+            predictions: Dự đoán trên log scale
+            
+        Lưu ý:
+            - Model được train trên log-transformed targets
+            - Dự đoán trả về ở log scale
+            - Bias đã được tích hợp vào weights: y = Xw (với X đã có cột bias)
+            - Sử dụng np.expm1() để chuyển về giá gốc khi cần
+        """
         if self.weights is None:
             raise ValueError("Model chưa được huấn luyện. Hãy gọi fit() trước.")
-        return du_doan(X, self.weights, 0)
+        
+        # Thêm cột bias vào X cho prediction
+        X_with_bias = add_bias_column(X)
+        return du_doan(X_with_bias, self.weights, None)
     
     def evaluate(self, X_test, y_test):
         """Đánh giá model trên test set"""
         if self.weights is None:
             raise ValueError("Model chưa được huấn luyện. Hãy gọi fit() trước.")
         
-        print(f"\\nĐánh giá model trên test set")
-        metrics = danh_gia_mo_hinh(self.weights, X_test, y_test)
+        print(f"\n📋 Đánh giá model...")
+        # Sử dụng bias từ weights (phần tử cuối) để tương thích với hàm cũ
+        bias_value = self.weights[-1]
+        weights_without_bias = self.weights[:-1]
+        metrics = danh_gia_mo_hinh(weights_without_bias, X_test, y_test, bias_value)
         in_ket_qua_danh_gia(metrics, self.training_time, 
                            f"BFGS Quasi-Newton - {self.ham_loss.upper()}")
         return metrics
@@ -287,7 +304,7 @@ class QuasiNewtonModel:
         results_dir = Path(base_dir) / ten_file
         results_dir.mkdir(parents=True, exist_ok=True)
         
-        # Save results.json
+        # Save comprehensive results.json
         print(f"   Lưu kết quả vào {results_dir}/results.json")
         results_data = {
             "algorithm": f"BFGS Quasi-Newton - {self.ham_loss.upper()}",
@@ -300,18 +317,50 @@ class QuasiNewtonModel:
                 "backtrack_rho": self.backtrack_rho,
                 "damping": self.damping
             },
-            "training_time": self.training_time,
-            "convergence": {
+            "training_results": {
+                "training_time": self.training_time,
                 "converged": self.converged,
-                "iterations": self.final_iteration,
+                "final_iteration": self.final_iteration,
+                "total_iterations": self.so_lan_thu,
                 "final_loss": float(self.loss_history[-1]),
                 "final_gradient_norm": float(self.gradient_norms[-1])
+            },
+            "weights_analysis": {
+                "n_features": len(self.weights) - 1,  # Không tính bias
+                "n_weights_total": len(self.weights),  # Tính cả bias
+                "bias_value": float(self.weights[-1]),
+                "weights_without_bias": self.weights[:-1].tolist(),
+                "complete_weight_vector": self.weights.tolist(),
+                "weights_stats": {
+                    "min": float(np.min(self.weights[:-1])),  # Stats chỉ của weights, không tính bias
+                    "max": float(np.max(self.weights[:-1])),
+                    "mean": float(np.mean(self.weights[:-1])),
+                    "std": float(np.std(self.weights[:-1]))
+                }
+            },
+            "convergence_analysis": {
+                "iterations_to_converge": self.final_iteration,
+                "final_cost_change": float(self.loss_history[-1] - self.loss_history[-2]) if len(self.loss_history) > 1 else 0.0,
+                "convergence_rate": "superlinear",  # BFGS có superlinear convergence
+                "loss_reduction_ratio": float(self.loss_history[0] / self.loss_history[-1]) if len(self.loss_history) > 0 else 1.0
             },
             "numerical_analysis": {
                 "average_step_size": float(np.mean(self.step_sizes)) if self.step_sizes else 0,
                 "average_line_search_iterations": float(np.mean(self.line_search_iterations)) if self.line_search_iterations else 0,
                 "final_condition_number": float(self.condition_numbers[-1]) if self.condition_numbers else 0,
-                "superlinear_convergence": "BFGS provides superlinear convergence rate"
+                "max_condition_number": float(np.max(self.condition_numbers)) if self.condition_numbers else 0,
+                "min_condition_number": float(np.min(self.condition_numbers)) if self.condition_numbers else 0,
+                "hessian_approximation_quality": "BFGS_secant_approximation",
+                "line_search_efficiency": "Wolfe_conditions_satisfied"
+            },
+            "algorithm_specific": {
+                "method_type": "quasi_newton_bfgs",
+                "second_order_approximation": True,
+                "hessian_computation": "secant_approximation",
+                "line_search_used": True,
+                "line_search_type": "wolfe_conditions",
+                "superlinear_convergence": "BFGS provides superlinear convergence rate",
+                "memory_efficient": "inverse_hessian_approximation"
             }
         }
         
@@ -347,10 +396,10 @@ class QuasiNewtonModel:
         results_dir = Path(base_dir) / ten_file
         results_dir.mkdir(parents=True, exist_ok=True)
         
-        print(f"\\n Tạo các biểu đồ visualization")
+        print(f"\n📊 Tạo biểu đồ...")
         
         # 1. Convergence curves với condition number
-        print("   Vẽ đường hội tụ với condition number")
+        print("   - Vẽ đường hội tụ")
         import matplotlib.pyplot as plt
         
         fig, axes = plt.subplots(2, 2, figsize=(15, 10))
@@ -390,24 +439,27 @@ class QuasiNewtonModel:
         plt.close()
         
         # 2. Predictions vs Actual
-        print("   Vẽ so sánh dự đoán với thực tế")
+        print("   - So sánh dự đoán vs thực tế")
         y_pred_test = self.predict(X_test)
         ve_du_doan_vs_thuc_te(y_test, y_pred_test, 
                              title=f"BFGS Quasi-Newton {self.ham_loss.upper()} - Predictions vs Actual",
                              save_path=str(results_dir / "predictions_vs_actual.png"))
         
         # 3. Optimization trajectory (đường đồng mực)
-        print("   Vẽ đường đồng mực optimization")
+        print("   - Vẽ đường đồng mực optimization")
         sample_frequency = max(1, len(self.weights_history) // 50)
         sampled_weights = self.weights_history[::sample_frequency]
+        
+        # Chuẩn bị X_test với bias cho visualization
+        X_test_with_bias = add_bias_column(X_test)
         
         ve_duong_dong_muc_optimization(
             loss_function=self.loss_func,
             weights_history=sampled_weights,
-            X=X_test, y=y_test,
-            bias_history=None,  # Quasi-Newton doesn't use bias
+            X=X_test_with_bias, y=y_test,
+            bias_history=None,  # Không cần bias riêng nữa
             title=f"BFGS Quasi-Newton {self.ham_loss.upper()} - Optimization Path",
             save_path=str(results_dir / "optimization_trajectory.png")
         )
         
-        print(f"   Biểu đồ đã được lưu vào: {results_dir.absolute()}")
+        print(f"✅ Biểu đồ đã lưu vào: {results_dir.absolute()}")

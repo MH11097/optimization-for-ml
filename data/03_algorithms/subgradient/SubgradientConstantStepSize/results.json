@@ -1,0 +1,15 @@
+{
+  "algorithm": "Subgradient Descent",
+  "parameters": {
+    "lambda_penalty": 0.1,
+    "max_iterations": 750,
+    "tolerance": 1e-08
+  },
+  "training_time": 21.881819009780884,
+  "convergence": {
+    "converged": false,
+    "iterations": 429,
+    "final_loss": 1.0872975347317049,
+    "final_gradient_norm": 0.6837439416946939
+  }
+}

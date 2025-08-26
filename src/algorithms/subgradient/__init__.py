@@ -4,6 +4,3 @@ from ._03_subgradient_square_summable import SubgradientSquareSummable
 from ._04_subgradient_non_summable_diminishing_step_size import (
     SubgradientNonSummableDiminishingStepSize,
 )
-from ._05_subgradient_non_summable_diminishing_step_length import (
-    SubgradientNonSummableDiminishingStepLength,
-)

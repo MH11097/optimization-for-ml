@@ -6,7 +6,6 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from utils.data_process_utils import load_du_lieu
 from algorithms.subgradient import (
-    SubgradientNonSummableDiminishingStepLength,
     SubgradientNonSummableDiminishingStepSize,
     SubgradientConstantStepLength,
     SubgradientConstantStepSize,
@@ -34,8 +33,8 @@ def main():
     ten_file = "toan_test"
     results_dir = model.save_results(ten_file)
 
-    # # Tạo biểu đồ
-    # model.plot_results(X_test_updated, y_test, ten_file)
+    # Tạo biểu đồ
+    model.plot_results(X_test_updated, y_test, ten_file)
 
     print(f"\\nTraining and visualization completed!")
     print(f"Results saved to: {results_dir.absolute()}")

@@ -17,29 +17,35 @@ def main():
     # Load data
     X_train, X_test, y_train, y_test = load_du_lieu()
 
-    model = SubgradientConstantStepLength()
-
     # Add static value to X_test
     X_train_updated = np.hstack([np.ones((X_train.shape[0], 1)), X_train])
     X_test_updated = np.hstack([np.ones((X_test.shape[0], 1)), X_test])
 
-    # Huấn luyện model
-    results = model.fit(X=X_train_updated, y=y_train)
+    # Init variables
+    subgradient_classes = [
+        SubgradientConstantStepLength,
+        SubgradientConstantStepSize,
+        SubgradientSquareSummable,
+        SubgradientNonSummableDiminishingStepSize,
+    ]
+    for cls in subgradient_classes:
+        class_name = cls.__name__
+        model = cls()
 
-    # Đánh giá model
-    metrics = model.evaluate(X_test_updated, y_test)
+        # Huấn luyện model
+        results = model.fit(X=X_train_updated, y=y_train)
 
-    # Lưu kết quả với tên file tự động
-    ten_file = "toan_test"
-    results_dir = model.save_results(ten_file)
+        # Đánh giá model
+        metrics = model.evaluate(X_test_updated, y_test)
 
-    # Tạo biểu đồ
-    model.plot_results(X_test_updated, y_test, ten_file)
+        # Lưu kết quả với tên file tự động
+        results_dir = model.save_results(class_name)
 
-    print(f"\\nTraining and visualization completed!")
-    print(f"Results saved to: {results_dir.absolute()}")
+        # Tạo biểu đồ
+        model.plot_results(X_test_updated, y_test, class_name)
 
-    return model, results, metrics
+        print(f"\\nTraining and visualization completed!")
+        print(f"Results saved to: {results_dir.absolute()}")
 
 
 if __name__ == "__main__":

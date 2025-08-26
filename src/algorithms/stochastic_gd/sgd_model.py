@@ -36,10 +36,11 @@ class SGDModel:
     - random_state: Random seed để tái tạo kết quả
     - batch_size: Kích thước batch (1 cho pure SGD, >1 cho mini-batch)
     - ham_loss: Loss function (hiện tại chỉ hỗ trợ 'mse')
+    - convergence_check_freq: Tần suất kiểm tra hội tụ (mỗi N epochs)
     """
     
     def __init__(self, learning_rate=0.01, so_epochs=100, random_state=42, 
-                 batch_size=1, ham_loss='ols', tolerance=1e-6, regularization=0.01):
+                 batch_size=1, ham_loss='ols', tolerance=1e-6, regularization=0.01, convergence_check_freq=10):
         self.learning_rate = learning_rate
         self.so_epochs = so_epochs
         self.random_state = random_state
@@ -47,6 +48,7 @@ class SGDModel:
         self.ham_loss = ham_loss.lower()
         self.tolerance = tolerance
         self.regularization = regularization
+        self.convergence_check_freq = convergence_check_freq  # Mỗi N epochs
         
         # Validate supported loss function và mở rộng hỗ trợ
         if self.ham_loss not in ['ols', 'ridge', 'lasso', 'mse']:
@@ -146,36 +148,49 @@ class SGDModel:
                 # Update weights
                 self.weights -= self.learning_rate * batch_gradient
             
-            # Calculate cost for entire dataset at end of epoch
-            epoch_cost = self._tinh_chi_phi(X_with_bias, y, self.weights)
-            self.cost_history.append(epoch_cost)
-            
-            # Store weights history
-            self.weights_history.append(self.weights.copy())
-            
-            # Calculate average gradient norm for the epoch
-            epoch_gradient_avg = np.mean(epoch_gradients, axis=0)
-            gradient_norm = np.linalg.norm(epoch_gradient_avg)
-            self.gradient_norms.append(gradient_norm)
-            
-            # Check convergence using updated function (requires both conditions)
-            cost_change = 0.0 if epoch == 0 else (self.cost_history[-2] - self.cost_history[-1])
-            converged, reason = kiem_tra_hoi_tu(
-                gradient_norm=gradient_norm,
-                cost_change=cost_change,
-                iteration=epoch,
-                tolerance=self.tolerance,
-                max_iterations=self.so_epochs
+            # Chỉ tính cost và lưu history khi cần thiết  
+            should_log = (
+                (epoch + 1) % self.convergence_check_freq == 0 or
+                epoch == self.so_epochs - 1 or
+                (epoch + 1) % 20 == 0  # Progress logging
             )
             
-            if converged:
-                print(f"✅ SGD stopped: {reason}")
-                self.converged = True
-                self.final_epoch = epoch + 1
-                break
+            if should_log:
+                # Chỉ tính cost khi cần (expensive operation)
+                epoch_cost = self._tinh_chi_phi(X_with_bias, y, self.weights)
+                epoch_gradient_avg = np.mean(epoch_gradients, axis=0)
+                gradient_norm = np.linalg.norm(epoch_gradient_avg)
+                
+                # Lưu vào history
+                self.cost_history.append(epoch_cost)
+                self.gradient_norms.append(gradient_norm)
+                self.weights_history.append(self.weights.copy())
             
-            # Progress update
-            if (epoch + 1) % 20 == 0:
+            # Check convergence với tần suất định sẵn hoặc ở epoch cuối
+            if (epoch + 1) % self.convergence_check_freq == 0 or epoch == self.so_epochs - 1:
+                # Đảm bảo có gradient_norm và epoch_cost cho convergence check
+                if not should_log:
+                    epoch_cost = self._tinh_chi_phi(X_with_bias, y, self.weights)
+                    epoch_gradient_avg = np.mean(epoch_gradients, axis=0)
+                    gradient_norm = np.linalg.norm(epoch_gradient_avg)
+                    
+                cost_change = 0.0 if len(self.cost_history) == 0 else (self.cost_history[-1] - epoch_cost) if len(self.cost_history) == 1 else (self.cost_history[-2] - self.cost_history[-1])
+                converged, reason = kiem_tra_hoi_tu(
+                    gradient_norm=gradient_norm,
+                    cost_change=cost_change,
+                    iteration=epoch,
+                    tolerance=self.tolerance,
+                    max_iterations=self.so_epochs
+                )
+                
+                if converged:
+                    print(f"✅ SGD stopped: {reason}")
+                    self.converged = True
+                    self.final_epoch = epoch + 1
+                    break
+            
+            # Progress update - chỉ print khi đã có data
+            if (epoch + 1) % 20 == 0 and should_log:
                 print(f"   Epoch {epoch + 1}: Cost = {epoch_cost:.6f}, Gradient = {gradient_norm:.6f}")
         
         self.training_time = time.time() - start_time

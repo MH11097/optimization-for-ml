@@ -33,18 +33,16 @@ class GradientDescentModel:
     - so_lan_thu: Số lần lặp tối đa
     - diem_dung: Ngưỡng hội tụ
     - regularization: Tham số regularization cho Ridge/Lasso
+    - convergence_check_freq: Tần suất kiểm tra hội tụ (mỗi N iterations)
     """
     
-    def __init__(self, ham_loss='ols', learning_rate=0.1, so_lan_thu=500, diem_dung=1e-5, regularization=0.01):
+    def __init__(self, ham_loss='ols', learning_rate=0.1, so_lan_thu=500, diem_dung=1e-5, regularization=0.01, convergence_check_freq=10):
         self.ham_loss = ham_loss.lower()
         self.learning_rate = learning_rate
         self.so_lan_thu = so_lan_thu
         self.diem_dung = diem_dung
         self.regularization = regularization
-        
-        # Validate supported loss function
-        if self.ham_loss not in ['ols', 'ridge', 'lasso']:
-            raise ValueError(f"Không hỗ trợ loss function: {ham_loss}")
+        self.convergence_check_freq = convergence_check_freq
         
         # Sử dụng unified functions với format mới (bias trong X)
         self.loss_func = lambda X, y, w: tinh_gia_tri_ham_loss(self.ham_loss, X, y, w, None, self.regularization)
@@ -87,37 +85,42 @@ class GradientDescentModel:
         start_time = time.time()
         
         for lan_thu in range(self.so_lan_thu):
-            # Tính giá trị hàm loss và gradient hàm loss
-            loss_value = self.loss_func(X_with_bias, y, self.weights)
+            # Tính gradient (luôn cần cho weight update)
             gradient_w, _ = self.grad_func(X_with_bias, y, self.weights) 
             
             # Update weights (bao gồm bias)
             self.weights = self.weights - self.learning_rate * gradient_w
             
-            # Store history
-            self.loss_history.append(loss_value)
-            gradient_norm = np.linalg.norm(gradient_w)
-            self.gradient_norms.append(gradient_norm)
-            self.weights_history.append(self.weights.copy())
-            
-            # Check convergence using updated function (requires both conditions)
-            cost_change = 0.0 if lan_thu == 0 else (self.loss_history[-2] - self.loss_history[-1])
-            converged, reason = kiem_tra_hoi_tu(
-                gradient_norm=gradient_norm,
-                cost_change=cost_change,
-                iteration=lan_thu,
-                tolerance=self.diem_dung,
-                max_iterations=self.so_lan_thu
+            # Chỉ tính loss và lưu history khi cần thiết
+            should_check_converged = (
+                (lan_thu + 1) % self.convergence_check_freq == 0 or 
+                lan_thu == self.so_lan_thu - 1
             )
             
-            if converged:
-                print(f"✅ Gradient Descent stopped: {reason}")
-                self.converged = True
-                self.final_iteration = lan_thu + 1
-                break
-            
-            # Progress update
-            if (lan_thu + 1) % 100 == 0:
+            if should_check_converged:
+                # Chỉ tính loss khi cần (expensive operation)
+                loss_value = self.loss_func(X_with_bias, y, self.weights)
+                gradient_norm = np.linalg.norm(gradient_w)
+                
+                # Lưu vào history
+                self.loss_history.append(loss_value)
+                self.gradient_norms.append(gradient_norm)
+                self.weights_history.append(self.weights.copy())                    
+                cost_change = 0.0 if len(self.loss_history) == 0 else (self.loss_history[-1] - loss_value) if len(self.loss_history) == 1 else (self.loss_history[-2] - self.loss_history[-1])
+                converged, reason = kiem_tra_hoi_tu(
+                    gradient_norm=gradient_norm,
+                    cost_change=cost_change,
+                    iteration=lan_thu,
+                    tolerance=self.diem_dung,
+                    max_iterations=self.so_lan_thu
+                )
+                
+                if converged:
+                    print(f"✅ Gradient Descent stopped: {reason}")
+                    self.converged = True
+                    self.final_iteration = lan_thu + 1
+                    break
+
                 print(f"   Vòng {lan_thu + 1}: Loss = {loss_value:.6f}, Gradient = {gradient_norm:.6f}")
         
         self.training_time = time.time() - start_time
@@ -239,7 +242,7 @@ class GradientDescentModel:
         
         # Save training history
         training_df = pd.DataFrame({
-            'iteration': range(len(self.loss_history)),
+            'iteration': range(0, len(self.loss_history)*self.convergence_check_freq, self.convergence_check_freq),
             'loss': self.loss_history,
             'gradient_norm': self.gradient_norms
         })

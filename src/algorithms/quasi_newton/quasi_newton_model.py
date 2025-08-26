@@ -39,15 +39,17 @@ class QuasiNewtonModel:
     - backtrack_rho: Backtrack factor cho line search
     - max_line_search_iter: Số lần line search tối đa
     - damping: Damping factor cho BFGS update
+    - convergence_check_freq: Tần suất kiểm tra hội tụ (mỗi N iterations)
     """
     
     def __init__(self, ham_loss='ols', so_lan_thu=100, diem_dung=1e-6, 
                  regularization=0.01, armijo_c1=1e-4, wolfe_c2=0.9,
-                 backtrack_rho=0.8, max_line_search_iter=50, damping=1e-8):
+                 backtrack_rho=0.8, max_line_search_iter=50, damping=1e-8, convergence_check_freq=10):
         self.ham_loss = ham_loss.lower()
         self.so_lan_thu = so_lan_thu
         self.diem_dung = diem_dung
         self.regularization = regularization
+        self.convergence_check_freq = convergence_check_freq
         self.armijo_c1 = armijo_c1
         self.wolfe_c2 = wolfe_c2
         self.backtrack_rho = backtrack_rho
@@ -173,31 +175,47 @@ class QuasiNewtonModel:
         gradient_prev, _ = self.grad_func(X_with_bias, y, self.weights)  # _ vì không cần gradient_b riêng
         
         for lan_thu in range(self.so_lan_thu):
-            # Tính giá trị hàm loss và gradient hàm loss
-            loss_value = self.loss_func(X_with_bias, y, self.weights)
+            # Tính gradient (luôn cần cho BFGS)
             gradient_curr, _ = self.grad_func(X_with_bias, y, self.weights)  # _ vì không cần gradient_b riêng
             
-            # Store history
-            self.loss_history.append(loss_value)
-            gradient_norm = np.linalg.norm(gradient_curr)
-            self.gradient_norms.append(gradient_norm)
-            self.weights_history.append(self.weights.copy())
-            
-            # Check convergence using updated function (requires both conditions)
-            cost_change = 0.0 if lan_thu == 0 else (self.loss_history[-2] - self.loss_history[-1])
-            converged, reason = kiem_tra_hoi_tu(
-                gradient_norm=gradient_norm,
-                cost_change=cost_change,
-                iteration=lan_thu,
-                tolerance=self.diem_dung,
-                max_iterations=self.so_lan_thu
+            # Chỉ tính loss và lưu history khi cần thiết
+            should_log = (
+                (lan_thu + 1) % self.convergence_check_freq == 0 or 
+                lan_thu == self.so_lan_thu - 1 or
+                (lan_thu + 1) % 10 == 0  # Progress logging
             )
             
-            if converged:
-                print(f"✅ BFGS Quasi-Newton stopped: {reason}")
-                self.converged = True
-                self.final_iteration = lan_thu + 1
-                break
+            if should_log:
+                # Chỉ tính loss khi cần (expensive operation)
+                loss_value = self.loss_func(X_with_bias, y, self.weights)
+                gradient_norm = np.linalg.norm(gradient_curr)
+                
+                # Lưu vào history
+                self.loss_history.append(loss_value)
+                self.gradient_norms.append(gradient_norm)
+                self.weights_history.append(self.weights.copy())
+            
+            # Check convergence với tần suất định sẵn hoặc ở iteration cuối
+            if (lan_thu + 1) % self.convergence_check_freq == 0 or lan_thu == self.so_lan_thu - 1:
+                # Đảm bảo có gradient_norm và loss_value cho convergence check
+                if not should_log:
+                    loss_value = self.loss_func(X_with_bias, y, self.weights)
+                    gradient_norm = np.linalg.norm(gradient_curr)
+                    
+                cost_change = 0.0 if len(self.loss_history) == 0 else (self.loss_history[-1] - loss_value) if len(self.loss_history) == 1 else (self.loss_history[-2] - self.loss_history[-1])
+                converged, reason = kiem_tra_hoi_tu(
+                    gradient_norm=gradient_norm,
+                    cost_change=cost_change,
+                    iteration=lan_thu,
+                    tolerance=self.diem_dung,
+                    max_iterations=self.so_lan_thu
+                )
+                
+                if converged:
+                    print(f"✅ BFGS Quasi-Newton stopped: {reason}")
+                    self.converged = True
+                    self.final_iteration = lan_thu + 1
+                    break
             
             # BFGS direction: d = -H_inv * gradient
             direction = -np.dot(self.H_inv, gradient_curr)

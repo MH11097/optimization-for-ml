@@ -31,7 +31,7 @@ class BaseSubgradient(ABC):
     def __init__(
         self,
         lambda_penalty: float = 0.1,
-        max_iterations: int = 500,
+        max_iterations: int = 750,
         tolerance: float = 1e-8,
     ):
         self.lambda_penalty = lambda_penalty
@@ -192,6 +192,8 @@ class BaseSubgradient(ABC):
             "final_iteration": self.final_iteration,
             "min_loss": min_loss_1,
         }
+
+        print(f"Minimum loss result: {min_loss_1}")
 
         return results
 

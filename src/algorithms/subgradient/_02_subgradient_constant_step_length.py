@@ -11,5 +11,5 @@ class SubgradientConstantStepLength(BaseSubgradient):
         **kwargs,
     ):
         subgrad_norm = np.linalg.norm(x=current_subgradient_vector)
-        FIXED_STEP_LENGTH = 0.05
+        FIXED_STEP_LENGTH = 0.04
         return FIXED_STEP_LENGTH / subgrad_norm

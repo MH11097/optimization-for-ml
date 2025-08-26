@@ -35,7 +35,7 @@ def main():
     model = GradientDescentModel(
         ham_loss='ols',
         learning_rate=0.1,
-        so_lan_thu=500,
+        so_lan_thu=10000,
         diem_dung=1e-5
     )
     
@@ -52,7 +52,7 @@ def main():
     # Tạo biểu đồ
     model.plot_results(X_test, y_test, ten_file)
     
-    print(f"\\nTraining and visualization completed!")
+    print(f"\nTraining and visualization completed!")
     print(f"Results saved to: {results_dir.absolute()}")
     
     return model, results, metrics

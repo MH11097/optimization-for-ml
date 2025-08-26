@@ -54,7 +54,7 @@ def tai_du_lieu_chunked(file_path: str,
             
             chunks.append(chunk)
             total_rows += len(chunk)
-            if total_rows % 100000 == 0:
+            if total_rows % 1000000 == 0:
                 print(f"Loaded {total_rows} rows")
             # Kiểm tra giới hạn rows
             if max_rows and total_rows >= max_rows:
@@ -487,8 +487,6 @@ def load_du_lieu():
         y_test = tai_du_lieu_chunked(data_dir / "y_test.csv").values.ravel()
         
         print(f"✅ Loaded processed data: Train {X_train.shape}, Test {X_test.shape}")
-        print(f"   Target range (log scale): y_train [{y_train.min():.3f}, {y_train.max():.3f}]")
-        print(f"   Target range (log scale): y_test [{y_test.min():.3f}, {y_test.max():.3f}]")
                 
         return X_train, X_test, y_train, y_test
         

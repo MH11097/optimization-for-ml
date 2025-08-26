@@ -359,9 +359,9 @@ class MomentumGDModel:
             loss_function=self.loss_func,
             weights_history=sampled_weights,
             X=X_test_with_bias, y=y_test,
-            bias_history=None,  # Không cần bias riêng nữa
             title=f"Momentum GD {self.ham_loss.upper()} - Optimization Path",
-            save_path=str(results_dir / "optimization_trajectory.png")
+            save_path=str(results_dir / "optimization_trajectory.png"),
+            original_iterations=len(self.weights_history) - 1  # -1 because we start from iter 0
         )
         
         print(f"✅ Biểu đồ đã lưu vào: {results_dir.absolute()}")

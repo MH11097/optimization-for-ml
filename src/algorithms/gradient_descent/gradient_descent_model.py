@@ -66,14 +66,14 @@ class GradientDescentModel:
         Returns:
         - dict: Kết quả training bao gồm weights, bias, loss_history, etc.
         """
-        print(f"🚀 Training Gradient Descent - {self.ham_loss.upper()}")
-        print(f"   Learning rate: {self.learning_rate}, Max iterations: {self.so_lan_thu}")
+        print(f"🚀 Training Gradient Descent - {self.ham_loss.upper()} - ")
+        print(f"   Learning rate: {self.learning_rate} - Max iterations: {self.so_lan_thu}")
         if self.ham_loss in ['ridge', 'lasso']:
             print(f"   Regularization: {self.regularization}")
         
         # Thêm cột bias vào X
         X_with_bias = add_bias_column(X)
-        print(f"   Original features: {X.shape[1]}, With bias: {X_with_bias.shape[1]}")
+        print(f"   Num of features: {X.shape[1]} (+1)")
         
         # Initialize weights (bao gồm bias ở cuối)
         n_features_with_bias = X_with_bias.shape[1]
@@ -123,17 +123,16 @@ class GradientDescentModel:
         self.training_time = time.time() - start_time
         
         if not self.converged:
-            print(f"⏹️ Đạt tối đa {self.so_lan_thu} vòng lặp")
+            print(f"✅ Gradient Descent stopped: Đạt tối đa {self.so_lan_thu} vòng lặp")
             self.final_iteration = self.so_lan_thu
         
         print(f"Thời gian training: {self.training_time:.2f}s")
         print(f"Loss cuối: {self.loss_history[-1]:.6f}")
-        print(f"Bias cuối: {self.weights[-1]:.6f}")  # Bias là phần tử cuối của weights
-        print(f"Số weights (bao gồm bias): {len(self.weights)}")
+        print(f"Gradient norm cuối: {self.gradient_norms[-1]:.6f}")  
         
         return {
-            'weights': self.weights,  # Bao gồm bias ở cuối
-            'bias': self.weights[-1],  # Bias riêng để tương thích
+            'weights': self.weights,  
+            'bias': self.weights[-1], 
             'loss_history': self.loss_history,
             'gradient_norms': self.gradient_norms,
             'weights_history': self.weights_history,
@@ -166,7 +165,6 @@ class GradientDescentModel:
         if self.weights is None:
             raise ValueError("Model chưa được huấn luyện. Hãy gọi fit() trước.")
         
-        print(f"\n📋 Đánh giá model...")
         # Sử dụng bias từ weights (phần tử cuối) để tương thích với hàm cũ
         bias_value = self.weights[-1]
         weights_without_bias = self.weights[:-1]
@@ -191,7 +189,6 @@ class GradientDescentModel:
         results_dir.mkdir(parents=True, exist_ok=True)
         
         # Save comprehensive results.json
-        print(f"   Lưu kết quả vào {results_dir}/results.json")
         results_data = {
             "algorithm": f"Gradient Descent - {self.ham_loss.upper()}",
             "loss_function": self.ham_loss.upper(),
@@ -241,7 +238,6 @@ class GradientDescentModel:
             json.dump(results_data, f, indent=2)
         
         # Save training history
-        print(f"   Lưu lịch sử training vào {results_dir}/training_history.csv")
         training_df = pd.DataFrame({
             'iteration': range(len(self.loss_history)),
             'loss': self.loss_history,
@@ -267,7 +263,7 @@ class GradientDescentModel:
         results_dir = Path(base_dir) / ten_file
         results_dir.mkdir(parents=True, exist_ok=True)
         
-        print(f"\\n📊 Tạo biểu đồ...")
+        print(f"\n📊 Tạo biểu đồ...")
         
         # 1. Convergence curves
         print("   - Vẽ đường hội tụ")
@@ -294,9 +290,8 @@ class GradientDescentModel:
             loss_function=self.loss_func,
             weights_history=sampled_weights,
             X=X_test_with_bias, y=y_test,
-            bias_history=None,  # Không cần bias riêng nữa
             title=f"Gradient Descent {self.ham_loss.upper()} - Optimization Path",
-            save_path=str(results_dir / "optimization_trajectory.png")
+            save_path=str(results_dir / "optimization_trajectory.png"),
+            original_iterations=len(self.weights_history) - 1  # -1 because we start from iter 0
         )
         
-        print(f"✅ Biểu đồ đã lưu vào: {results_dir.absolute()}")

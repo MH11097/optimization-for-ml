@@ -535,20 +535,20 @@ def luu_bieu_do_theo_batch(figures_list: List[plt.Figure],
 
 
 def ve_duong_dong_muc_optimization(loss_function, weights_history, X, y, 
-                                  bias_history=None, feature_indices=None, title="Quá trình tối ưu",
-                                  save_path=None):
+                                  feature_indices=None, title="Quá trình tối ưu",
+                                  save_path=None, original_iterations=None):
     """
     Vẽ đường đồng mức của hàm loss với trajectory của optimization algorithm
     
     Tham số:
         loss_function: hàm tính loss (e.g., tinh_gia_tri_ham_OLS)
         weights_history: lịch sử weights qua các iterations (list of arrays)
-        X: ma trận đặc trưng
+        X: ma trận đặc trưng (đã có bias column)
         y: vector target
-        bias_history: lịch sử bias qua các iterations (optional)
         feature_indices: tuple (i, j) - chỉ số 2 features để vẽ (None = auto select)
         title: tiêu đề biểu đồ
         save_path: đường dẫn lưu file (optional)
+        original_iterations: số iteration thực sự (để tính annotation đúng)
     """
     if len(weights_history) < 2:
         print("Cần ít nhất 2 điểm để vẽ quỹ đạo")
@@ -558,11 +558,34 @@ def ve_duong_dong_muc_optimization(loss_function, weights_history, X, y,
     weights_array = np.array(weights_history)
     n_features = weights_array.shape[1]
     
-    # Auto select 2 most important features (highest variance in trajectory)
+    # Auto select 2 features that best show convergence behavior
     if feature_indices is None:
-        variances = np.var(weights_array, axis=0)
-        feature_indices = np.argsort(variances)[-2:]  # 2 features with highest variance
-        feature_indices = tuple(sorted(feature_indices))
+        # Focus on convergence in the last half of training
+        convergence_portion = weights_array[len(weights_array)//2:]
+        
+        # Calculate both total variance and convergence quality
+        total_variances = np.var(weights_array, axis=0)
+        convergence_variances = np.var(convergence_portion, axis=0)
+        
+        # Combine criteria: high total movement + visible convergence
+        # Exclude bias term (usually last column) if it's much larger
+        exclude_bias = False
+        if weights_array.shape[1] > 2:  # More than 2 features
+            bias_var = total_variances[-1]  # Assume bias is last
+            other_vars = total_variances[:-1]
+            if bias_var > 10 * np.mean(other_vars):  # Bias dominates
+                exclude_bias = True
+        
+        if exclude_bias:
+            # Select from non-bias features
+            combined_score = total_variances[:-1] * convergence_variances[:-1]
+            feature_candidates = np.argsort(combined_score)[-2:]
+        else:
+            # Select from all features
+            combined_score = total_variances * convergence_variances  
+            feature_candidates = np.argsort(combined_score)[-2:]
+            
+        feature_indices = tuple(sorted(feature_candidates))
     
     idx1, idx2 = feature_indices
     
@@ -570,30 +593,72 @@ def ve_duong_dong_muc_optimization(loss_function, weights_history, X, y,
     w1_path = weights_array[:, idx1]
     w2_path = weights_array[:, idx2]
     
-    # Create meshgrid around trajectory
+    # Create meshgrid focused on convergence region
     w1_min, w1_max = w1_path.min(), w1_path.max()
     w2_min, w2_max = w2_path.min(), w2_path.max()
     
-    # Expand range by 20%
-    w1_range = w1_max - w1_min
-    w2_range = w2_max - w2_min
-    w1_min -= 0.2 * w1_range
-    w1_max += 0.2 * w1_range
-    w2_min -= 0.2 * w2_range
-    w2_max += 0.2 * w2_range
+    # Calculate ranges with special attention to convergence area
+    w1_range = w1_max - w1_min if w1_max != w1_min else 0.1
+    w2_range = w2_max - w2_min if w2_max != w2_min else 0.1
     
-    # Create grid
-    grid_size = 50
+    # Focus more on the convergence point (final values)
+    final_w1, final_w2 = w1_path[-1], w2_path[-1]
+    
+    # Smart adaptive zooming for optimal visualization
+    # Calculate trajectory span vs desired minimum visualization size
+    min_viz_size = 0.2  # Minimum visualization range for good contours
+    
+    # Determine zoom level based on trajectory characteristics
+    trajectory_span = max(w1_range, w2_range)
+    
+    if trajectory_span < 0.005:  # Very tight convergence
+        expansion = 8.0  # Heavy zoom out for loss landscape
+        zoom_level = "heavy"
+    elif trajectory_span < 0.02:  # Tight convergence 
+        expansion = 4.0  # Strong zoom out
+        zoom_level = "strong"
+    elif trajectory_span < 0.1:  # Moderate convergence
+        expansion = 2.0  # Moderate zoom out
+        zoom_level = "moderate"
+    elif trajectory_span < 0.5:  # Normal trajectory
+        expansion = 1.0  # Light zoom out
+        zoom_level = "light"
+    else:  # Wide trajectory
+        expansion = 0.3  # Minimal expansion
+        zoom_level = "minimal"
+    
+    # Center the visualization around the convergence point for better focus
+    w1_center = final_w1
+    w2_center = final_w2
+    w1_radius = max(w1_range * (1 + expansion), min_viz_size/2)
+    w2_radius = max(w2_range * (1 + expansion), min_viz_size/2)
+    
+    w1_min = w1_center - w1_radius
+    w1_max = w1_center + w1_radius  
+    w2_min = w2_center - w2_radius
+    w2_max = w2_center + w2_radius
+    
+    
+    # Adaptive grid size and contour levels based on zoom level
+    if zoom_level in ["heavy", "strong"]:
+        grid_size = 35  # Finer grid for zoomed views
+        n_contour_levels = 30  # More contour lines for detail
+    elif zoom_level == "moderate":
+        grid_size = 30
+        n_contour_levels = 25
+    else:
+        grid_size = 25  # Standard grid 
+        n_contour_levels = 20
     w1_grid = np.linspace(w1_min, w1_max, grid_size)
     w2_grid = np.linspace(w2_min, w2_max, grid_size)
     W1, W2 = np.meshgrid(w1_grid, w2_grid)
     
     # Compute loss at each grid point
-    print("Tính toán bề mặt loss...")
     loss_surface = np.zeros_like(W1)
     
-    # Use final bias if bias_history is provided
-    final_bias = bias_history[-1] if bias_history else 0.0
+    # Vectorized loss computation for better performance
+    total_points = grid_size * grid_size
+    computed = 0
     
     for i in range(grid_size):
         for j in range(grid_size):
@@ -602,59 +667,63 @@ def ve_duong_dong_muc_optimization(loss_function, weights_history, X, y,
             w_test[idx1] = W1[i, j]
             w_test[idx2] = W2[i, j]
             
-            # Compute loss with bias
+            # Compute loss
             try:
-                loss_surface[i, j] = loss_function(X, y, w_test, final_bias)
-            except:
+                loss_surface[i, j] = loss_function(X, y, w_test)
+            except Exception as e:
                 loss_surface[i, j] = np.nan
+            computed += 1
     
     # Create plot
     fig, ax = plt.subplots(figsize=(12, 10))
     
-    # Plot contour
-    levels = 20
-    contour = ax.contour(W1, W2, loss_surface, levels=levels, colors='gray', alpha=0.6)
-    contourf = ax.contourf(W1, W2, loss_surface, levels=levels, cmap='viridis', alpha=0.3)
+    # Plot contour lines with adaptive detail level
+    # Use log scale for better contour visualization if loss varies greatly
+    loss_min, loss_max = np.nanmin(loss_surface), np.nanmax(loss_surface)
+    if loss_max / loss_min > 100:  # Large dynamic range
+        levels = np.logspace(np.log10(loss_min), np.log10(loss_max), n_contour_levels)
+    else:
+        levels = n_contour_levels
     
-    # Add colorbar
-    cbar = plt.colorbar(contourf, ax=ax)
-    cbar.set_label('Giá trị Loss', rotation=270, labelpad=15)
+    contour = ax.contour(W1, W2, loss_surface, levels=levels, colors='black', linewidths=0.8, alpha=0.7)
+    contourf = ax.contourf(W1, W2, loss_surface, levels=levels, cmap='viridis', alpha=0.4)
     
-    # Plot trajectory
-    ax.plot(w1_path, w2_path, 'r-', linewidth=3, alpha=0.8, label='Quỹ đạo tối ưu')
+    # Add colorbar to show optimization level
+    cbar = plt.colorbar(contourf, ax=ax, shrink=0.8)
+    cbar.set_label('Loss Value', rotation=270, labelpad=15, fontsize=10)
     
-    # Add arrows to show direction
-    n_arrows = min(10, len(w1_path)-1)  # Max 10 arrows
-    arrow_indices = np.linspace(0, len(w1_path)-2, n_arrows, dtype=int)
-    
-    for i in arrow_indices:
-        dx = w1_path[i+1] - w1_path[i]
-        dy = w2_path[i+1] - w2_path[i]
-        ax.arrow(w1_path[i], w2_path[i], dx, dy, 
-                head_width=0.02*max(w1_range, w2_range),
-                head_length=0.02*max(w1_range, w2_range),
-                fc='red', ec='red', alpha=0.7)
+    # Plot trajectory as red line
+    ax.plot(w1_path, w2_path, 'r-', linewidth=3, alpha=0.9, label='Optimization Path', zorder=5)
     
     # Mark start and end points
-    ax.plot(w1_path[0], w2_path[0], 'go', markersize=12, label='Điểm bắt đầu', markeredgecolor='black')
-    ax.plot(w1_path[-1], w2_path[-1], 'r*', markersize=15, label='Điểm cuối', markeredgecolor='black')
+    ax.plot(w1_path[0], w2_path[0], 'go', markersize=10, label='Start Point', markeredgecolor='black', zorder=6)
+    ax.plot(w1_path[-1], w2_path[-1], 'r*', markersize=15, label='Final Point', markeredgecolor='black', zorder=6)
     
-    # Customize plot
-    ax.set_xlabel(f'Trọng số[{idx1}]')
-    ax.set_ylabel(f'Trọng số[{idx2}]')
-    ax.set_title(f'{title}\nQuỹ đạo trong không gian trọng số (Tính năng {idx1} vs {idx2})')
-    ax.legend()
-    ax.grid(True, alpha=0.3)
+    # Customize plot - clean simple style
+    ax.legend(fontsize=10)
     
-    # Add iteration annotations
-    n_annotations = min(5, len(w1_path))
+    # Clean white background
+    ax.set_facecolor('white')
+    fig.patch.set_facecolor('white')
+    
+    # Add iteration annotations like in the reference image
+    n_annotations = min(6, len(w1_path))  # Include more annotation points
     annotation_indices = np.linspace(0, len(w1_path)-1, n_annotations, dtype=int)
     
     for i, idx in enumerate(annotation_indices):
-        ax.annotate(f'Vòng {idx*len(weights_history)//len(annotation_indices)}', 
+        # Calculate actual iteration number correctly
+        if original_iterations is not None:
+            # Use original total iterations to calculate correct annotation
+            actual_iter = idx * original_iterations // (len(w1_path) - 1) if len(w1_path) > 1 else 0
+        else:
+            # Fallback to using weights_history length
+            actual_iter = idx * len(weights_history) // len(w1_path) if len(w1_path) > 1 else 0
+            
+        ax.annotate(f'Iter {actual_iter}', 
                    (w1_path[idx], w2_path[idx]),
                    xytext=(5, 5), textcoords='offset points',
-                   fontsize=8, alpha=0.7)
+                   fontsize=8, alpha=0.8, 
+                   bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.7, edgecolor='none'))
     
     plt.tight_layout()
     
@@ -662,19 +731,6 @@ def ve_duong_dong_muc_optimization(loss_function, weights_history, X, y,
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
     
     plt.show()
-    
-    # Print summary
-    start_bias = bias_history[0] if bias_history else 0.0
-    end_bias = bias_history[-1] if bias_history else 0.0
-    
-    loss_start = loss_function(X, y, weights_history[0], start_bias)
-    loss_end = loss_function(X, y, weights_history[-1], end_bias)
-    
-    print(f"\n📊 Tóm tắt tối ưu:")
-    print(f"   Tính năng hiển thị: {idx1}, {idx2}")
-    print(f"   Loss ban đầu: {loss_start:.6f}")
-    print(f"   Loss cuối: {loss_end:.6f}")
-    print(f"   Cải thiện: {loss_start - loss_end:.6f} ({(loss_start-loss_end)/loss_start*100:.2f}%)")
 
 
 # Thiết lập style mặc định khi import module

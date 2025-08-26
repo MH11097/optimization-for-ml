@@ -807,17 +807,9 @@ def danh_gia_mo_hinh(weights: np.ndarray, X_test: np.ndarray, y_test: np.ndarray
     # Dự đoán trên log scale (nếu model được train trên log)
     predictions_log = du_doan(X_test, weights, bias)
     
-    print("🔄 Chuyển từ log scale về scale gốc...")
-    
     # Convert cả predictions và test về original scale
     predictions_original = np.expm1(predictions_log)  # inverse of log1p
     y_test_original = np.expm1(y_test)                # inverse of log1p
-    
-    # Validation checks
-    print(f"   Dự đoán (log): [{predictions_log.min():.3f}, {predictions_log.max():.3f}]")
-    print(f"   Dự đoán (gốc): [{predictions_original.min():.0f}, {predictions_original.max():.0f}]")
-    print(f"   Target (log): [{y_test.min():.3f}, {y_test.max():.3f}]")
-    print(f"   Target (gốc): [{y_test_original.min():.0f}, {y_test_original.max():.0f}]")
     
     # Use original scale for evaluation
     predictions_eval = predictions_original
@@ -884,19 +876,11 @@ def danh_gia_mo_hinh_with_bias(weights: np.ndarray, bias: float, X_test: np.ndar
     """
     # Dự đoán trên log scale (nếu model được train trên log)
     predictions_log = du_doan(X_test, weights, bias)
-    
-    print("🔄 Inverse transforming predictions and targets from log scale to original scale...")
-    
+        
     # Convert cả predictions và test về original scale
     predictions_original = np.expm1(predictions_log)  # inverse of log1p
     y_test_original = np.expm1(y_test)                # inverse of log1p
-    
-    # Validation checks
-    print(f"   Log predictions range: [{predictions_log.min():.3f}, {predictions_log.max():.3f}]")
-    print(f"   Original predictions range: [{predictions_original.min():.0f}, {predictions_original.max():.0f}]")
-    print(f"   Log targets range: [{y_test.min():.3f}, {y_test.max():.3f}]")
-    print(f"   Original targets range: [{y_test_original.min():.0f}, {y_test_original.max():.0f}]")
-    
+
     # Use original scale for evaluation
     predictions_eval = predictions_original
     y_test_eval = y_test_original
@@ -962,10 +946,7 @@ def in_ket_qua_danh_gia(metrics: Dict[str, float], training_time: float = None,
     print(f"📊 {algorithm_name.upper()} - EVALUATION RESULTS")
     print("="*60)
     
-    # Thông báo scale đánh giá
-    print(f"🔄 EVALUATION ON ORIGINAL PRICE SCALE (inverse transformed from log):")
-
-    
+    # Thông báo scale đánh giá    
     print(f"\n🎯 REGRESSION METRICS:")
     print(f"   MSE:      {metrics['mse']:.8f}")
     print(f"   RMSE:     {metrics['rmse']:.6f}")
@@ -980,61 +961,9 @@ def in_ket_qua_danh_gia(metrics: Dict[str, float], training_time: float = None,
     print(f"   Max Error: {metrics['max_error']:.6f}")
     print(f"   Explained Variance: {metrics['explained_variance']:.6f}")
     
-    # Nếu có log transform, hiển thị metrics trên log scale để so sánh
-    if 'mse_log_scale' in metrics:
-        print(f"\n📊 COMPARISON - METRICS ON LOG SCALE:")
-        print(f"   MSE (log):  {metrics['mse_log_scale']:.8f}")
-        print(f"   R² (log):   {metrics['r2_log_scale']:.6f}")
-        print(f"   MAE (log):  {metrics['mae_log_scale']:.6f}")
-    
     if training_time is not None:
-        print(f"\n⏱️ PERFORMANCE:")
         print(f"   Training Time: {training_time:.4f}s")
     
-    # Đánh giá chất lượng model
-    print(f"\n📈 MODEL QUALITY ASSESSMENT:")
-    
-    if metrics['r2'] >= 0.9:
-        r2_assessment = "EXCELLENT (R² ≥ 0.9)"
-        r2_color = "🟢"
-    elif metrics['r2'] >= 0.8:
-        r2_assessment = "VERY GOOD (R² ≥ 0.8)"
-        r2_color = "🟡"
-    elif metrics['r2'] >= 0.7:
-        r2_assessment = "GOOD (R² ≥ 0.7)"
-        r2_color = "🟠"
-    elif metrics['r2'] >= 0.5:
-        r2_assessment = "MODERATE (R² ≥ 0.5)"
-        r2_color = "🔴"
-    else:
-        r2_assessment = "POOR (R² < 0.5)"
-        r2_color = "⚫"
-    
-    print(f"   {r2_color} R² Assessment: {r2_assessment}")
-    
-    # MAPE assessment
-    if metrics['mape'] != float('inf'):
-        if metrics['mape'] <= 5:
-            mape_assessment = "EXCELLENT (MAPE ≤ 5%)"
-            mape_color = "🟢"
-        elif metrics['mape'] <= 10:
-            mape_assessment = "VERY GOOD (MAPE ≤ 10%)"
-            mape_color = "🟡"
-        elif metrics['mape'] <= 20:
-            mape_assessment = "GOOD (MAPE ≤ 20%)"
-            mape_color = "🟠"
-        else:
-            mape_assessment = "NEEDS IMPROVEMENT (MAPE > 20%)"
-            mape_color = "🔴"
-        
-        print(f"   {mape_color} MAPE Assessment: {mape_assessment}")
-    
-    # Thông báo quan trọng nếu có log transform
-    print(f"\n⚠️  IMPORTANT: All metrics above are on ORIGINAL PRICE SCALE")
-    print(f"   Model was trained on log-transformed targets but evaluation")
-    print(f"   was performed after inverse transformation to original scale.")
-
-
 # ==============================================================================
 # 7. TIỆN ÍCH DEBUG VÀ IN THÔNG TIN
 # ==============================================================================

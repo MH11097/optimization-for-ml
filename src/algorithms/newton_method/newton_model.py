@@ -353,4 +353,3 @@ class NewtonModel:
             save_path=str(results_dir / "optimization_trajectory.png")
         )
         
-        print(f"✅ Biểu đồ đã lưu vào: {results_dir.absolute()}")

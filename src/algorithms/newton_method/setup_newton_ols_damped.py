@@ -51,7 +51,7 @@ def main():
     # Tạo biểu đồ
     model.plot_results(X_test, y_test, ten_file)
     
-    print(f"\\nTraining and visualization completed!")
+    print(f"\nTraining and visualization completed!")
     print(f"Results saved to: {results_dir.absolute()}")
     
     return model, results, metrics

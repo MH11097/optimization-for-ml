@@ -413,9 +413,7 @@ class ProximalGDModel:
             loss_function=smooth_loss_func,
             weights_history=sampled_weights,
             X=X_test_with_bias, y=y_test,
-            bias_history=None,  # Không cần bias riêng nữa
             title=f"Proximal GD {self.ham_loss.upper()} - Optimization Path (Smooth Part)",
             save_path=str(results_dir / "optimization_trajectory.png")
         )
         
-        print(f"✅ Biểu đồ đã lưu vào: {results_dir.absolute()}")

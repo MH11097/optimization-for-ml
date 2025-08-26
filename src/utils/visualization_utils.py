@@ -186,7 +186,7 @@ def ve_du_doan_vs_thuc_te(y_true: np.ndarray, y_pred: np.ndarray,
     r2 = tinh_r2_score(y_true, y_pred)
     
     # Add text box with metrics
-    textstr = f'MSE: {mse:.4f}\\nMAE: {mae:.4f}\\nR²: {r2:.4f}'
+    textstr = f'MSE: {mse:.4f}\nMAE: {mae:.4f}\nR²: {r2:.4f}'
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
     ax1.text(0.05, 0.95, textstr, transform=ax1.transAxes, fontsize=10,
             verticalalignment='top', bbox=props)

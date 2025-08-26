@@ -368,4 +368,3 @@ class MomentumGDModel:
             original_iterations=len(self.weights_history) - 1  # -1 because we start from iter 0
         )
         
-        print(f"✅ Biểu đồ đã lưu vào: {results_dir.absolute()}")

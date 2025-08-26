@@ -148,7 +148,7 @@ class EnhancedModelMixin:
         # 4. Create prediction script
         self._create_prediction_script(results_dir, ten_file)
         
-        print(f"\\n ✅ Enhanced model state saved to: {results_dir.absolute()}")
+        print(f"\n ✅ Enhanced model state saved to: {results_dir.absolute()}")
         return results_dir
     
     def _basic_save_results(self, results_dir: Path):

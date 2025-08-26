@@ -96,7 +96,7 @@ class SetupFileGenerator:
             setup_name += f" (λ={regularization})"
         
         reg_comment = f"\n- Regularization: {regularization}" if regularization else ""
-        reg_param = f",\\n        regularization={regularization}" if regularization else ""
+        reg_param = f",\n        regularization={regularization}" if regularization else ""
         
         return f"""#!/usr/bin/env python3
 \"\"\"
@@ -153,7 +153,7 @@ def main():
     # Tạo biểu đồ
     model.plot_results(X_test, y_test, ten_file)
     
-    print("\\n\\nTraining and visualization completed!")
+    print("\n\nTraining and visualization completed!")
     print(f"Results saved to: {{results_dir.absolute()}}")
     
     return model, results, metrics
@@ -227,7 +227,7 @@ def main():
     # Tạo biểu đồ
     model.plot_results(X_test, y_test, ten_file)
     
-    print("\\n\\nTraining and visualization completed!")
+    print("\n\nTraining and visualization completed!")
     print(f"Results saved to: {{results_dir.absolute()}}")
     
     return model, results, metrics
@@ -304,7 +304,7 @@ def main():
     # Tạo biểu đồ
     model.plot_results(X_test, y_test, ten_file)
     
-    print("\\n\\nTraining and visualization completed!")
+    print("\n\nTraining and visualization completed!")
     print(f"Results saved to: {{results_dir.absolute()}}")
     
     return model, results, metrics
@@ -379,7 +379,7 @@ def main():
     # Tạo biểu đồ
     model.plot_results(X_test, y_test, ten_file)
     
-    print("\\n\\nTraining and visualization completed!")
+    print("\n\nTraining and visualization completed!")
     print(f"Results saved to: {{results_dir.absolute()}}")
     
     return model, results, metrics
@@ -452,7 +452,7 @@ def main():
     # Tạo biểu đồ
     model.plot_results(X_test, y_test, ten_file)
     
-    print("\\n\\nTraining and visualization completed!")
+    print("\n\nTraining and visualization completed!")
     print(f"Results saved to: {{results_dir.absolute()}}")
     
     return model, results, metrics
@@ -470,8 +470,8 @@ if __name__ == "__main__":
         c2 = parameters.get('wolfe_c2', 0.9)
         reg = parameters.get('regularization', None)
         
-        reg_comment = f"\\n- Regularization: {reg}" if reg else ""
-        reg_param = f",\\n        regularization={reg}" if reg else ""
+        reg_comment = f"\n- Regularization: {reg}" if reg else ""
+        reg_param = f",\n        regularization={reg}" if reg else ""
         
         return f"""#!/usr/bin/env python3
 \"\"\"
@@ -530,7 +530,7 @@ def main():
     # Tạo biểu đồ
     model.plot_results(X_test, y_test, ten_file)
     
-    print("\\n\\nTraining and visualization completed!")
+    print("\n\nTraining and visualization completed!")
     print(f"Results saved to: {{results_dir.absolute()}}")
     
     return model, results, metrics

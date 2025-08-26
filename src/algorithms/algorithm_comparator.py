@@ -582,10 +582,10 @@ def main():
     results = comparator.run_full_comparison()
     
     if results:
-        print(f"\\nSummary Statistics:")
+        print(f"\nSummary Statistics:")
         print(f"   Total Experiments: {results['total_experiments']}")
         print(f"   Algorithm Families: {results['algorithm_families']}")
-        print(f"\\nCheck the generated HTML report for detailed analysis!")
+        print(f"\nCheck the generated HTML report for detailed analysis!")
 
 if __name__ == "__main__":
     main()

@@ -58,8 +58,8 @@ def main():
         learning_rate=0.01,
         so_epochs=100,
         random_state=42,
-        batch_size=16,
-        ham_loss='mse'
+        batch_size=1600,
+        ham_loss='ols'
     )
     
     # Huấn luyện model
@@ -75,7 +75,7 @@ def main():
     # Tạo biểu đồ
     model.plot_results(X_test, y_test, ten_file)
     
-    print(f"\\nTraining and visualization completed!")
+    print(f"\nTraining and visualization completed!")
     print(f"Results saved to: {results_dir.absolute()}")
     
     return model, results, metrics

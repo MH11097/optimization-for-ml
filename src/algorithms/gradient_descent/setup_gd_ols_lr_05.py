@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Setup script for Very Fast OLS Gradient Descent
-- Learning Rate: 0.5
-- Max Iterations: 500
+Setup script for Fast OLS Gradient Descent
+- Learning Rate: 0.1
+- Max Iterations: 500  
 - Tolerance: 1e-5
 """
 
@@ -22,20 +22,19 @@ def get_experiment_name():
     import inspect
     frame = inspect.currentframe()
     filename = frame.f_back.f_globals['__file__']
-    return Path(filename).stem
+    return Path(filename).stem  # Lấy tên file không có extension
 
 def main():
-    """Chạy Very Fast OLS Gradient Descent với lr=0.5"""
-    print("GRADIENT DESCENT - VERY FAST OLS SETUP (lr=0.5)")
+    """Chạy Fast OLS Gradient Descent với tham số như ols_01.py"""
+    print("GRADIENT DESCENT - FAST OLS SETUP (lr=0.1)")
     
     # Load data
     X_train, X_test, y_train, y_test = load_du_lieu()
     
-    # Khởi tạo model với learning rate cao
     model = GradientDescentModel(
         ham_loss='ols',
         learning_rate=0.5,
-        so_lan_thu=500,
+        so_lan_thu=1000,
         diem_dung=1e-5
     )
     
@@ -46,14 +45,13 @@ def main():
     metrics = model.evaluate(X_test, y_test)
     
     # Lưu kết quả với tên file tự động
-    ten_file = get_experiment_name()
+    ten_file = get_experiment_name()  # Sẽ là "setup_ols_01"
     results_dir = model.save_results(ten_file)
     
     # Tạo biểu đồ
     model.plot_results(X_test, y_test, ten_file)
     
-    print(f"\\nTraining and visualization completed!")
-    print(f"Results saved to: {results_dir.absolute()}")
+    print(f"\nTraining and visualization completed!")
     
     return model, results, metrics
 

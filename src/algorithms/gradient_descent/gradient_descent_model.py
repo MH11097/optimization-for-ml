@@ -282,7 +282,7 @@ class GradientDescentModel:
                              save_path=str(results_dir / "predictions_vs_actual.png"))
         
         # 3. Optimization trajectory (đường đồng mực)
-        print("   - Vẽ đường đồng mực optimization")
+        print("   - Vẽ đường đồng mức optimization")
         sample_frequency = max(1, len(self.weights_history) // 50)
         sampled_weights = self.weights_history[::sample_frequency]
         

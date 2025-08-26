@@ -179,13 +179,12 @@ class QuasiNewtonModel:
             gradient_curr, _ = self.grad_func(X_with_bias, y, self.weights)  # _ vì không cần gradient_b riêng
             
             # Chỉ tính loss và lưu history khi cần thiết
-            should_log = (
+            should_check_converged = (
                 (lan_thu + 1) % self.convergence_check_freq == 0 or 
-                lan_thu == self.so_lan_thu - 1 or
-                (lan_thu + 1) % 10 == 0  # Progress logging
+                lan_thu == self.so_lan_thu - 1
             )
             
-            if should_log:
+            if should_check_converged:
                 # Chỉ tính loss khi cần (expensive operation)
                 loss_value = self.loss_func(X_with_bias, y, self.weights)
                 gradient_norm = np.linalg.norm(gradient_curr)
@@ -194,14 +193,7 @@ class QuasiNewtonModel:
                 self.loss_history.append(loss_value)
                 self.gradient_norms.append(gradient_norm)
                 self.weights_history.append(self.weights.copy())
-            
-            # Check convergence với tần suất định sẵn hoặc ở iteration cuối
-            if (lan_thu + 1) % self.convergence_check_freq == 0 or lan_thu == self.so_lan_thu - 1:
-                # Đảm bảo có gradient_norm và loss_value cho convergence check
-                if not should_log:
-                    loss_value = self.loss_func(X_with_bias, y, self.weights)
-                    gradient_norm = np.linalg.norm(gradient_curr)
-                    
+                
                 cost_change = 0.0 if len(self.loss_history) == 0 else (self.loss_history[-1] - loss_value) if len(self.loss_history) == 1 else (self.loss_history[-2] - self.loss_history[-1])
                 converged, reason = kiem_tra_hoi_tu(
                     gradient_norm=gradient_norm,
@@ -246,7 +238,7 @@ class QuasiNewtonModel:
             gradient_prev = gradient_curr
             
             # Progress update
-            if (lan_thu + 1) % 10 == 0:
+            if (lan_thu + 1) % 10 == 0 and should_check_converged:
                 print(f"   Vòng {lan_thu + 1}: Loss = {loss_value:.8f}, Gradient = {gradient_norm:.2e}, Step = {step_size:.6f}, Cond = {cond_num:.2e}")
         
         self.training_time = time.time() - start_time
@@ -392,7 +384,7 @@ class QuasiNewtonModel:
         print(f"   Lưu lịch sử training vào {results_dir}/training_history.csv")
         max_len = len(self.loss_history)
         training_df = pd.DataFrame({
-            'iteration': range(max_len),
+            'iteration': range(0, len(self.loss_history)*self.convergence_check_freq, self.convergence_check_freq),
             'loss': self.loss_history,
             'gradient_norm': self.gradient_norms,
             'step_size': self.step_sizes + [np.nan] * (max_len - len(self.step_sizes)),
@@ -464,7 +456,7 @@ class QuasiNewtonModel:
                              save_path=str(results_dir / "predictions_vs_actual.png"))
         
         # 3. Optimization trajectory (đường đồng mực)
-        print("   - Vẽ đường đồng mực optimization")
+        print("   - Vẽ đường đồng mức optimization")
         sample_frequency = max(1, len(self.weights_history) // 50)
         sampled_weights = self.weights_history[::sample_frequency]
         

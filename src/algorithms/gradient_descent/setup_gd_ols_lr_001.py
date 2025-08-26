@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-"""
-Setup script for Slow OLS Gradient Descent  
-- Learning Rate: 0.01
-- Max Iterations: 500
-- Tolerance: 1e-5
-"""
-
 import sys
 import os
 from pathlib import Path
@@ -17,18 +10,22 @@ from algorithms.gradient_descent.gradient_descent_model import GradientDescentMo
 from utils.data_process_utils import load_du_lieu
 
 
+def get_experiment_name():
+    """Lấy tên experiment từ tên file hiện tại"""
+    import inspect
+    frame = inspect.currentframe()
+    filename = frame.f_back.f_globals['__file__']
+    return Path(filename).stem  # Lấy tên file không có extension
+
 def main():
-    """Chạy Slow OLS Gradient Descent với learning rate 0.01"""
-    print("GRADIENT DESCENT - SLOW OLS SETUP (lr=0.01)")
     
     # Load data
     X_train, X_test, y_train, y_test = load_du_lieu()
     
-    # Khởi tạo model với learning rate nhỏ hơn
     model = GradientDescentModel(
         ham_loss='ols',
         learning_rate=0.01,
-        so_lan_thu=500,
+        so_lan_thu=1000,
         diem_dung=1e-5
     )
     
@@ -38,15 +35,14 @@ def main():
     # Đánh giá model
     metrics = model.evaluate(X_test, y_test)
     
-    # Lưu kết quả
-    ten_file = "slow_ols_gd_lr_001"
+    # Lưu kết quả với tên file tự động
+    ten_file = get_experiment_name()  # Sẽ là "setup_ols_01"
     results_dir = model.save_results(ten_file)
     
     # Tạo biểu đồ
     model.plot_results(X_test, y_test, ten_file)
     
-    print(f"\\nTraining and visualization completed!")
-    print(f"Results saved to: {results_dir.absolute()}")
+    print(f"\nTraining and visualization completed!")
     
     return model, results, metrics
 

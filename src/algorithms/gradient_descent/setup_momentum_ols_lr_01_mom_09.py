@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-"""
-Setup script for Momentum Gradient Descent - OLS
-- Learning Rate: 0.01
-- Momentum: 0.9
-- Max Iterations: 1000
-- Tolerance: 1e-6
-"""
-
 import sys
 import os
 from pathlib import Path

@@ -50,14 +50,6 @@ class SGDModel:
         self.regularization = regularization
         self.convergence_check_freq = convergence_check_freq  # Mỗi N epochs
         
-        # Validate supported loss function và mở rộng hỗ trợ
-        if self.ham_loss not in ['ols', 'ridge', 'lasso', 'mse']:
-            raise ValueError(f"Không hỗ trợ loss function: {ham_loss}. Hỗ trợ: 'ols', 'ridge', 'lasso', 'mse'")
-        
-        # Map mse to ols cho compatibility
-        if self.ham_loss == 'mse':
-            self.ham_loss = 'ols'
-        
         # Sử dụng unified functions với format mới (bias trong X)
         self.loss_func = lambda X, y, w: tinh_gia_tri_ham_loss(self.ham_loss, X, y, w, None, self.regularization)
         self.grad_func = lambda X, y, w: tinh_gradient_ham_loss(self.ham_loss, X, y, w, None, self.regularization)
@@ -83,7 +75,7 @@ class SGDModel:
         y_sample = np.array([yi])     # (1,)
         
         # Sử dụng unified function và lấy gradient weights
-        gradient_w, _ = self.grad_func(X_sample, y_sample, weights)  # _ vì không cần gradient_b riêng
+        gradient_w, _ = self.grad_func(X_sample, y_sample, weights) 
         return gradient_w
     
     def fit(self, X, y):
@@ -340,7 +332,7 @@ class SGDModel:
         # Save training history
         print(f"   Lưu lịch sử training vào {results_dir}/training_history.csv")
         training_df = pd.DataFrame({
-            'epoch': range(len(self.cost_history)),
+            'epoch': range(0, len(self.cost_history)*self.convergence_check_freq, self.convergence_check_freq),
             'cost': self.cost_history
         })
         training_df.to_csv(results_dir / "training_history.csv", index=False)
@@ -409,7 +401,7 @@ class SGDModel:
         plt.close()
         
         # 3. Optimization trajectory (contour plot)
-        print("   - Vẽ đường đồng mực optimization")
+        print("   - Vẽ đường đồng mức optimization")
         if hasattr(self, 'weights_history') and len(self.weights_history) > 0:
             # Sample weights history for performance (every 10th point)
             step = max(1, len(self.weights_history) // 100)

@@ -40,7 +40,7 @@ class MomentumGDModel:
     """
     
     def __init__(self, ham_loss='ols', learning_rate=0.01, momentum=0.9, 
-                 so_lan_thu=1000, diem_dung=1e-6, regularization=0.01, convergence_check_freq=100):
+                 so_lan_thu=1000, diem_dung=1e-6, regularization=0.01, convergence_check_freq=10):
         self.ham_loss = ham_loss.lower()
         self.learning_rate = learning_rate
         self.momentum = momentum
@@ -49,17 +49,13 @@ class MomentumGDModel:
         self.regularization = regularization
         self.convergence_check_freq = convergence_check_freq
         
-        # Validate supported loss function
-        if self.ham_loss not in ['ols', 'ridge', 'lasso']:
-            raise ValueError(f"Không hỗ trợ loss function: {ham_loss}")
-        
         # Sử dụng unified functions với format mới (bias trong X)
         self.loss_func = lambda X, y, w: tinh_gia_tri_ham_loss(self.ham_loss, X, y, w, None, self.regularization)
         self.grad_func = lambda X, y, w: tinh_gradient_ham_loss(self.ham_loss, X, y, w, None, self.regularization)
         
         # Khởi tạo các thuộc tính lưu kết quả
-        self.weights = None  # Bây giờ bao gồm bias ở cuối
-        self.velocity = None  # Velocity cho cả weights và bias
+        self.weights = None  
+        self.velocity = None  
         self.loss_history = []
         self.gradient_norms = []
         self.velocity_norms = []
@@ -107,13 +103,12 @@ class MomentumGDModel:
             self.weights = self.weights - self.learning_rate * self.velocity
             
             # Chỉ tính loss và lưu history khi cần thiết
-            should_log = (
+            should_check_converged = (
                 (lan_thu + 1) % self.convergence_check_freq == 0 or 
-                lan_thu == self.so_lan_thu - 1 or
-                (lan_thu + 1) % 100 == 0  # Progress logging
+                lan_thu == self.so_lan_thu - 1
             )
             
-            if should_log:
+            if should_check_converged:
                 # Chỉ tính loss khi cần (expensive operation)
                 loss_value = self.loss_func(X_with_bias, y, self.weights)
                 gradient_norm = np.linalg.norm(gradient_w)
@@ -125,13 +120,6 @@ class MomentumGDModel:
                 self.velocity_norms.append(velocity_norm)
                 self.weights_history.append(self.weights.copy())
                 
-            # Check convergence với tần suất định sẵn hoặc ở iteration cuối
-            if (lan_thu + 1) % self.convergence_check_freq == 0 or lan_thu == self.so_lan_thu - 1:
-                # Đảm bảo có gradient_norm và loss_value cho convergence check
-                if not should_log:
-                    loss_value = self.loss_func(X_with_bias, y, self.weights)
-                    gradient_norm = np.linalg.norm(gradient_w)
-                    
                 cost_change = 0.0 if len(self.loss_history) == 0 else (self.loss_history[-1] - loss_value) if len(self.loss_history) == 1 else (self.loss_history[-2] - self.loss_history[-1])
                 converged, reason = kiem_tra_hoi_tu(
                     gradient_norm=gradient_norm,
@@ -146,9 +134,7 @@ class MomentumGDModel:
                     self.converged = True
                     self.final_iteration = lan_thu + 1
                     break
-            
-            # Progress update - chỉ print khi đã có data
-            if (lan_thu + 1) % 100 == 0 and should_log:
+
                 print(f"   Vòng {lan_thu + 1}: Loss = {loss_value:.6f}, Gradient = {gradient_norm:.6f}, Velocity = {velocity_norm:.6f}")
         
         self.training_time = time.time() - start_time
@@ -290,7 +276,7 @@ class MomentumGDModel:
         # Save training history
         print(f"   Lưu lịch sử training vào {results_dir}/training_history.csv")
         training_df = pd.DataFrame({
-            'iteration': range(len(self.loss_history)),
+            'iteration': range(0, len(self.loss_history)*self.convergence_check_freq, self.convergence_check_freq),
             'loss': self.loss_history,
             'gradient_norm': self.gradient_norms,
             'velocity_norm': self.velocity_norms
@@ -366,7 +352,7 @@ class MomentumGDModel:
                              save_path=str(results_dir / "predictions_vs_actual.png"))
         
         # 3. Optimization trajectory (đường đồng mực)
-        print("   - Vẽ đường đồng mực optimization")
+        print("   - Vẽ đường đồng mức optimization")
         sample_frequency = max(1, len(self.weights_history) // 50)
         sampled_weights = self.weights_history[::sample_frequency]
         

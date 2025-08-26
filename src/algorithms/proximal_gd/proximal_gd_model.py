@@ -40,7 +40,7 @@ class ProximalGDModel:
     """
     
     def __init__(self, ham_loss='lasso', learning_rate=0.01, lambda_l1=0.01, 
-                 lambda_l2=0.0, so_lan_thu=1000, diem_dung=1e-6, convergence_check_freq=100):
+                 lambda_l2=0.0, so_lan_thu=1000, diem_dung=1e-6, convergence_check_freq=10):
         self.ham_loss = ham_loss.lower()
         self.learning_rate = learning_rate
         self.lambda_l1 = lambda_l1
@@ -151,13 +151,12 @@ class ProximalGDModel:
             self.weights = self._proximal_operator(z)
             
             # Chỉ tính loss và lưu history khi cần thiết
-            should_log = (
+            should_check_converged = (
                 (lan_thu + 1) % self.convergence_check_freq == 0 or 
-                lan_thu == self.so_lan_thu - 1 or
-                (lan_thu + 1) % 100 == 0  # Progress logging
+                lan_thu == self.so_lan_thu - 1
             )
             
-            if should_log:
+            if should_check_converged:
                 # Chỉ tính loss khi cần (expensive operation)
                 loss_value = self._compute_loss(X_with_bias, y, self.weights)
                 gradient_norm = np.linalg.norm(gradient)
@@ -168,14 +167,7 @@ class ProximalGDModel:
                 self.gradient_norms.append(gradient_norm)
                 self.sparsity_history.append(sparsity)
                 self.weights_history.append(self.weights.copy())
-            
-            # Check convergence với tần suất định sẵn hoặc ở iteration cuối
-            if (lan_thu + 1) % self.convergence_check_freq == 0 or lan_thu == self.so_lan_thu - 1:
-                # Đảm bảo có gradient_norm và loss_value cho convergence check
-                if not should_log:
-                    loss_value = self._compute_loss(X_with_bias, y, self.weights)
-                    gradient_norm = np.linalg.norm(gradient)
-                    
+                
                 cost_change = 0.0 if len(self.loss_history) == 0 else (self.loss_history[-1] - loss_value) if len(self.loss_history) == 1 else (self.loss_history[-2] - self.loss_history[-1])
                 converged, reason = kiem_tra_hoi_tu(
                     gradient_norm=gradient_norm,
@@ -190,9 +182,7 @@ class ProximalGDModel:
                     self.converged = True
                     self.final_iteration = lan_thu + 1
                     break
-            
-            # Progress update - chỉ print khi đã có data
-            if (lan_thu + 1) % 100 == 0 and should_log:
+
                 n_weights_without_bias = n_features_with_bias - 1
                 print(f"   Vòng {lan_thu + 1}: Loss = {loss_value:.6f}, Gradient = {gradient_norm:.6f}, Sparsity = {sparsity}/{n_weights_without_bias}")
         
@@ -332,7 +322,7 @@ class ProximalGDModel:
         # Save training history
         print(f"   Lưu lịch sử training vào {results_dir}/training_history.csv")
         training_df = pd.DataFrame({
-            'iteration': range(len(self.loss_history)),
+            'iteration': range(0, len(self.loss_history)*self.convergence_check_freq, self.convergence_check_freq),
             'loss': self.loss_history,
             'gradient_norm': self.gradient_norms,
             'sparsity': self.sparsity_history
@@ -408,7 +398,7 @@ class ProximalGDModel:
                              save_path=str(results_dir / "predictions_vs_actual.png"))
         
         # 3. Optimization trajectory (đường đồng mực)
-        print("   - Vẽ đường đồng mực optimization")
+        print("   - Vẽ đường đồng mức optimization")
         sample_frequency = max(1, len(self.weights_history) // 50)
         sampled_weights = self.weights_history[::sample_frequency]
         

@@ -52,7 +52,7 @@ def main():
         so_epochs=100,
         random_state=42,
         batch_size=1,  # Pure SGD
-        ham_loss='mse'
+        ham_loss='ols'
     )
     
     # Huấn luyện model

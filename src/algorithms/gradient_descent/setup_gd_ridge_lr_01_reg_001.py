@@ -22,10 +22,11 @@ def main():
     X_train, X_test, y_train, y_test = load_du_lieu()
     
     model = GradientDescentModel(
-        ham_loss='ols',
+        ham_loss='ridge',
         learning_rate=0.1,
-        so_lan_thu=1000,
-        diem_dung=1e-5
+        so_lan_thu=500,
+        diem_dung=1e-5,
+        regularization=0.01
     )
     
     # Huấn luyện model

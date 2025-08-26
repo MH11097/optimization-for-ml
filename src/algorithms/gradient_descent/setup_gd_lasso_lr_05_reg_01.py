@@ -17,15 +17,16 @@ def get_experiment_name():
     return Path(filename).stem  # Lấy tên file không có extension
 
 def main():
-   
+
     # Load data
     X_train, X_test, y_train, y_test = load_du_lieu()
     
     model = GradientDescentModel(
-        ham_loss='ols',
-        learning_rate=0.1,
+        ham_loss='lasso',
+        learning_rate=0.5,
         so_lan_thu=1000,
-        diem_dung=1e-5
+        diem_dung=1e-5,
+        regularization=0.1
     )
     
     # Huấn luyện model

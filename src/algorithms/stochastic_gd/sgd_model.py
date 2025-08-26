@@ -56,7 +56,7 @@ class SGDModel:
         
         # Khởi tạo các thuộc tính lưu kết quả
         self.weights = None  # Bây giờ bao gồm bias ở cuối
-        self.cost_history = []
+        self.loss_history = []
         self.gradient_norms = []
         self.weights_history = []
         self.training_time = 0
@@ -83,7 +83,7 @@ class SGDModel:
         Huấn luyện model với dữ liệu X, y
         
         Returns:
-        - dict: Kết quả training bao gồm weights, cost_history, etc.
+        - dict: Kết quả training bao gồm weights, loss_history, etc.
         """
         print(f"🚀 Training Stochastic Gradient Descent - {self.ham_loss.upper()}")
         print(f"   Learning rate: {self.learning_rate}")
@@ -100,7 +100,7 @@ class SGDModel:
         self.weights = np.random.normal(0, 0.01, n_features_with_bias)
         
         # Reset histories
-        self.cost_history = []
+        self.loss_history = []
         self.gradient_norms = []
         self.weights_history = []
         
@@ -154,7 +154,7 @@ class SGDModel:
                 gradient_norm = np.linalg.norm(epoch_gradient_avg)
                 
                 # Lưu vào history
-                self.cost_history.append(epoch_cost)
+                self.loss_history.append(epoch_cost)
                 self.gradient_norms.append(gradient_norm)
                 self.weights_history.append(self.weights.copy())
             
@@ -166,7 +166,7 @@ class SGDModel:
                     epoch_gradient_avg = np.mean(epoch_gradients, axis=0)
                     gradient_norm = np.linalg.norm(epoch_gradient_avg)
                     
-                cost_change = 0.0 if len(self.cost_history) == 0 else (self.cost_history[-1] - epoch_cost) if len(self.cost_history) == 1 else (self.cost_history[-2] - self.cost_history[-1])
+                cost_change = 0.0 if len(self.loss_history) == 0 else (self.loss_history[-1] - epoch_cost) if len(self.loss_history) == 1 else (self.loss_history[-2] - self.loss_history[-1])
                 converged, reason = kiem_tra_hoi_tu(
                     gradient_norm=gradient_norm,
                     cost_change=cost_change,
@@ -186,7 +186,7 @@ class SGDModel:
                 print(f"   Epoch {epoch + 1}: Cost = {epoch_cost:.6f}, Gradient = {gradient_norm:.6f}")
         
         self.training_time = time.time() - start_time
-        self.final_cost = self.cost_history[-1]
+        self.final_cost = self.loss_history[-1]
         
         if not self.converged:
             print(f"⏹️ Đạt tối đa {self.so_epochs} epochs")
@@ -200,7 +200,7 @@ class SGDModel:
         return {
             'weights': self.weights,  # Bao gồm bias ở cuối
             'bias': self.weights[-1],  # Bias riêng để tương thích
-            'cost_history': self.cost_history,
+            'loss_history': self.loss_history,
             'gradient_norms': self.gradient_norms,
             'weights_history': self.weights_history,
             'training_time': self.training_time,
@@ -262,7 +262,7 @@ class SGDModel:
         model_data = {
             'algorithm': f'Stochastic Gradient Descent',
             'weights': self.weights.tolist(),
-            'cost_history': self.cost_history,
+            'loss_history': self.loss_history,
             'training_time': self.training_time,
             'epochs': self.so_epochs,
             'final_cost': self.final_cost,
@@ -311,9 +311,9 @@ class SGDModel:
             },
             "convergence_analysis": {
                 "epochs_to_converge": self.final_epoch,
-                "final_cost_change": float(self.cost_history[-1] - self.cost_history[-2]) if len(self.cost_history) > 1 else 0.0,
+                "final_cost_change": float(self.loss_history[-1] - self.loss_history[-2]) if len(self.loss_history) > 1 else 0.0,
                 "convergence_rate": "sublinear",  # SGD có sublinear convergence
-                "cost_reduction_ratio": float(self.cost_history[0] / self.cost_history[-1]) if len(self.cost_history) > 0 else 1.0
+                "cost_reduction_ratio": float(self.loss_history[0] / self.loss_history[-1]) if len(self.loss_history) > 0 else 1.0
             },
             "algorithm_specific": {
                 "method_type": "stochastic_gradient_descent",
@@ -332,8 +332,8 @@ class SGDModel:
         # Save training history
         print(f"   Lưu lịch sử training vào {results_dir}/training_history.csv")
         training_df = pd.DataFrame({
-            'epoch': range(0, len(self.cost_history)*self.convergence_check_freq, self.convergence_check_freq),
-            'cost': self.cost_history
+            'epoch': range(0, len(self.loss_history)*self.convergence_check_freq, self.convergence_check_freq),
+            'cost': self.loss_history
         })
         training_df.to_csv(results_dir / "training_history.csv", index=False)
         
@@ -357,50 +357,20 @@ class SGDModel:
         
         print(f"\n📊 Tạo biểu đồ...")
         
-        # 1. Training curve (cost over epochs)
-        print("   - Vẽ đường training cost")
-        import matplotlib.pyplot as plt
-        
-        plt.figure(figsize=(10, 6))
-        plt.plot(self.cost_history, 'orange', linewidth=2)
-        plt.title('Stochastic Gradient Descent - Training Curve', fontsize=14)
-        plt.xlabel('Epoch')
-        plt.ylabel('Cost (MSE)')
-        plt.yscale('log')
-        plt.grid(True, alpha=0.3)
-        plt.tight_layout()
-        plt.savefig(results_dir / "training_curve.png", dpi=300, bbox_inches='tight')
-        plt.close()
+        # 1. Convergence curves
+        print("   - Vẽ đường hội tụ")
+        ve_duong_hoi_tu(self.loss_history, self.gradient_norms, 
+                        title=f"Newton Method {self.ham_loss.upper()} - Convergence Analysis",
+                        save_path=str(results_dir / "convergence_analysis.png"))
         
         # 2. Predictions vs Actual
         print("   - So sánh dự đoán vs thực tế")
         y_pred_test = self.predict(X_test)
+        ve_du_doan_vs_thuc_te(y_test, y_pred_test, 
+                             title=f"Newton Method {self.ham_loss.upper()} - Predictions vs Actual",
+                             save_path=str(results_dir / "predictions_vs_actual.png"))
         
-        plt.figure(figsize=(10, 8))
-        
-        # Scatter plot
-        plt.scatter(y_test, y_pred_test, alpha=0.6, s=20, color='orange')
-        
-        # Perfect prediction line
-        min_val = min(y_test.min(), y_pred_test.min())
-        max_val = max(y_test.max(), y_pred_test.max())
-        plt.plot([min_val, max_val], [min_val, max_val], 'r--', lw=2, label='Perfect Prediction')
-        
-        # Calculate R²
-        r2 = 1 - np.sum((y_test - y_pred_test) ** 2) / np.sum((y_test - np.mean(y_test)) ** 2)
-        
-        plt.xlabel('Actual Values')
-        plt.ylabel('Predicted Values')
-        plt.title(f'Stochastic GD - Predictions vs Actual\nR² = {r2:.4f}')
-        plt.legend()
-        plt.grid(True, alpha=0.3)
-        plt.axis('equal')
-        plt.tight_layout()
-        
-        plt.savefig(results_dir / "predictions_vs_actual.png", dpi=300, bbox_inches='tight')
-        plt.close()
-        
-        # 3. Optimization trajectory (contour plot)
+        # 3. Optimization trajectory (đường đồng mức) - hỗ trợ tất cả loss types
         print("   - Vẽ đường đồng mức optimization")
         if hasattr(self, 'weights_history') and len(self.weights_history) > 0:
             # Sample weights history for performance (every 10th point)

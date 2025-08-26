@@ -397,7 +397,7 @@ class ProximalGDModel:
                              title=f"Proximal GD {self.ham_loss.upper()} - Predictions vs Actual",
                              save_path=str(results_dir / "predictions_vs_actual.png"))
         
-        # 3. Optimization trajectory (đường đồng mực)
+        # 3. Optimization trajectory (đường đồng mức)
         print("   - Vẽ đường đồng mức optimization")
         sample_frequency = max(1, len(self.weights_history) // 50)
         sampled_weights = self.weights_history[::sample_frequency]

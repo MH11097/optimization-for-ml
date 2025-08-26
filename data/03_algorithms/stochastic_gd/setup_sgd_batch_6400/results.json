@@ -9,7 +9,7 @@
     "tolerance": 1e-06
   },
   "training_results": {
-    "training_time": 25.13688087463379,
+    "training_time": 25.152923107147217,
     "converged": false,
     "final_epoch": 100,
     "total_epochs": 100,

@@ -18,6 +18,7 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 from typing import List, Dict, Any, Optional, Tuple
+from datetime import datetime
 import warnings
 
 # Suppress warnings
@@ -731,6 +732,210 @@ def ve_duong_dong_muc_optimization(loss_function, weights_history, X, y,
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
     
     plt.show()
+
+
+# ==============================================================================
+# 7. HÀMSO SÁNH ALGORITHM CHO COMPARATOR
+# ==============================================================================
+
+def tao_bang_so_sanh_markdown(results_data: List[Dict[str, Any]], save_path: str):
+    """
+    Tạo bảng so sánh các algorithms dưới dạng Markdown với format đẹp
+    
+    Tham số:
+        results_data: danh sách dictionary chứa thông tin các algorithms
+        save_path: đường dẫn lưu file .md
+    """
+    print(f"Tạo bảng so sánh markdown: {save_path}")
+    
+    # Tạo DataFrame từ results_data
+    df = pd.DataFrame(results_data)
+    
+    # Chọn các cột chính để hiển thị
+    essential_cols = ['algorithm_name', 'loss_function', 'training_time', 'converged', 'iterations', 'final_loss']
+    if 'learning_rate' in df.columns:
+        essential_cols.insert(2, 'learning_rate')
+    
+    # Filter columns that exist
+    display_cols = [col for col in essential_cols if col in df.columns]
+    display_df = df[display_cols].copy()
+    
+    # Format dữ liệu
+    if 'training_time' in display_df.columns:
+        display_df['training_time'] = display_df['training_time'].round(4)
+    if 'final_loss' in display_df.columns:
+        display_df['final_loss'] = display_df['final_loss'].round(6)
+    if 'learning_rate' in display_df.columns:
+        display_df['learning_rate'] = display_df['learning_rate'].apply(lambda x: f"{x:.4f}" if pd.notna(x) else "N/A")
+    
+    # Sắp xếp theo performance (converged first, then by time)
+    sort_cols = ['converged']
+    if 'training_time' in display_df.columns:
+        sort_cols.append('training_time')
+    display_df = display_df.sort_values(sort_cols, ascending=[False, True])
+    
+    # Tạo markdown content
+    markdown_content = f"# Algorithm Comparison Report\n\n"
+    markdown_content += f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    markdown_content += f"**Total Algorithms:** {len(results_data)}\n\n"
+    
+    # Tính toán thống kê tổng quan
+    converged_count = df['converged'].sum()
+    convergence_rate = (converged_count / len(df)) * 100
+    avg_time = df['training_time'].mean()
+    
+    markdown_content += "## Summary Statistics\n\n"
+    markdown_content += f"- **Converged Algorithms:** {converged_count}/{len(df)} ({convergence_rate:.1f}%)\n"
+    markdown_content += f"- **Average Training Time:** {avg_time:.4f} seconds\n"
+    if 'final_loss' in df.columns:
+        best_loss = df[df['final_loss'] != float('inf')]['final_loss'].min()
+        markdown_content += f"- **Best Final Loss:** {best_loss:.6f}\n"
+    markdown_content += "\n"
+    
+    # Tạo bảng chính
+    markdown_content += "## Detailed Comparison Table\n\n"
+    
+    # Tạo header
+    headers = []
+    for col in display_cols:
+        if col == 'algorithm_name':
+            headers.append('Algorithm')
+        elif col == 'loss_function':
+            headers.append('Loss Function')
+        elif col == 'training_time':
+            headers.append('Time (s)')
+        elif col == 'converged':
+            headers.append('Converged')
+        elif col == 'iterations':
+            headers.append('Iterations')
+        elif col == 'final_loss':
+            headers.append('Final Loss')
+        elif col == 'learning_rate':
+            headers.append('Learning Rate')
+        else:
+            headers.append(col.replace('_', ' ').title())
+    
+    # Tạo markdown table
+    markdown_content += "| " + " | ".join(headers) + " |\n"
+    markdown_content += "| " + " | ".join(["---"] * len(headers)) + " |\n"
+    
+    # Thêm dữ liệu
+    for _, row in display_df.iterrows():
+        row_data = []
+        for col in display_cols:
+            if col == 'converged':
+                row_data.append('✅' if row[col] else '❌')
+            elif col == 'algorithm_name':
+                row_data.append(f"**{row[col]}**")
+            elif col == 'final_loss':
+                if row[col] == float('inf'):
+                    row_data.append('∞')
+                else:
+                    row_data.append(f"{row[col]:.6f}")
+            else:
+                row_data.append(str(row[col]))
+        
+        markdown_content += "| " + " | ".join(row_data) + " |\n"
+    
+    # Thêm best performers section
+    markdown_content += "\n## 🏆 Best Performers\n\n"
+    
+    # Fastest algorithm
+    if 'training_time' in df.columns:
+        fastest = df.loc[df['training_time'].idxmin()]
+        markdown_content += f"- **⚡ Fastest:** {fastest['algorithm_name']} ({fastest['training_time']:.4f}s)\n"
+    
+    # Most accurate (lowest loss)
+    if 'final_loss' in df.columns:
+        valid_loss_df = df[df['final_loss'] != float('inf')]
+        if not valid_loss_df.empty:
+            most_accurate = valid_loss_df.loc[valid_loss_df['final_loss'].idxmin()]
+            markdown_content += f"- **🎯 Most Accurate:** {most_accurate['algorithm_name']} (Loss: {most_accurate['final_loss']:.6f})\n"
+    
+    # Most reliable (converged)
+    converged_df = df[df['converged'] == True]
+    if not converged_df.empty:
+        most_reliable = converged_df.loc[converged_df['training_time'].idxmin()]
+        markdown_content += f"- **🔒 Most Reliable:** {most_reliable['algorithm_name']} (Converged in {most_reliable['training_time']:.4f}s)\n"
+    
+    markdown_content += "\n---\n"
+    markdown_content += f"*Report generated by Algorithm Comparator on {datetime.now().strftime('%Y-%m-%d at %H:%M:%S')}*\n"
+    
+    # Lưu file
+    with open(save_path, 'w', encoding='utf-8') as f:
+        f.write(markdown_content)
+    
+    print(f"   Bảng so sánh markdown đã lưu: {save_path}")
+
+
+def ve_duong_hoi_tu_so_sanh(convergence_data: Dict[str, Dict], save_path: str,
+                           title: str = "So sánh Quá trình Hội tụ các Algorithms"):
+    """
+    Vẽ biểu đồ so sánh convergence curves của nhiều algorithms
+    
+    Tham số:
+        convergence_data: dictionary {algorithm_name: {cost_history: [...], gradient_norms: [...]}}
+        save_path: đường dẫn lưu file PNG
+        title: tiêu đề biểu đồ
+    """
+    if not convergence_data:
+        print("Không có dữ liệu convergence để vẽ")
+        return
+    
+    print(f"Vẽ convergence comparison: {save_path}")
+    
+    # Kiểm tra xem có gradient norms không
+    has_gradient_data = any(data.get('gradient_norms') for data in convergence_data.values())
+    
+    if has_gradient_data:
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+    else:
+        fig, ax1 = plt.subplots(1, 1, figsize=(12, 6))
+    
+    colors = tao_color_palette(len(convergence_data))
+    
+    # Plot cost histories
+    for i, (name, data) in enumerate(convergence_data.items()):
+        cost_history = data.get('cost_history', [])
+        if cost_history:
+            ax1.plot(cost_history, color=colors[i], linewidth=2, 
+                    marker='o', markersize=3, label=name[:20], alpha=0.8)
+    
+    ax1.set_xlabel('Iteration')
+    ax1.set_ylabel('Cost Function Value')
+    ax1.set_title('Loss Convergence Comparison')
+    ax1.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=9)
+    ax1.grid(True, alpha=0.3)
+    
+    # Log scale nếu cần
+    all_costs = [cost for data in convergence_data.values() for cost in data.get('cost_history', [])]
+    if all_costs and max(all_costs) / min([c for c in all_costs if c > 0] or [1]) > 100:
+        ax1.set_yscale('log')
+    
+    # Plot gradient norms nếu có
+    if has_gradient_data:
+        for i, (name, data) in enumerate(convergence_data.items()):
+            gradient_norms = data.get('gradient_norms')
+            if gradient_norms:
+                ax2.plot(gradient_norms, color=colors[i], linewidth=2,
+                        marker='s', markersize=3, label=name[:20], alpha=0.8)
+        
+        ax2.set_xlabel('Iteration')
+        ax2.set_ylabel('Gradient Norm')
+        ax2.set_title('Gradient Norm Convergence')
+        ax2.set_yscale('log')
+        ax2.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=9)
+        ax2.grid(True, alpha=0.3)
+    
+    plt.suptitle(title, fontsize=14, fontweight='bold')
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"   Convergence comparison đã lưu: {save_path}")
+    else:
+        plt.show()
 
 
 # Thiết lập style mặc định khi import module

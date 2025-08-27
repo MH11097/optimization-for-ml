@@ -193,7 +193,19 @@ class BaseSubgradient(ABC):
             "min_loss": min_loss_1,
         }
 
-        print(f"Minimum loss result: {min_loss_1}")
+        # Make
+        min_loss_1["weights"][np.abs(min_loss_1["weights"]) < 1e-3] = 0
+
+        # Print minimum loss result without scientific notation
+        np.set_printoptions(suppress=True, formatter={"float_kind": "{:0.8f}".format})
+        min_loss_str = {
+            "iteration": min_loss_1["iteration"],
+            "loss_value": float("{:0.8f}".format(min_loss_1["loss_value"])),
+            "weights": np.array2string(
+                min_loss_1["weights"], precision=8, suppress_small=True
+            ),
+        }
+        print(f"Minimum loss result: {min_loss_str}")
 
         return results
 

@@ -40,8 +40,10 @@ class SGDModel:
     """
     
     def __init__(self, learning_rate=0.01, so_epochs=100, random_state=42, 
-                 batch_size=1, ham_loss='ols', tolerance=1e-6, regularization=0.01, convergence_check_freq=10):
-        self.learning_rate = learning_rate
+                 batch_size=1, ham_loss='ols', tolerance=1e-6, regularization=0.01, convergence_check_freq=10,
+                 learning_rate_schedule='constant'):
+        self.learning_rate = learning_rate  # Base learning rate
+        self.learning_rate_schedule = learning_rate_schedule  # 'constant', 'linear_decay', 'sqrt_decay'
         self.so_epochs = so_epochs
         self.random_state = random_state
         self.batch_size = batch_size
@@ -59,10 +61,35 @@ class SGDModel:
         self.loss_history = []
         self.gradient_norms = []
         self.weights_history = []
+        self.learning_rates_history = []  # Lưu learning rate cho mỗi epoch
         self.training_time = 0
         self.converged = False
         self.final_cost = None
         self.final_epoch = 0
+    
+    def _get_learning_rate(self, epoch):
+        """
+        Tính learning rate cho epoch hiện tại theo schedule được chọn
+        
+        Args:
+            epoch: Epoch hiện tại (bắt đầu từ 0)
+        
+        Returns:
+            learning_rate: Learning rate cho epoch này
+        """
+        if self.learning_rate_schedule == 'constant':
+            return self.learning_rate
+        
+        elif self.learning_rate_schedule == 'linear_decay':
+            # Alpha / (epoch + 1) 
+            return self.learning_rate / (epoch + 1)
+        
+        elif self.learning_rate_schedule == 'sqrt_decay':
+            # Alpha / sqrt(epoch + 1)
+            return self.learning_rate / np.sqrt(epoch + 1)
+        
+        else:
+            raise ValueError(f"Unknown learning_rate_schedule: {self.learning_rate_schedule}")
         
     def _tinh_chi_phi(self, X, y, weights):
         """Tính chi phí sử dụng unified function"""
@@ -86,7 +113,7 @@ class SGDModel:
         - dict: Kết quả training bao gồm weights, loss_history, etc.
         """
         print(f"🚀 Training Stochastic Gradient Descent - {self.ham_loss.upper()}")
-        print(f"   Learning rate: {self.learning_rate}")
+        print(f"   Learning rate schedule: {self.learning_rate_schedule} - Base learning rate: {self.learning_rate}")
         print(f"   Epochs: {self.so_epochs}, Batch size: {self.batch_size}")
         print(f"   Random state: {self.random_state}")
         
@@ -103,6 +130,7 @@ class SGDModel:
         self.loss_history = []
         self.gradient_norms = []
         self.weights_history = []
+        self.learning_rates_history = []
         
         # Add convergence tracking
         self.converged = False
@@ -111,6 +139,10 @@ class SGDModel:
         start_time = time.time()
         
         for epoch in range(self.so_epochs):
+            # Get learning rate for this epoch
+            current_lr = self._get_learning_rate(epoch)
+            self.learning_rates_history.append(current_lr)
+            
             # Shuffle data for each epoch
             indices = np.random.permutation(n_samples)
             X_shuffled = X_with_bias[indices]
@@ -137,8 +169,8 @@ class SGDModel:
                 batch_gradient /= len(X_batch)
                 epoch_gradients.append(batch_gradient)
                 
-                # Update weights
-                self.weights -= self.learning_rate * batch_gradient
+                # Update weights with current learning rate
+                self.weights -= current_lr * batch_gradient
             
             # Chỉ tính cost và lưu history khi cần thiết  
             should_log = (
@@ -183,7 +215,7 @@ class SGDModel:
             
             # Progress update - chỉ print khi đã có data
             if (epoch + 1) % 20 == 0 and should_log:
-                print(f"   Epoch {epoch + 1}: Cost = {epoch_cost:.6f}, Gradient = {gradient_norm:.6f}")
+                print(f"   Epoch {epoch + 1}: Cost = {epoch_cost:.6f}, Gradient = {gradient_norm:.6f}, LR = {current_lr:.6f}")
         
         self.training_time = time.time() - start_time
         self.final_cost = self.loss_history[-1]
@@ -203,6 +235,7 @@ class SGDModel:
             'loss_history': self.loss_history,
             'gradient_norms': self.gradient_norms,
             'weights_history': self.weights_history,
+            'learning_rates_history': self.learning_rates_history,
             'training_time': self.training_time,
             'final_cost': self.final_cost,
             'converged': self.converged,
@@ -283,6 +316,7 @@ class SGDModel:
             "loss_function": self.ham_loss.upper(),
             "parameters": {
                 "learning_rate": self.learning_rate,
+                "learning_rate_schedule": self.learning_rate_schedule,
                 "epochs": self.so_epochs,
                 "batch_size": self.batch_size,
                 "random_state": self.random_state,
@@ -322,7 +356,9 @@ class SGDModel:
                 "epoch_based_training": True,
                 "data_shuffling": True,
                 "noisy_gradients": "inherent_in_SGD",
-                "convergence_type": "probabilistic"
+                "convergence_type": "probabilistic",
+                "learning_rate_schedule": self.learning_rate_schedule,
+                "adaptive_learning_rate": self.learning_rate_schedule != 'constant'
             }
         }
         
@@ -335,6 +371,14 @@ class SGDModel:
             'epoch': range(0, len(self.loss_history)*self.convergence_check_freq, self.convergence_check_freq),
             'cost': self.loss_history
         })
+        
+        # Save learning rates history separately if available
+        if self.learning_rates_history:
+            learning_rates_df = pd.DataFrame({
+                'epoch': range(len(self.learning_rates_history)),
+                'learning_rate': self.learning_rates_history
+            })
+            learning_rates_df.to_csv(results_dir / "learning_rates_history.csv", index=False)
         training_df.to_csv(results_dir / "training_history.csv", index=False)
         
         print(f"\n Kết quả đã được lưu vào: {results_dir.absolute()}")

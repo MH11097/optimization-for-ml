@@ -110,7 +110,7 @@ def ve_duong_hoi_tu(cost_history: List[float], gradient_norms: List[float] = Non
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
     
-    plt.show()
+    # Chart saved to file only, no display
 
 
 def ve_so_sanh_algorithms(results_dict: Dict[str, Dict], metric: str = 'cost_history',
@@ -147,7 +147,7 @@ def ve_so_sanh_algorithms(results_dict: Dict[str, Dict], metric: str = 'cost_his
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
     
-    plt.show()
+    # Chart saved to file only, no display
 
 
 # ==============================================================================
@@ -207,7 +207,7 @@ def ve_du_doan_vs_thuc_te(y_true: np.ndarray, y_pred: np.ndarray,
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
     
-    plt.show()
+    # Chart saved to file only, no display
 
 
 def ve_phan_tich_residuals(y_true: np.ndarray, y_pred: np.ndarray,
@@ -260,7 +260,7 @@ def ve_phan_tich_residuals(y_true: np.ndarray, y_pred: np.ndarray,
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
     
-    plt.show()
+    # Chart saved to file only, no display
 
 
 # ==============================================================================
@@ -328,7 +328,7 @@ def ve_bang_so_sanh_performance(results_dict: Dict[str, Dict],
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
     
-    plt.show()
+    # Chart saved to file only, no display
     
     # In bảng số liệu
     print(f"\n{title}")
@@ -390,7 +390,7 @@ def ve_radar_chart_algorithms(results_dict: Dict[str, Dict],
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
     
-    plt.show()
+    # Chart saved to file only, no display
 
 
 # ==============================================================================
@@ -421,7 +421,7 @@ def ve_ma_tran_heatmap(matrix: np.ndarray, title: str = "Matrix Heatmap",
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
     
-    plt.show()
+    # Chart saved to file only, no display
 
 
 def ve_gradient_vector(gradient: np.ndarray, title: str = "Gradient Vector",
@@ -469,7 +469,7 @@ def ve_gradient_vector(gradient: np.ndarray, title: str = "Gradient Vector",
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
     
-    plt.show()
+    # Chart saved to file only, no display
 
 
 # ==============================================================================
@@ -537,7 +537,8 @@ def luu_bieu_do_theo_batch(figures_list: List[plt.Figure],
 
 def ve_duong_dong_muc_optimization(loss_function, weights_history, X, y, 
                                   feature_indices=None, title="Quá trình tối ưu",
-                                  save_path=None, original_iterations=None):
+                                  save_path=None, original_iterations=None, 
+                                  convergence_check_freq=10, max_trajectory_points=None):
     """
     Vẽ đường đồng mức của hàm loss với trajectory của optimization algorithm
     
@@ -550,10 +551,17 @@ def ve_duong_dong_muc_optimization(loss_function, weights_history, X, y,
         title: tiêu đề biểu đồ
         save_path: đường dẫn lưu file (optional)
         original_iterations: số iteration thực sự (để tính annotation đúng)
+        convergence_check_freq: tần suất kiểm tra hội tụ (để map index -> iteration)
+        max_trajectory_points: số điểm tối đa để vẽ trajectory (None = vẽ tất cả)
     """
     if len(weights_history) < 2:
         print("Cần ít nhất 2 điểm để vẽ quỹ đạo")
         return
+    
+    # Handle trajectory sampling internally
+    if max_trajectory_points is not None and len(weights_history) > max_trajectory_points:
+        sample_frequency = max(1, len(weights_history) // max_trajectory_points)
+        weights_history = weights_history[::sample_frequency]
     
     # Convert weights_history to array
     weights_array = np.array(weights_history)
@@ -714,11 +722,20 @@ def ve_duong_dong_muc_optimization(loss_function, weights_history, X, y,
     for i, idx in enumerate(annotation_indices):
         # Calculate actual iteration number correctly
         if original_iterations is not None:
-            # Use original total iterations to calculate correct annotation
-            actual_iter = idx * original_iterations // (len(w1_path) - 1) if len(w1_path) > 1 else 0
+            # Map weight history index to actual iteration
+            # weights_history is sampled at convergence check frequency
+            # so each index corresponds to idx * convergence_check_freq iterations
+            # But we need to handle the final iteration specially
+            if idx == len(w1_path) - 1:  # Final point
+                actual_iter = original_iterations
+            else:
+                # Use the passed convergence_check_freq to map correctly
+                actual_iter = idx * convergence_check_freq
+                # Don't exceed original_iterations
+                actual_iter = min(actual_iter, original_iterations)
         else:
-            # Fallback to using weights_history length
-            actual_iter = idx * len(weights_history) // len(w1_path) if len(w1_path) > 1 else 0
+            # Fallback to using weights_history index directly
+            actual_iter = idx
             
         ax.annotate(f'Iter {actual_iter}', 
                    (w1_path[idx], w2_path[idx]),
@@ -731,7 +748,7 @@ def ve_duong_dong_muc_optimization(loss_function, weights_history, X, y,
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
     
-    plt.show()
+    # Chart saved to file only, no display
 
 
 # ==============================================================================
@@ -935,7 +952,8 @@ def ve_duong_hoi_tu_so_sanh(convergence_data: Dict[str, Dict], save_path: str,
         plt.close()
         print(f"   Convergence comparison đã lưu: {save_path}")
     else:
-        plt.show()
+        # Chart saved to file only, no display
+        pass
 
 
 # Thiết lập style mặc định khi import module

@@ -457,17 +457,18 @@ class QuasiNewtonModel:
         
         # 3. Optimization trajectory (đường đồng mức)
         print("   - Vẽ đường đồng mức optimization")
-        sample_frequency = max(1, len(self.weights_history) // 50)
-        sampled_weights = self.weights_history[::sample_frequency]
         
         # Chuẩn bị X_test với bias cho visualization
         X_test_with_bias = add_bias_column(X_test)
         
         ve_duong_dong_muc_optimization(
             loss_function=self.loss_func,
-            weights_history=sampled_weights,
+            weights_history=self.weights_history,  # Pass full history
             X=X_test_with_bias, y=y_test,
             title=f"BFGS Quasi-Newton {self.ham_loss.upper()} - Optimization Path",
-            save_path=str(results_dir / "optimization_trajectory.png")
+            save_path=str(results_dir / "optimization_trajectory.png"),
+            original_iterations=self.final_iteration,
+            convergence_check_freq=self.convergence_check_freq,
+            max_trajectory_points=None  # Quasi-Newton usually converges quickly, show all
         )
         

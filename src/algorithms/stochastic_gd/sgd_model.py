@@ -417,19 +417,18 @@ class SGDModel:
         # 3. Optimization trajectory (đường đồng mức) - hỗ trợ tất cả loss types
         print("   - Vẽ đường đồng mức optimization")
         if hasattr(self, 'weights_history') and len(self.weights_history) > 0:
-            # Sample weights history for performance (every 10th point)
-            step = max(1, len(self.weights_history) // 100)
-            sampled_weights = np.array(self.weights_history[::step])
-            
             # Chuẩn bị X_test với bias cho visualization
             X_test_with_bias = add_bias_column(X_test)
             
             ve_duong_dong_muc_optimization(
                 loss_function=self.loss_func,
-                weights_history=sampled_weights,
+                weights_history=self.weights_history,  # Pass full history
                 X=X_test_with_bias, y=y_test,
                 title=f"Stochastic GD {self.ham_loss.upper()} - Optimization Path",
-                save_path=str(results_dir / "optimization_trajectory.png")
+                save_path=str(results_dir / "optimization_trajectory.png"),
+                original_iterations=self.total_iterations,
+                convergence_check_freq=self.convergence_check_freq,
+                max_trajectory_points=100  # SGD has many points, limit to 100 for performance
             )
         else:
             print("     Không có weights history để vẽ contour plot")

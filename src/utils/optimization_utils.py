@@ -275,14 +275,65 @@ def tinh_r2_score(y_that: np.ndarray, y_du_doan: np.ndarray) -> float:
 
 
 # ==============================================================================
-# 4. KIỂM TRA HỘI TỤ VÀ LINE SEARCH
+# 4. NUMERICAL STABILITY CHECKS
+# ==============================================================================
+
+def check_for_numerical_issues(gradient_norm: float, loss_value: Optional[float] = None, 
+                               weights: Optional[np.ndarray] = None, iteration: int = 0) -> Tuple[bool, str]:
+    """
+    Kiểm tra các vấn đề về tính ổn định số học trong quá trình optimization
+    
+    Tham số:
+        gradient_norm: chuẩn của gradient hiện tại
+        loss_value: giá trị loss hiện tại (tùy chọn)
+        weights: vector trọng số hiện tại (tùy chọn)
+        iteration: số iteration hiện tại
+    
+    Trả về:
+        has_issues: True nếu phát hiện vấn đề số học
+        issue_description: mô tả chi tiết vấn đề
+    """
+    issues = []
+    
+    # Kiểm tra gradient norm
+    if np.isnan(gradient_norm):
+        issues.append(f"Gradient norm = NaN")
+    elif np.isinf(gradient_norm):
+        issues.append(f"Gradient norm = ±Inf")
+    
+    # Kiểm tra loss value nếu có
+    if loss_value is not None:
+        if np.isnan(loss_value):
+            issues.append(f"Loss = NaN")
+        elif np.isinf(loss_value):
+            issues.append(f"Loss = ±Inf")
+    
+    # Kiểm tra weights nếu có
+    if weights is not None:
+        if np.any(np.isnan(weights)):
+            nan_count = np.sum(np.isnan(weights))
+            issues.append(f"Weights contain {nan_count} NaN values")
+        if np.any(np.isinf(weights)):
+            inf_count = np.sum(np.isinf(weights))
+            issues.append(f"Weights contain {inf_count} ±Inf values")
+    
+    if issues:
+        issue_description = f"NUMERICAL INSTABILITY at iteration {iteration}: " + ", ".join(issues)
+        return True, issue_description
+    
+    return False, "No numerical issues detected"
+
+
+# ==============================================================================
+# 5. KIỂM TRA HỘI TỤ VÀ LINE SEARCH
 # ==============================================================================
 
 def kiem_tra_hoi_tu(gradient_norm: float, cost_change: float, iteration: int,
-                   tolerance: float = 1e-6, max_iterations: int = 100) -> Tuple[bool, str]:
+                   tolerance: float = 1e-6, max_iterations: int = 100, 
+                   loss_value: Optional[float] = None, weights: Optional[np.ndarray] = None) -> Tuple[bool, str]:
     """
     Kiểm tra điều kiện hội tụ cho thuật toán optimization
-    YÊU CẦU ĐỒNG THỜI CẢ HAI ĐIỀU KIỆN: gradient norm VÀ cost change
+    KIỂM TRA THỨ TỰ: 1) Numerical stability, 2) Max iterations, 3) Convergence conditions
     
     Tham số:
         gradient_norm: chuẩn của gradient hiện tại
@@ -290,26 +341,35 @@ def kiem_tra_hoi_tu(gradient_norm: float, cost_change: float, iteration: int,
         iteration: số iteration hiện tại
         tolerance: ngưỡng hội tụ
         max_iterations: số iteration tối đa
+        loss_value: giá trị loss hiện tại (tùy chọn, để kiểm tra numerical stability)
+        weights: vector trọng số hiện tại (tùy chọn, để kiểm tra numerical stability)
     
     Trả về:
         converged: có hội tụ hay không
         reason: lý do dừng
     """
-    # Đạt giới hạn iteration
-    if iteration >= max_iterations:
-        return True, f"Đạt giới hạn iteration: {iteration}"
+    # 1. KIỂM TRA NUMERICAL STABILITY TRƯỚC TIÊN (ưu tiên cao nhất)
+    has_issues, issue_description = check_for_numerical_issues(
+        gradient_norm, loss_value, weights, iteration
+    )
+    if has_issues:
+        return False, issue_description
     
-    # Kiểm tra điều kiện gradient norm
+    # 2. Đạt giới hạn iteration
+    if iteration >= max_iterations:
+        return False, f"Đạt giới hạn iteration: {iteration}"
+    
+    # 3. Kiểm tra điều kiện gradient norm
     gradient_converged = gradient_norm < tolerance
     
-    # Kiểm tra điều kiện thay đổi cost (chỉ sau iteration đầu tiên)  
+    # 4. Kiểm tra điều kiện thay đổi cost (chỉ sau iteration đầu tiên)  
     cost_converged = iteration > 0 and abs(cost_change) < tolerance
     
-    # YÊU CẦU ĐỒNG THỜI CẢ HAI ĐIỀU KIỆN
+    # 5. YÊU CẦU ĐỒNG THỜI CẢ HAI ĐIỀU KIỆN
     if gradient_converged and cost_converged:
         return True, f"Hội tụ đồng thời: gradient norm {gradient_norm:.2e} < {tolerance:.2e} VÀ cost change {abs(cost_change):.2e} < {tolerance:.2e}"
     
-    # Chưa hội tụ - hiển thị trạng thái hiện tại
+    # 6. Chưa hội tụ - hiển thị trạng thái hiện tại
     if iteration > 0:
         return False, f"Chưa hội tụ: gradient={gradient_norm:.2e} ({'✓' if gradient_converged else '✗'}), cost_change={abs(cost_change):.2e} ({'✓' if cost_converged else '✗'})"
     else:

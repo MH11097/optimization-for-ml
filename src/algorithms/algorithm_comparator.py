@@ -247,9 +247,11 @@ def main():
     
     # Example usage với setup paths
     setup_paths = [
-        "gradient_descent/setup_gd_ols_lr_001",
-        "newton_method/pure_newton_ols",
-        "stochastic_gd/batch_32_sgd"
+        "gradient_descent/01_setup_gd_ols_lr_0001",
+        "gradient_descent/02_setup_gd_ols_lr_001",
+        "gradient_descent/03_setup_gd_ols_lr_01",
+        "gradient_descent/04_setup_gd_ols_lr_03",
+        "gradient_descent/05_setup_gd_ols_lr_02",
     ]
     
     try:

@@ -44,7 +44,7 @@ from src.algorithms.gradient_descent.gradient_descent_model import GradientDesce
 model = GradientDescentModel(
     ham_loss='ols',           # 'ols', 'ridge', 'lasso'
     learning_rate=0.01,
-    so_lan_thu=500,
+    so_lan_thu=10000,
     diem_dung=1e-6,
     regularization=0.01       # cho Ridge/Lasso
 )
@@ -84,7 +84,7 @@ from src.algorithms.newton_method.damped_newton_model import DampedNewtonModel
 
 model = DampedNewtonModel(
     ham_loss='ols',
-    so_lan_thu=100,
+    so_lan_thu=10000,
     diem_dung=1e-8,
     armijo_c1=1e-4,
     backtrack_rho=0.8
@@ -122,7 +122,7 @@ model = SGDModel(
 python src/algorithms/gradient_descent/setup_ols_01.py
 python src/algorithms/gradient_descent/setup_ridge_001.py
 
-# Newton Method  
+# Newton Method
 python src/algorithms/newton_method/setup_pure_newton_ols.py
 python src/algorithms/newton_method/setup_damped_newton_ols.py
 
@@ -139,6 +139,7 @@ python src/algorithms/algorithm_comparator.py
 ```
 
 Tool này sẽ:
+
 - Thu thập kết quả từ tất cả experiments đã chạy
 - Tạo bảng so sánh chi tiết
 - Tạo các biểu đồ phân tích performance
@@ -148,7 +149,9 @@ Tool này sẽ:
 ## Đặc điểm chính
 
 ### 1. Interface nhất quán
+
 Tất cả model classes đều có:
+
 - `__init__()`: Khởi tạo với tham số
 - `fit()`: Huấn luyện model
 - `predict()`: Dự đoán
@@ -157,11 +160,13 @@ Tất cả model classes đều có:
 - `plot_results()`: Tạo visualization với tên file
 
 ### 2. Tham số linh hoạt
+
 - Mỗi model có tham số phù hợp với thuật toán
 - Hỗ trợ nhiều loss functions (OLS, Ridge, Lasso)
 - Tham số `ten_file` để tổ chức output
 
 ### 3. Kết quả được tổ chức
+
 ```
 data/03_algorithms/[algorithm]/[ten_file]/
 ├── results.json           # Thông tin chi tiết
@@ -172,6 +177,7 @@ data/03_algorithms/[algorithm]/[ten_file]/
 ```
 
 ### 4. So sánh và phân tích tổng hợp
+
 - Tool `algorithm_comparator.py` phân tích tất cả algorithms
 - Tạo báo cáo HTML với visualizations
 - Export CSV để phân tích thêm
@@ -206,7 +212,7 @@ X_train, X_test, y_train, y_test = load_du_lieu()
 # Khởi tạo và huấn luyện nhiều models
 models = {
     'fast_gd': GradientDescentModel(ham_loss='ols', learning_rate=0.1),
-    'slow_gd': GradientDescentModel(ham_loss='ols', learning_rate=0.01), 
+    'slow_gd': GradientDescentModel(ham_loss='ols', learning_rate=0.01),
     'ridge_gd': GradientDescentModel(ham_loss='ridge', learning_rate=0.01, regularization=0.01)
 }
 

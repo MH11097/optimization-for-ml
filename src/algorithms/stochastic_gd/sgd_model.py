@@ -41,9 +41,10 @@ class SGDModel:
     
     def __init__(self, learning_rate=0.01, so_epochs=100, random_state=42, 
                  batch_size=1, ham_loss='ols', tolerance=1e-6, regularization=0.01, convergence_check_freq=10,
-                 learning_rate_schedule='constant', momentum=0.0, decay_gamma=0.95, use_adaptive_lr=False):
+                 learning_rate_schedule='constant', momentum=0.0, decay_gamma=0.95, use_adaptive_lr=False,
+                 use_momentum=False, armijo_c1=1e-4, lr_increase_factor=1.1, lr_decrease_factor=0.5):
         self.learning_rate = learning_rate  # Base learning rate
-        self.learning_rate_schedule = learning_rate_schedule  # 'constant', 'linear_decay', 'sqrt_decay'
+        self.learning_rate_schedule = learning_rate_schedule  # 'constant', 'linear_decay', 'sqrt_decay', 'exponential_decay'
         self.so_epochs = so_epochs
         self.random_state = random_state
         self.batch_size = batch_size
@@ -54,6 +55,14 @@ class SGDModel:
         self.momentum = momentum  # Momentum parameter
         self.decay_gamma = decay_gamma  # Decay factor for exponential decay
         self.use_adaptive_lr = use_adaptive_lr  # Whether to use adaptive learning rate
+        self.use_momentum = use_momentum  # Whether to use momentum (for backward compatibility)
+        self.armijo_c1 = armijo_c1  # Armijo constant for backtracking line search
+        self.lr_increase_factor = lr_increase_factor  # Factor to increase learning rate when loss decreases
+        self.lr_decrease_factor = lr_decrease_factor  # Factor to decrease learning rate when loss increases
+        
+        # If use_momentum is True, ensure momentum is used
+        if self.use_momentum and self.momentum == 0.0:
+            self.momentum = 0.9  # Default momentum value
         
         # Sử dụng unified functions với format mới (bias trong X)
         self.loss_func = lambda X, y, w: tinh_gia_tri_ham_loss(self.ham_loss, X, y, w, None, self.regularization)
@@ -61,6 +70,7 @@ class SGDModel:
         
         # Khởi tạo các thuộc tính lưu kết quả
         self.weights = None  # Bây giờ bao gồm bias ở cuối
+        self.velocity = None  # For momentum
         self.loss_history = []
         self.gradient_norms = []
         self.weights_history = []
@@ -69,7 +79,7 @@ class SGDModel:
         self.converged = False
         self.final_cost = None
         self.final_epoch = 0
-        self.total_iterations = 0  # Track total number of iterations
+        self.total_iterations = 0  # Track total number of iterations  # Track total number of iterations
     
     def _get_learning_rate(self, epoch):
         """
@@ -91,6 +101,10 @@ class SGDModel:
         elif self.learning_rate_schedule == 'sqrt_decay':
             # Alpha / sqrt(epoch + 1)
             return self.learning_rate / np.sqrt(epoch + 1)
+        
+        elif self.learning_rate_schedule == 'exponential_decay':
+            # Alpha * gamma^epoch
+            return self.learning_rate * (self.decay_gamma ** epoch)
         
         else:
             raise ValueError(f"Unknown learning_rate_schedule: {self.learning_rate_schedule}")
@@ -121,6 +135,9 @@ class SGDModel:
         print(f"   Epochs: {self.so_epochs}, Batch size: {self.batch_size}")
         print(f"   Random state: {self.random_state}")
         
+        if self.momentum > 0 or self.use_momentum:
+            print(f"   Using momentum: {self.momentum}")
+        
         np.random.seed(self.random_state)
         
         # Thêm cột bias vào X
@@ -129,6 +146,10 @@ class SGDModel:
         
         n_samples, n_features_with_bias = X_with_bias.shape
         self.weights = np.random.normal(0, 0.01, n_features_with_bias)
+        
+        # Initialize velocity for momentum
+        if self.momentum > 0 or self.use_momentum:
+            self.velocity = np.zeros(n_features_with_bias)
         
         # Reset histories
         self.loss_history = []
@@ -173,8 +194,15 @@ class SGDModel:
                 batch_gradient /= len(X_batch)
                 epoch_gradients.append(batch_gradient)
                 
-                # Update weights with current learning rate
-                self.weights -= current_lr * batch_gradient
+                # Update weights with momentum if enabled
+                if self.momentum > 0 or self.use_momentum:
+                    # Momentum update: v = β * v + ∇L
+                    self.velocity = self.momentum * self.velocity + batch_gradient
+                    # Weight update: w = w - α * v
+                    self.weights -= current_lr * self.velocity
+                else:
+                    # Standard SGD update: w = w - α * ∇L
+                    self.weights -= current_lr * batch_gradient
             
             # Chỉ tính cost và lưu history khi cần thiết  
             should_log = (
@@ -208,7 +236,9 @@ class SGDModel:
                     cost_change=cost_change,
                     iteration=epoch,
                     tolerance=self.tolerance,
-                    max_iterations=self.so_epochs
+                    max_iterations=self.so_epochs,
+                    loss_value=epoch_cost,
+                    weights=self.weights
                 )
                 
                 if converged:
@@ -219,7 +249,7 @@ class SGDModel:
             
             # Progress update - chỉ print khi đã có data
             if (epoch + 1) % 20 == 0 and should_log:
-                print(f"   Epoch {epoch + 1}: Cost = {epoch_cost:.6f}, Gradient = {gradient_norm:.6f}, LR = {current_lr:.6f}")
+                print(f"   Epoch {epoch + 1}: Cost = {epoch_cost:.6f}, Gradient = {gradient_norm:.6f}, LR = {current_lr}")
         
         self.training_time = time.time() - start_time
         self.final_cost = self.loss_history[-1]
@@ -236,6 +266,7 @@ class SGDModel:
         return {
             'weights': self.weights,  # Bao gồm bias ở cuối
             'bias': self.weights[-1],  # Bias riêng để tương thích
+            'velocity': getattr(self, 'velocity', None),  # Include velocity if using momentum
             'loss_history': self.loss_history,
             'gradient_norms': self.gradient_norms,
             'weights_history': self.weights_history,

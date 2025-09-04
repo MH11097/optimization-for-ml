@@ -40,7 +40,7 @@ class NesterovGDModel:
     """
     
     def __init__(self, ham_loss='ols', learning_rate=0.01, momentum=0.9, 
-                 so_lan_thu=1000, diem_dung=1e-6, regularization=0.01, convergence_check_freq=10):
+                 so_lan_thu=10000, diem_dung=1e-6, regularization=0.01, convergence_check_freq=10):
         self.ham_loss = ham_loss.lower()
         self.learning_rate = learning_rate
         self.momentum = momentum
@@ -102,9 +102,19 @@ class NesterovGDModel:
             # Tính gradient tại look-ahead position
             gradient_w, _ = self.grad_func(X_with_bias, y, look_ahead_weights)
             
+            # Check for invalid gradients (inf/nan) and handle them
+            if not np.all(np.isfinite(gradient_w)):
+                print(f"⚠️ Warning: Invalid gradient detected at iteration {lan_thu + 1}")
+                gradient_w = np.nan_to_num(gradient_w, nan=0.0, posinf=1e10, neginf=-1e10)
+            
             # Nesterov momentum update
             self.velocity = self.momentum * self.velocity + gradient_w
             self.weights = self.weights - self.learning_rate * self.velocity
+            
+            # Check for invalid weights and handle them
+            if not np.all(np.isfinite(self.weights)):
+                print(f"⚠️ Warning: Invalid weights detected at iteration {lan_thu + 1}")
+                self.weights = np.nan_to_num(self.weights, nan=0.0, posinf=1e10, neginf=-1e10)
             
             # Chỉ tính loss và lưu history khi cần thiết
             should_check_converged = (
@@ -115,28 +125,55 @@ class NesterovGDModel:
             if should_check_converged:
                 # Chỉ tính loss khi cần (expensive operation)
                 loss_value = self.loss_func(X_with_bias, y, self.weights)
+                
+                # Handle invalid loss values
+                if not np.isfinite(loss_value):
+                    print(f"⚠️ Warning: Invalid loss detected at iteration {lan_thu + 1}")
+                    loss_value = np.nan_to_num(loss_value, nan=1e10, posinf=1e10, neginf=-1e10)
+                
                 gradient_norm = np.linalg.norm(gradient_w)
                 velocity_norm = np.linalg.norm(self.velocity)
                 
+                # Handle invalid norms
+                if not np.isfinite(gradient_norm):
+                    gradient_norm = 1e10
+                if not np.isfinite(velocity_norm):
+                    velocity_norm = 1e10
+                
                 # Lưu vào history
-                self.loss_history.append(loss_value)
-                self.gradient_norms.append(gradient_norm)
-                self.velocity_norms.append(velocity_norm)
+                self.loss_history.append(float(loss_value))  # Ensure it's a finite float
+                self.gradient_norms.append(float(gradient_norm))
+                self.velocity_norms.append(float(velocity_norm))
                 self.weights_history.append(self.weights.copy())
                 
                 cost_change = 0.0 if len(self.loss_history) == 0 else (self.loss_history[-1] - loss_value) if len(self.loss_history) == 1 else (self.loss_history[-2] - self.loss_history[-1])
+                
+                # Ensure cost_change is finite
+                if not np.isfinite(cost_change):
+                    cost_change = 0.0
+                
+                # Safe integer conversion with infinity checks
+                safe_iteration = int(lan_thu) if np.isfinite(lan_thu) else lan_thu
+                safe_max_iter = int(self.so_lan_thu) if np.isfinite(self.so_lan_thu) else self.so_lan_thu
+                
                 converged, reason = kiem_tra_hoi_tu(
-                    gradient_norm=gradient_norm,
-                    cost_change=cost_change,
-                    iteration=lan_thu,
+                    gradient_norm=float(gradient_norm),
+                    cost_change=float(cost_change),
+                    iteration=safe_iteration,
                     tolerance=self.diem_dung,
-                    max_iterations=self.so_lan_thu
+                    max_iterations=safe_max_iter,
+                    loss_value=loss_value,
+                    weights=self.weights
                 )
                 
                 if converged:
                     print(f"✅ Nesterov AGD stopped: {reason}")
                     self.converged = True
-                    self.final_iteration = lan_thu + 1
+                    # Safe integer conversion for final_iteration
+                    if np.isfinite(lan_thu):
+                        self.final_iteration = int(lan_thu + 1)
+                    else:
+                        self.final_iteration = lan_thu  # Keep as is if infinite
                     break
 
                 print(f"   Vòng {lan_thu + 1}: Loss = {loss_value:.6f}, Gradient = {gradient_norm:.6f}, Velocity = {velocity_norm:.6f}")
@@ -145,7 +182,11 @@ class NesterovGDModel:
         
         if not self.converged:
             print(f"⏹️ Đạt tối đa {self.so_lan_thu} vòng lặp")
-            self.final_iteration = self.so_lan_thu
+            # Safe integer conversion
+            if np.isfinite(self.so_lan_thu):
+                self.final_iteration = int(self.so_lan_thu)
+            else:
+                self.final_iteration = self.so_lan_thu
         
         print(f"Thời gian training: {self.training_time:.2f}s")
         print(f"Loss cuối: {self.loss_history[-1]:.6f}")
@@ -154,7 +195,7 @@ class NesterovGDModel:
         
         return {
             'weights': self.weights,  # Bao gồm bias ở cuối
-            'bias': self.weights[-1],  # Bias riêng để tương thích
+            'bias': float(self.weights[-1]),  # Bias riêng để tương thích
             'velocity': self.velocity,
             'loss_history': self.loss_history,
             'gradient_norms': self.gradient_norms,
@@ -162,7 +203,7 @@ class NesterovGDModel:
             'weights_history': self.weights_history,
             'training_time': self.training_time,
             'converged': self.converged,
-            'final_iteration': self.final_iteration
+            'final_iteration': int(self.final_iteration) if np.isfinite(self.final_iteration) else self.final_iteration
         }
     
     def predict(self, X):

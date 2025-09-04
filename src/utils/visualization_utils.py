@@ -689,8 +689,26 @@ def ve_duong_dong_muc_optimization(loss_function, weights_history, X, y,
     # Plot contour lines with adaptive detail level
     # Use log scale for better contour visualization if loss varies greatly
     loss_min, loss_max = np.nanmin(loss_surface), np.nanmax(loss_surface)
-    if loss_max / loss_min > 100:  # Large dynamic range
-        levels = np.logspace(np.log10(loss_min), np.log10(loss_max), n_contour_levels)
+    
+    # Handle NaN/Inf cases in loss values
+    if not np.isfinite(loss_min) or not np.isfinite(loss_max):
+        print(f"   Warning: Non-finite loss values detected (min: {loss_min}, max: {loss_max})")
+        print(f"   Using linear contour levels instead of log scale")
+        levels = n_contour_levels
+    elif loss_min <= 0:  # Can't take log of negative or zero values
+        print(f"   Warning: Non-positive loss values detected (min: {loss_min})")
+        print(f"   Using linear contour levels instead of log scale") 
+        levels = n_contour_levels
+    elif loss_max / loss_min > 100:  # Large dynamic range
+        try:
+            levels = np.logspace(np.log10(loss_min), np.log10(loss_max), n_contour_levels)
+            # Double-check that levels are finite
+            if not np.all(np.isfinite(levels)):
+                print(f"   Warning: Log scale produced non-finite levels, falling back to linear")
+                levels = n_contour_levels
+        except Exception as e:
+            print(f"   Warning: Error creating log levels ({e}), using linear")
+            levels = n_contour_levels
     else:
         levels = n_contour_levels
     

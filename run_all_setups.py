@@ -2,6 +2,11 @@
 """
 Script to run all algorithm setup experiments automatically without popup windows.
 Automatically discovers and runs all setup scripts in the src/algorithms/ directory.
+
+Usage:
+    python run_all_setups.py                                    # Run all setups
+    python run_all_setups.py --start-setup 01 --end-setup 21   # Run setups 01-21
+    python run_all_setups.py --algorithm gradient_descent       # Run specific algorithm
 """
 
 import os
@@ -9,13 +14,43 @@ import sys
 import importlib.util
 import traceback
 from pathlib import Path
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 import time
+import argparse
+import re
 
 
-def find_all_setup_scripts(base_dir: str = "src/algorithms") -> List[Tuple[str, str]]:
+def extract_setup_number(script_name: str) -> Optional[int]:
     """
-    Find all setup scripts in the algorithms directory.
+    Extract setup number from script filename.
+    
+    Args:
+        script_name: Name of the script file
+        
+    Returns:
+        Setup number as integer, or None if not found
+    """
+    # Match patterns like "01_setup", "26_setup", etc.
+    match = re.match(r'(\d+)_setup', script_name)
+    if match:
+        return int(match.group(1))
+    return None
+
+
+def find_all_setup_scripts(
+    base_dir: str = "src/algorithms",
+    start_setup: Optional[int] = None,
+    end_setup: Optional[int] = None,
+    algorithm_filter: Optional[str] = None
+) -> List[Tuple[str, str]]:
+    """
+    Find all setup scripts in the algorithms directory with optional filtering.
+    
+    Args:
+        base_dir: Base directory to search
+        start_setup: Starting setup number (inclusive)
+        end_setup: Ending setup number (inclusive)
+        algorithm_filter: Algorithm name to filter by
     
     Returns:
         List of tuples (algorithm_name, script_path)
@@ -32,9 +67,22 @@ def find_all_setup_scripts(base_dir: str = "src/algorithms") -> List[Tuple[str, 
         if algorithm_dir.is_dir() and algorithm_dir.name != "__pycache__":
             algorithm_name = algorithm_dir.name
             
+            # Filter by algorithm if specified
+            if algorithm_filter and algorithm_name != algorithm_filter:
+                continue
+            
             # Look for setup scripts (files matching pattern)
             for script_file in algorithm_dir.glob("*setup*.py"):
                 if script_file.name != "__pycache__" and not script_file.name.startswith("_"):
+                    # Extract setup number for filtering
+                    setup_num = extract_setup_number(script_file.name)
+                    
+                    # Apply setup number filtering
+                    if start_setup is not None and setup_num is not None and setup_num < start_setup:
+                        continue
+                    if end_setup is not None and setup_num is not None and setup_num > end_setup:
+                        continue
+                    
                     try:
                         relative_path = str(script_file.relative_to(Path.cwd()))
                     except ValueError:
@@ -111,14 +159,66 @@ def print_progress_bar(current: int, total: int, script_name: str, width: int = 
     print(f'\r[{bar}] {percent:.1%} - Running: {script_name[:40]}...', end='', flush=True)
 
 
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Run algorithm setup experiments with optional filtering.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s                                    # Run all setups
+  %(prog)s --start-setup 01 --end-setup 21   # Run setups 01-21 (gradient descent)
+  %(prog)s --start-setup 26 --end-setup 32   # Run setups 26-32 (newton method)
+  %(prog)s --algorithm gradient_descent       # Run all gradient descent setups
+  %(prog)s --algorithm newton_method --start-setup 28  # Newton setups from 28 onwards
+        """
+    )
+    
+    parser.add_argument(
+        "--start-setup", 
+        type=int, 
+        help="Starting setup number (e.g., 01, 26)"
+    )
+    parser.add_argument(
+        "--end-setup", 
+        type=int, 
+        help="Ending setup number (e.g., 21, 32)"
+    )
+    parser.add_argument(
+        "--algorithm", 
+        type=str, 
+        help="Filter by algorithm family (e.g., gradient_descent, newton_method, quasi_newton, stochastic_gd)"
+    )
+    
+    return parser.parse_args()
+
+
 def main():
     """Main function to run all setup scripts."""
+    # Parse command line arguments
+    args = parse_arguments()
+    
     print("AUTOMATED SETUP RUNNER")
     print("=" * 60)
     
+    # Show filtering options if any
+    if args.start_setup or args.end_setup or args.algorithm:
+        print("Filtering options:")
+        if args.start_setup:
+            print(f"   Start setup: {args.start_setup:02d}")
+        if args.end_setup:
+            print(f"   End setup: {args.end_setup:02d}")
+        if args.algorithm:
+            print(f"   Algorithm: {args.algorithm}")
+        print()
+    
     # Find all setup scripts
     print("Discovering setup scripts...")
-    setup_scripts = find_all_setup_scripts()
+    setup_scripts = find_all_setup_scripts(
+        start_setup=args.start_setup,
+        end_setup=args.end_setup,
+        algorithm_filter=args.algorithm
+    )
     
     if not setup_scripts:
         print("No setup scripts found!")
@@ -131,7 +231,6 @@ def main():
         print(f"   ... and {len(setup_scripts) - 5} more")
     
     print(f"\nStarting execution of {len(setup_scripts)} experiments...")
-    print("   (No popup windows will appear - all plots saved to files)")
     print("-" * 60)
     
     # Track results

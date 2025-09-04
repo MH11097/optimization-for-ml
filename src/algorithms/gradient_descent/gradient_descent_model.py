@@ -36,8 +36,8 @@ class GradientDescentModel:
     - convergence_check_freq: Tần suất kiểm tra hội tụ (mỗi N iterations)
     """
     
-    def __init__(self, ham_loss='ols', learning_rate=0.1, so_lan_thu=500, diem_dung=1e-5, regularization=0.01, 
-                 convergence_check_freq=10, step_size_method='constant', backtrack_c1=1e-4, backtrack_rho=0.8, 
+    def __init__(self, ham_loss='ols', learning_rate=0.1, so_lan_thu=10000, diem_dung=1e-5, regularization=0.01, 
+                 convergence_check_freq=100, step_size_method='constant', backtrack_c1=1e-4, backtrack_rho=0.8, 
                  adaptive_beta1=0.9, adaptive_beta2=0.999, adaptive_eps=1e-8, wolfe_c2=0.9, decay_gamma=0.95):
         self.ham_loss = ham_loss.lower()
         self.learning_rate = learning_rate
@@ -104,6 +104,49 @@ class GradientDescentModel:
             alpha *= self.backtrack_rho
         
         return alpha
+
+    
+    def _wolfe_line_search(self, X, y, weights, gradient, direction):
+        """
+        Thực hiện Wolfe line search với cả Armijo và curvature conditions
+        
+        Args:
+            X, y: Dữ liệu
+            weights: Trọng số hiện tại
+            gradient: Gradient tại weights hiện tại
+            direction: Hướng tìm kiếm (thường là -gradient)
+        
+        Returns:
+            alpha: Step size phù hợp
+        """
+        alpha = self.learning_rate
+        current_loss = self.loss_func(X, y, weights)
+        
+        # Armijo condition: f(x + alpha*d) <= f(x) + c1*alpha*grad^T*d
+        def armijo_condition(a):
+            new_weights = weights + a * direction
+            new_loss = self.loss_func(X, y, new_weights)
+            return new_loss <= current_loss + self.backtrack_c1 * a * np.dot(gradient, direction)
+        
+        # Curvature condition (strong Wolfe): |grad(x + alpha*d)^T * d| <= c2 * |grad(x)^T * d|
+        def curvature_condition(a):
+            new_weights = weights + a * direction
+            new_gradient, _ = self.grad_func(X, y, new_weights)  # Extract only gradient_w, ignore gradient_b
+            return abs(np.dot(new_gradient, direction)) <= self.wolfe_c2 * abs(np.dot(gradient, direction))
+        
+        # Simple backtracking with both conditions
+        max_backtracks = 50
+        for _ in range(max_backtracks):
+            if armijo_condition(alpha) and curvature_condition(alpha):
+                break
+            alpha *= self.backtrack_rho
+            
+            # Prevent alpha from becoming too small
+            if alpha < 1e-10:
+                alpha = 1e-10
+                break
+        
+        return alpha
     
     def _get_step_size(self, iteration, gradient, X=None, y=None, weights=None):
         """
@@ -128,10 +171,19 @@ class GradientDescentModel:
             # Alpha / sqrt(iteration + 1)
             return self.learning_rate / np.sqrt(iteration + 1)
         
+        elif self.step_size_method == 'decreasing_exponential':
+            # Alpha * gamma^iteration
+            return self.learning_rate * (self.decay_gamma ** iteration)
+        
         elif self.step_size_method == 'backtracking':
             # Line search với Armijo condition
             direction = -gradient  # Steepest descent direction
             return self._backtracking_line_search(X, y, weights, gradient, direction)
+        
+        elif self.step_size_method == 'wolfe_conditions':
+            # Wolfe line search với both Armijo và curvature conditions
+            direction = -gradient  # Steepest descent direction
+            return self._wolfe_line_search(X, y, weights, gradient, direction)
         
         elif self.step_size_method == 'adaptive':
             # Adam-like adaptive learning rate
@@ -200,15 +252,20 @@ class GradientDescentModel:
                 step_size = self._get_step_size(lan_thu, gradient_w, X_with_bias, y, self.weights)
                 # Update weights with element-wise step size
                 self.weights = self.weights - step_size * gradient_w
-                # Lưu average step size cho visualization
-                avg_step_size = np.mean(step_size)
+                # Lưu average step size cho visualization (ensure it's a scalar)
+                avg_step_size = float(np.mean(step_size))
                 self.step_sizes_history.append(avg_step_size)
             else:
                 # For other methods, step_size is a scalar
                 step_size = self._get_step_size(lan_thu, gradient_w, X_with_bias, y, self.weights)
                 # Update weights with scalar step size
                 self.weights = self.weights - step_size * gradient_w
-                self.step_sizes_history.append(step_size)
+                # Ensure step_size is a scalar before appending
+                if np.isscalar(step_size):
+                    self.step_sizes_history.append(float(step_size))
+                else:
+                    # If somehow we get a vector, take the mean
+                    self.step_sizes_history.append(float(np.mean(step_size)))
             
             # Chỉ tính loss và lưu history khi cần thiết
             should_check_converged = (
@@ -231,7 +288,9 @@ class GradientDescentModel:
                     cost_change=cost_change,
                     iteration=lan_thu,
                     tolerance=self.diem_dung,
-                    max_iterations=self.so_lan_thu
+                    max_iterations=self.so_lan_thu,
+                    loss_value=loss_value,
+                    weights=self.weights
                 )
                 
                 if converged:

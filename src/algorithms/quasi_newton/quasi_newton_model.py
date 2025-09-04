@@ -42,7 +42,7 @@ class QuasiNewtonModel:
     - convergence_check_freq: Tần suất kiểm tra hội tụ (mỗi N iterations)
     """
     
-    def __init__(self, ham_loss='ols', so_lan_thu=100, diem_dung=1e-6, 
+    def __init__(self, ham_loss='ols', so_lan_thu=10000, diem_dung=1e-6, 
                  regularization=0.01, armijo_c1=1e-4, wolfe_c2=0.9,
                  backtrack_rho=0.8, max_line_search_iter=50, damping=1e-8, convergence_check_freq=10,
                  method='bfgs', memory_size=10):
@@ -155,14 +155,43 @@ class QuasiNewtonModel:
             print(f"   Regularization: {self.regularization}")
         print(f"   Armijo c1: {self.armijo_c1}, Wolfe c2: {self.wolfe_c2}")
         
+        # Debug: print input shapes
+        print(f"   Input X shape: {X.shape}, y shape: {y.shape}")
+        
+        # Additional validation - check for shape mismatches that could cause broadcasting errors
+        if len(y.shape) != 1:
+            raise ValueError(f"y should be 1-dimensional, got shape {y.shape}")
+        if X.shape[0] != y.shape[0]:
+            raise ValueError(f"X and y must have same number of samples: X={X.shape[0]}, y={y.shape[0]}")
+        
+        # Check for reasonable data sizes (detect if full dataset loaded by mistake)
+        if X.shape[0] > 50000:
+            print(f"   ⚠️  Warning: Very large dataset ({X.shape[0]:,} samples). QuasiNewton methods work best with smaller datasets.")
+            print(f"   This might cause memory issues and slow convergence.")
+            print(f"   Consider reducing batch size or using a smaller sample for QuasiNewton methods.")
+            
+            # For very large datasets, we should use a subset to avoid memory issues
+            if X.shape[0] > 80000:
+                print(f"   🔧 Auto-sampling to first 3200 samples for QuasiNewton stability...")
+                sample_size = min(3200, X.shape[0])
+                X = X[:sample_size]
+                y = y[:sample_size]
+                print(f"   New shape: X={X.shape}, y={y.shape}")
+            
+        print(f"   Dataset size: {X.shape[0]:,} samples × {X.shape[1]} features")
+        
         # Thêm cột bias vào X
         X_with_bias = add_bias_column(X)
         print(f"   Original features: {X.shape[1]}, With bias: {X_with_bias.shape[1]}")
+        print(f"   X_with_bias shape: {X_with_bias.shape}")
         
         # Initialize weights và inverse Hessian approximation (bao gồm bias ở cuối)
         n_features_with_bias = X_with_bias.shape[1]
         self.weights = np.random.normal(0, 0.01, n_features_with_bias)
         self.H_inv = np.eye(n_features_with_bias)  # Initial approximation
+        
+        print(f"   Initialized weights shape: {self.weights.shape}")
+        print(f"   Initialized H_inv shape: {self.H_inv.shape}")
         
         # Reset histories
         self.loss_history = []
@@ -175,11 +204,57 @@ class QuasiNewtonModel:
         start_time = time.time()
         
         # Initial gradient
-        gradient_prev, _ = self.grad_func(X_with_bias, y, self.weights)  # _ vì không cần gradient_b riêng
+        try:
+            gradient_prev, _ = self.grad_func(X_with_bias, y, self.weights)  # _ vì không cần gradient_b riêng
+            print(f"   Initial gradient shape: {gradient_prev.shape}")
+        except Exception as e:
+            print(f"❌ Error computing initial gradient: {e}")
+            print(f"   X_with_bias shape: {X_with_bias.shape}")
+            print(f"   y shape: {y.shape}")  
+            print(f"   weights shape: {self.weights.shape}")
+            raise
         
         for lan_thu in range(self.so_lan_thu):
-            # Tính gradient (luôn cần cho BFGS)
-            gradient_curr, _ = self.grad_func(X_with_bias, y, self.weights)  # _ vì không cần gradient_b riêng
+            try:
+                # Tính gradient (luôn cần cho BFGS)
+                gradient_result = self.grad_func(X_with_bias, y, self.weights)
+                
+                # Debug: check what grad_func returns and handle properly
+                if isinstance(gradient_result, tuple):
+                    gradient_curr, gradient_b = gradient_result
+                    # For QuasiNewton with bias in X, gradient_b should be None or ignored
+                else:
+                    gradient_curr = gradient_result
+                    print(f"   Warning: grad_func returned non-tuple: {type(gradient_result)}")
+                
+                # Debug shapes on first iteration and when errors occur
+                if lan_thu == 0 or gradient_curr.shape != self.weights.shape:
+                    print(f"   Debug iteration {lan_thu + 1} - X_with_bias: {X_with_bias.shape}, y: {y.shape}, weights: {self.weights.shape}, gradient: {gradient_curr.shape}")
+                
+                # Check for shape consistency
+                if gradient_curr.shape != self.weights.shape:
+                    raise ValueError(f"Gradient shape {gradient_curr.shape} doesn't match weights shape {self.weights.shape}")
+                
+            except Exception as e:
+                print(f"❌ Error at iteration {lan_thu + 1} computing gradient: {e}")
+                print(f"   X_with_bias shape: {X_with_bias.shape}")
+                print(f"   y shape: {y.shape}")
+                print(f"   weights shape: {self.weights.shape}")
+                
+                # Additional debugging for broadcasting errors
+                if "broadcast" in str(e).lower():
+                    print(f"   🔍 Broadcasting error detected - this suggests a shape mismatch in gradient computation")
+                    print(f"   Expected gradient shape: {self.weights.shape}")
+                    try:
+                        test_result = self.grad_func(X_with_bias, y, self.weights)
+                        print(f"   Actual grad_func result type: {type(test_result)}")
+                        if isinstance(test_result, tuple):
+                            print(f"   Gradient tuple shapes: {[np.array(x).shape if x is not None else None for x in test_result]}")
+                        else:
+                            print(f"   Gradient result shape: {test_result.shape}")
+                    except Exception as debug_e:
+                        print(f"   Debug gradient computation also failed: {debug_e}")
+                raise
             
             # Chỉ tính loss và lưu history khi cần thiết
             should_check_converged = (
@@ -188,57 +263,82 @@ class QuasiNewtonModel:
             )
             
             if should_check_converged:
-                # Chỉ tính loss khi cần (expensive operation)
-                loss_value = self.loss_func(X_with_bias, y, self.weights)
-                gradient_norm = np.linalg.norm(gradient_curr)
+                try:
+                    # Chỉ tính loss khi cần (expensive operation)
+                    loss_value = self.loss_func(X_with_bias, y, self.weights)
+                    gradient_norm = np.linalg.norm(gradient_curr)
+                    
+                    # Lưu vào history
+                    self.loss_history.append(loss_value)
+                    self.gradient_norms.append(gradient_norm)
+                    self.weights_history.append(self.weights.copy())
+                    
+                    cost_change = 0.0 if len(self.loss_history) == 0 else (self.loss_history[-1] - loss_value) if len(self.loss_history) == 1 else (self.loss_history[-2] - self.loss_history[-1])
+                    converged, reason = kiem_tra_hoi_tu(
+                        gradient_norm=gradient_norm,
+                        cost_change=cost_change,
+                        iteration=lan_thu,
+                        tolerance=self.diem_dung,
+                        max_iterations=self.so_lan_thu,
+                        loss_value=loss_value,
+                        weights=self.weights
+                    )
+                    
+                    if converged:
+                        print(f"✅ BFGS Quasi-Newton stopped: {reason}")
+                        self.converged = True
+                        self.final_iteration = lan_thu + 1
+                        break
+                        
+                except Exception as e:
+                    print(f"❌ Error at iteration {lan_thu + 1} computing loss/convergence: {e}")
+                    raise
+            
+            try:
+                # BFGS direction: d = -H_inv * gradient
+                direction = -np.dot(self.H_inv, gradient_curr)
                 
-                # Lưu vào history
-                self.loss_history.append(loss_value)
-                self.gradient_norms.append(gradient_norm)
-                self.weights_history.append(self.weights.copy())
+                if direction.shape != self.weights.shape:
+                    raise ValueError(f"Direction shape {direction.shape} doesn't match weights shape {self.weights.shape}")
                 
-                cost_change = 0.0 if len(self.loss_history) == 0 else (self.loss_history[-1] - loss_value) if len(self.loss_history) == 1 else (self.loss_history[-2] - self.loss_history[-1])
-                converged, reason = kiem_tra_hoi_tu(
-                    gradient_norm=gradient_norm,
-                    cost_change=cost_change,
-                    iteration=lan_thu,
-                    tolerance=self.diem_dung,
-                    max_iterations=self.so_lan_thu
+            except Exception as e:
+                print(f"❌ Error at iteration {lan_thu + 1} computing direction: {e}")
+                print(f"   H_inv shape: {self.H_inv.shape}")
+                print(f"   gradient_curr shape: {gradient_curr.shape}")
+                raise
+            
+            try:
+                # Line search để tìm step size
+                step_size, ls_iter, gradient_new = self._wolfe_line_search(
+                    X_with_bias, y, self.weights, direction, gradient_curr
                 )
                 
-                if converged:
-                    print(f"✅ BFGS Quasi-Newton stopped: {reason}")
-                    self.converged = True
-                    self.final_iteration = lan_thu + 1
-                    break
-            
-            # BFGS direction: d = -H_inv * gradient
-            direction = -np.dot(self.H_inv, gradient_curr)
-            
-            # Line search để tìm step size
-            step_size, ls_iter, gradient_new = self._wolfe_line_search(
-                X_with_bias, y, self.weights, direction, gradient_curr
-            )
-            
-            self.step_sizes.append(step_size)
-            self.line_search_iterations.append(ls_iter)
-            
-            # Update weights
-            weights_new = self.weights + step_size * direction
-            
-            # BFGS update
-            s = weights_new - self.weights  # step
-            y = gradient_new - gradient_curr  # gradient change
-            
-            self.H_inv = self._cap_nhat_bfgs(self.H_inv, s, y)
-            
-            # Store condition number
-            cond_num = np.linalg.cond(self.H_inv)
-            self.condition_numbers.append(cond_num)
-            
-            # Update for next iteration
-            self.weights = weights_new
-            gradient_prev = gradient_curr
+                self.step_sizes.append(step_size)
+                self.line_search_iterations.append(ls_iter)
+                
+                # Update weights
+                weights_new = self.weights + step_size * direction
+                
+                # BFGS update
+                s = weights_new - self.weights  # step
+                y = gradient_new - gradient_curr  # gradient change
+                
+                if s.shape != y.shape:
+                    raise ValueError(f"Step s shape {s.shape} doesn't match gradient change y shape {y.shape}")
+                
+                self.H_inv = self._cap_nhat_bfgs(self.H_inv, s, y)
+                
+                # Store condition number
+                cond_num = np.linalg.cond(self.H_inv)
+                self.condition_numbers.append(cond_num)
+                
+                # Update for next iteration
+                self.weights = weights_new
+                gradient_prev = gradient_curr
+                
+            except Exception as e:
+                print(f"❌ Error at iteration {lan_thu + 1} in line search/update: {e}")
+                raise
             
             # Progress update
             if (lan_thu + 1) % 10 == 0 and should_check_converged:

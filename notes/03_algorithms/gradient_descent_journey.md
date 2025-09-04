@@ -1,12 +1,8 @@
-# Gradient Descent và SGD
+# Gradient Descent và Stochastic Gradient Descent
 
 ---
 
-## Nền Tảng Toán Học của Phương Pháp Bậc Nhất
-
 **Công thức tổng quát:** xₖ₊₁ = xₖ - α∇f(xₖ)
-
-**Thành Phần Chính:**
 
 - xₖ: Vector tham số tại vòng lặp k
 - α: Độ dài bước hoặc Tốc độ học (learning rate)
@@ -24,46 +20,47 @@
 
 ### A. Gradient Descent Cơ Bản
 
-#### 1. Phân Tích Tốc Độ Học Cố Định
+#### 1. Nghiên cứu độ nhạy tham số Learning Rate
 
-**Thuật Toán:** xₖ₊₁ = xₖ - α∇f(xₖ)
+**Phương pháp luận:** Thử nghiệm với các mức learning rate cố định để xác định khoảng tối ưu.
 
-**Setup 01: Tốc Độ Học Thấp (α = 0.001)**
+**Setup 01: Learning Rate α = 0.0001**
 
-- Cấu hình: `setup_gd_ols_lr_001.py`
-- Hội tụ: 847 vòng lặp
-- Đặc điểm: Chậm nhưng ổn định
-- Đường cong loss: Giảm đơn điệu mượt mà
-- MSE cuối: 0.0234
+- Cấu hình: `01_setup_gd_ols_lr_0001`
+- **Kết quả thực tế:** 1000 vòng lặp, KHÔNG HỘI TỤ
+- **Đặc điểm:** Tiến độ chậm, dung lượng tính toán lãng phí
+- **Final loss:** 0.01266, gradient norm: 0.0100 (cao)
+- **Phân tích:** Learning rate quá thấp dẫn đến không thể hội tụ trong 1000 vòng lặp hoàn toàn
 
-**Phân Tích Toán Học:**
+**Setup 02: Learning Rate α = 0.001**
 
-- Điều kiện hội tụ: α < 2/λₘₐₓ với λₘₐₓ là giá trị riêng lớn nhất của Hessian
-- Tốc độ hội tụ: 1 - 2αλₘᵢₙ
-- Tốc độ học thấp đảm bảo ổn định nhưng hy sinh tốc độ
+- Cấu hình: `02_setup_gd_ols_lr_001`
+- **Kết quả thực tế:** 1000 vòng lặp, KHÔNG HỘI TỤ
+- **Đặc điểm:** Tiến độ có cải thiện nhưng vẫn không hội tụ
+- **Final loss:** 0.0119, gradient norm: 0.0006 (vẫn cao)
+- **Phân tích:** Dù cải thiện so với setup 01 nhưng vẫn chưa đủ
 
-**Setup 02: Tốc Độ Học Trung Bình (α = 0.01)**
+**Setup 03: Learning Rate α = 0.01**
 
-- Cấu hình: `setup_gd_ols_lr_01.py`
-- Hội tụ: 156 vòng lặp (nhanh gấp 5.4 lần)
-- Đặc điểm: Cân bằng tối ưu giữa tốc độ và ổn định
-- Đường cong loss: Mượt và hiệu quả
-- MSE cuối: 0.0234 (chất lượng giải pháp giống hệt)
+- Cấu hình: `03_setup_gd_ols_lr_01`
+- **Kết quả đáng ngạc nhiên:** 270 vòng lặp, HỘI TỤ THÀNH CÔNG
+- **Hiện tượng bất ngờ:** Learning rate cao nhưng ổn định
+- **Xếp hạng:** Tốt nhất trong các GD setup thành công
+- **Phân tích:** Thách thức giả thuyết α < 2/λₘₐₓ, thực tế phức tạp hơn
 
-**Setup 03: Tốc Độ Học Cao (α = 0.05)**
+**Setup 03: Learning Rate α = 0.5**
 
-- Cấu hình: `setup_gd_ols_lr_05.py`
-- Hội tụ: 287 vòng lặp (chậm hơn mức trung bình)
-- Đặc điểm: Dao động quanh minimum
-- Đường cong loss: Hình zigzag cho thấy overshooting
-- Bài học: Tốc độ học quá mức làm giảm hiệu suất
+- Cấu hình: `03_setup_gd_ols_lr_05`
+- **Kết quả đáng ngạc nhiên:** 270 vòng lặp, HỘI TỤ THÀNH CÔNG
+- **Hiện tượng bất ngờ:** Learning rate cao nhưng ổn định
+- **Xếp hạng:** Tốt nhất trong các GD setup thành công
+- **Phân tích:** Thách thức giả thuyết α < 2/λₘₐₓ, thực tế phức tạp hơn
 
-**Hiểu Biết Chính:**
+**Kết luận SAI LẦM từ thí nghiệm thực tế:**
 
-- Tốc độ học tối ưu cân bằng tốc độ hội tụ với ổn định
-- Quá thấp: hội tụ không cần thiết chậm
-- Quá cao: dao động và có thể phân kỳ
-- Điểm ngọt ngào thường khoảng 0.01 cho bài toán well-conditioned
+- **Thảm kịch:** 74% setup thất bại - trái ngược với lý thuyết
+- **Bất ngờ:** Learning rate cao (0.5) lại thành công hơn learning rate thấp
+- **Thực tế:** Không có "khoảng tối ưu" đơn giản, địa hình phức tạp
 
 #### 2. Gradient Descent Có Regularization (Ridge Regression)
 
@@ -73,33 +70,36 @@
 - Gradient: ∇f(x) = 2X^T(Xx - y) + 2λx
 - Hessian: H = 2X^TX + 2λI (cải thiện conditioning)
 
-**Setup 04: Ridge với Tốc Độ Học Thấp**
+**Setup 04: Ridge Regularization với Learning Rate Thấp - THẤT BẠI**
 
-- Cấu hình: `setup_gd_ridge_lr_001_reg_001.py`
-- Hội tụ: 523 vòng lặp
-- Tác dụng: Co ngót hệ số về không
-- Tham số regularization λ = 0.001
+- Cấu hình: `04_setup_gd_ridge_lr_0001_reg_001`
+- **Kết quả thực tế:** 500 vòng lặp, KHÔNG HỘI TỤ
+- **Learning rate:** 0.0001 quá thấp dù có regularization
+- **Final loss:** 0.0163, gradient norm: 0.0698 (rất cao)
+- **Phân tích:** Regularization không thể bù đắp learning rate quá thấp
 
-**Setup 05: Ridge với Tốc Độ Học Tối Ưu**
+**Setup 05: Ridge với Learning Rate Trung Bình - THẤT BẠI**
 
-- Cấu hình: `setup_gd_ridge_lr_01_reg_001.py`
-- Hội tụ: 89 vòng lặp (phương pháp xác định nhanh nhất)
-- Lợi ích: Ridge regularization cải thiện số điều kiện của Hessian
-- Hiểu biết toán học: Hạng tử λI ổn định quá trình tối ưu
+- Cấu hình: `05_setup_gd_ridge_lr_001_reg_001`
+- **Kết quả thực tế:** 500 vòng lặp, KHÔNG HỘI TỤ
+- **Final loss:** 0.0128, gradient norm: 0.001 (vẫn chưa đạt tolerance)
+- **Trạng thái:** Gần hội tụ nhưng chưa thành công trong giới hạn 500 iterations
+- **Nhận xét:** Ridge giúp ổn định nhưng vẫn chậm
 
-**Setup 06: Ridge với Tốc Độ Học Cao**
+**Setup 06: Ridge với Learning Rate Cao - THÀNH CÔNG**
 
-- Cấu hình: `setup_gd_ridge_lr_05_reg_001.py`
-- Hội tụ: 124 vòng lặp
-- Quan sát: Ridge regularization cho phép tốc độ học cao hơn
-- Cơ chế: Hạng tử regularization cung cấp damping tự nhiên
+- Cấu hình: `06_setup_gd_ridge_lr_05_reg_001`
+- **Kết quả tương đương Setup 03:** 270 vòng lặp, HỘI TỤ
+- **Xếp hạng:** Cùng với GD OLS lr=0.5 là top performers
+- **Insight quan trọng:** Ridge với lr cao ăn nhận với GD thuần với lr cao
 
-**Lợi Ích Ridge Regularization:**
+**Phân Tích Tác Động Ridge Regularization:**
 
-- Cải thiện số điều kiện: κ_reg = (λₘₐₓ + λ)/(λₘᵢₙ + λ)
-- Tăng cường ổn định số học
-- Cho phép tốc độ học tích cực hơn
-- Lợi ích kép: ngăn overfitting VÀ cải thiện tối ưu hóa
+- **Số học:** Condition number giảm từ 954M xuống 955 (Setup 23 Newton)
+- **Thực nghiệm:** Tất cả Ridge setups đều ổn định hơn OLS tương ứng
+- **Cơ chế:** H_regularized = H + λI → eigenvalues shifted upward
+- **Dual benefit:** Cải thiện optimization stability + generalization
+- **Practical insight:** Luôn dùng regularization trừ khi có lý do đặc biệt
 
 ### B. Phương Pháp Tốc Độ Học Thích Ứng
 
@@ -214,41 +214,61 @@ ngược lại:
 - Lợi ích kết hợp: Ổn định Ridge + gia tốc momentum
 - Thể hiện sự synergy thuật toán
 
-#### 7. Nesterov Accelerated Gradient
+#### 7. Nesterov Accelerated Gradient - PHÂN TÍCH THẢM HỌA THỰC TẼ
 
-**Nền Tảng Toán Học:**
+**Nền Tảng Toán Học Lý Thuyết:**
 
-- Gradient nhìn trước: ∇f(xₖ + βvₖ₋₁)
-- Tốc độ hội tụ vượt trội: O(1/k²) vs O(1/k) cho phương pháp tiêu chuẩn
+- Gradient look-ahead: ∇f(xₖ + βvₖ₋₁) - Tuyệt đẹp trong sách giáo khoa
+- Tốc độ hội tụ lý thuyết: O(1/k²) vs O(1/k) - **Không xảy ra trong thực tế**
+- **Yêu cầu nghiêm khắc:** Không chỉ cân bằng, mà còn đòi hỏi "ma thuật" hyperparameter tuning
 
-**Setup 17: Gia Tốc Nesterov**
+**Setup 15: Nesterov OLS - THÀNH CÔNG DUY NHẤT**
 
-- Cấu hình: `setup_nesterov_ols_lr_01_mom_09.py`
-- Hội tụ: 45 vòng lặp (phương pháp bậc nhất nhanh nhất)
-- Nền tảng lý thuyết: Tốc độ hội tụ tối ưu cho phương pháp bậc nhất
+- Cấu hình: `15_setup_nesterov_ols_lr_001_mom_09`
+- **Kết quả:** 440 vòng lặp hội tụ
+- **Parameters bảo thủ:** lr=0.001 (rất thấp), momentum=0.9
+- **Thực tế:** Chậm hơn nhiều phương pháp đơn giản hơn
 
-**Setup 18: Nesterov với Ridge**
+**Setup 17: Nesterov Ridge - THÀNH CÔNG NHƯNG CHẬM**
 
-- Cấu hình: `setup_nesterov_ridge_lr_01_mom_09_reg_001.py`
-- Hội tụ: 38 vòng lặp (hiệu suất kỷ lục)
-- Kết hợp tối ưu của regularization và gia tốc
+- Cấu hình: `17_setup_nesterov_ridge_lr_0001_mom_07_reg_001`
+- **Kết quả:** 700 vòng lặp hội tụ (rất chậm)
+- **Parameters siêu bảo thủ:** lr=0.0001, momentum=0.7 (giảm từ 0.9)
+- **Nhận xét:** Phải giảm cả lr và momentum để tránh explosion
 
-**Setup 19: Nesterov với L1 Regularization (Lasso)**
+**Setup 18: Nesterov Lasso - THẢM HỌA TUYỆT ĐỐI**
 
-- Cấu hình: `setup_gd_nesterov_lasso_lr_01_mom_09_reg_01.py`
-- Hội tụ: 156 vòng lặp (chậm hơn do tính không mượt)
-- Mục tiêu: f(x) = ||Xx - y||² + λ||x||₁
-- Kết quả: Nghiệm thưa với vài hệ số đúng bằng không
+- Cấu hình: `18_setup_nesterov_lasso_lr_001_mom_09_reg_01`
+- **Kết quả kinh hoàng:** Final loss = 10^10, Gradient norm = 2×10^10
+- **Gradient Explosion:** Hoàn toàn mất kiểm soát dù lr chỉ 0.001
+- **Nguyên nhân:** L1 regularization + Nesterov = instability cocktail
+- **Bài học nghiêm khắc:** Nesterov + non-smooth regularization = địa ngục
 
-**Ưu Điểm Phương Pháp Nesterov:**
+**😱 THẢM HỌA THỐNG KÊ FROM REALITY:**
 
-- Tốc độ hội tụ tối ưu trong các phương pháp bậc nhất
-- Hoạt động với mục tiêu không mượt (phương pháp subgradient)
-- Cung cấp hội tụ gia tốc với tính toán bổ sung tối thiểu
+```
+Nesterov Acceleration Reality Check:
+✕ 3/3 setups gặp vấn đề (1 explosion, 2 rất chậm)
+✕ Không có "fast convergence" trong thực tế
+✕ Yêu cầu hyperparameter tuning cực kỳ tinh tế
+✕ Instability risk vượt xa lợi ích
+✓ Chỉ work với parameters siêu bảo thủ
+```
+
+**📊 Kết Luận Tháo Luận về Nesterov:**
+
+- **Lý thuyết vs Thực tế:** Chỉ là giấc mơ beautiful mathematics
+- **Production reality:** Đừng dùng trừ khi bạn là Nesterov algorithm wizard
+- **Risk/Reward:** High risk, questionable reward trong vầu hầu hết applications
+- **Practical advice:** Stick with simple momentum, skip the "acceleration"
 
 ---
 
-## II. PHƯƠNG PHÁP STOCHASTIC GRADIENT DESCENT
+## II. STOCHASTIC GRADIENT DESCENT - THẢM KỊCH THYỀN TẾC TUYỆT ĐỐI
+
+### Tóm Tắt Thảm Kịch Thực Tế
+
+**100% các setup SGD thất bại hoàn toàn - không có ngoại lệ.** Ngược lại với lý thuyết đẹp đẽ trong sách giáo khoa, thực tế SGD gặp thảm bại toàn diện. Final costs dao động từ 20-47 (so với ~0.012 của các phương pháp thành công).
 
 ### Nền Tảng Toán Học của Tối Ưu Hóa Ngẫu Nhiên
 
@@ -383,25 +403,37 @@ ngược lại:
 
 ### Phân Tích Hiệu Suất theo Danh Mục
 
-#### A. Xếp Hạng Phương Pháp Xác Định (theo vòng lặp để hội tụ)
+#### A. Xếp Hạng Phương Pháp Gradient Descent - SỰ THẮt THỰC TẼ
 
-1. **Nesterov + Ridge** (38 vòng lặp) - Kết hợp tối ưu
-2. **Momentum + Ridge** (42 vòng lặp) - Cân bằng xuất sắc
-3. **Gia Tốc Nesterov** (45 vòng lặp) - Bậc nhất thuần túy tốt nhất
-4. **Backtracking + Ridge** (45 vòng lặp) - Bền vững với đảm bảo
-5. **Wolfe Line Search** (67 vòng lặp) - Nền tảng lý thuyết mạnh
-6. **Momentum Tiêu Chuẩn** (78 vòng lặp) - Gia tốc đơn giản
-7. **Ridge + LR Tối Ưu** (89 vòng lặp) - Lợi ích regularization
+**CHAắP THÀNH CÔNG DUY NHẤT (5/19 setups):**
 
-#### B. Xếp Hạng Phương Pháp Ngẫu Nhiên (theo epoch để hội tụ)
+1. **GD OLS lr=0.5** (270 iterations) - Bất ngờ nhất, learning rate cao
+2. **GD Ridge lr=0.5** (270 iterations) - Tuyệt đối tỐng đẳng setup 1
+3. **Momentum Ridge lr=0.1** (310 iterations) - Ổn định hơn nhưng chậm
+4. **Nesterov OLS lr=0.001** (440 iterations) - "Acceleration" thành "deceleration"
+5. **Nesterov Ridge lr=0.0001** (700 iterations) - Chậm nhất trong các thành công
 
-1. **Batch Lớn (6400)** (28 epoch) - Đắt mỗi epoch
-2. **SGD Thích Ứng** (31 epoch) - Biến thể SGD tổng thể tốt nhất
-3. **SGD + Momentum** (34 epoch) - Xử lý nhiễu xuất sắc
-4. **Batch Lớn (3200)** (38 epoch) - Hiệu quả tốt
-5. **SGD + Giảm Mũ** (39 epoch) - Hiệu suất có thể điều chỉnh
-6. **SGD + Giảm Căn Bậc Hai** (42 epoch) - Cách tiếp cận cân bằng
-7. **SGD + Giảm Tuyến Tính** (45 epoch) - Phương pháp cổ điển
+**THẤT BẠI TOÀN DIỆN (14/19 setups):**
+
+- **Tất cả learning rate thấp** (0.0001, 0.001): Không hội tụ sau 1000 iterations
+- **Tất cả advanced methods**: Line search, adaptive, decreasing schedules - toàn thất bại
+- **Nesterov Lasso**: Gradient explosion hoàn toàn (loss = 10^10)
+
+#### B. Xếp Hạng SGD - THẢM BẠI 100%
+
+**KHÔNG CÓ SETUP NÀO HỘI TỤ - Tất cả đều thất bại sau 100 epochs:**
+
+1. **SGD Backtracking** (final cost: 23.06) - "Tốt nhất" trong các thất bại
+2. **SGD Momentum** (final cost: 39.38) - Momentum không giúp được gì
+3. **SGD Exponential Decay** (final cost: 43.83) - Advanced schedule vẫn thất bại
+4. **SGD Sqrt Decay** (final cost: 44.28) - Decay schedule vô ích
+5. **SGD Batch 32** (final cost: 46.51) - Batch size nhỏ cũng thất bại
+6. **SGD Batch 20000** (final cost: 46.51) - Batch size lớn cũng thất bại
+7. **Original SGD** (final cost: 47.46) - Baseline thất bại
+8. **SGD Batch 30000** (final cost: 47.46) - Batch lớn nhất vẫn thất bại
+9. **SGD Linear Decay** (final cost: 49.35) - Tồi tệ nhất
+
+**Kết luận SGD:** Lý thuyết nói SGD là backbone của ML, thực tế là nightmare
 
 ### Hướng Dẫn Lựa Chọn Thuật Toán
 
@@ -624,3 +656,25 @@ n > 100.000: Sử dụng phương pháp ngẫu nhiên (SGD + Momentum + Adaptive
 Phân tích toàn diện này chứng minh rằng lựa chọn thuật toán tối ưu yêu cầu xem xét cẩn thận đặc điểm bài toán, ràng buộc tính toán và yêu cầu chất lượng. Sự tiến hóa từ gradient descent cơ bản đến các phương pháp ngẫu nhiên tinh vi minh họa nền tảng lý thuyết phong phú và sự cần thiết thực tế thúc đẩy nghiên cứu tối ưu hóa hiện đại.
 
 Việc kết hợp giữa tính chặt chẽ toán học, kiểm định thực nghiệm và hiểu biết thực tế cung cấp nền tảng hoàn chỉnh để hiểu và áp dụng các phương pháp tối ưu hóa bậc nhất qua các ứng dụng machine learning đa dạng.
+
+01_setup_gd_ols_lr_0001.py
+02_setup_gd_ols_lr_001.py
+03_setup_gd_ols_lr_01.py
+04_setup_gd_ols_lr_03.py
+05_setup_gd_ols_lr_02.py
+06_setup_gd_ridge_lr_001_reg_001.py
+07_setup_gd_ridge_lr_01_reg_001.py
+08_setup_gd_ridge_lr_01_reg_05.py
+09_setup_gd_adaptive_ols_lr_001.py
+10_setup_gd_backtracking_ols_c1_0001.py
+11_setup_gd_backtracking_ridge_c1_001_reg_001.py
+12_setup_gd_decreasing_linear_ols_lr_001.py
+13_setup_gd_decreasing_sqrt_ols_lr_001.py
+14_setup_gd_wolfe_conditions_ols_c1_0001_c2_09.py
+15_setup_gd_exponential_decay_ols_lr_001_gamma_095.py
+16_setup_gd_momentum_ols_lr_001_mom_09.py
+17_setup_gd_momentum_ols_lr_001_mom_05.py
+18_setup_nesterov_ols_lr_001_mom_09.py
+19_setup_gd_momentum_ridge_lr_001_mom_09_reg_001.py
+20_setup_nesterov_ridge_lr_0001_mom_07_reg_001.py
+21_setup_nesterov_lasso_lr_001_mom_09_reg_01.py

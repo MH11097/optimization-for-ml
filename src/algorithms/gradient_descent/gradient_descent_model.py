@@ -38,7 +38,7 @@ class GradientDescentModel:
     
     def __init__(self, ham_loss='ols', learning_rate=0.1, so_lan_thu=500, diem_dung=1e-5, regularization=0.01, 
                  convergence_check_freq=10, step_size_method='constant', backtrack_c1=1e-4, backtrack_rho=0.8, 
-                 adaptive_beta1=0.9, adaptive_beta2=0.999, adaptive_eps=1e-8):
+                 adaptive_beta1=0.9, adaptive_beta2=0.999, adaptive_eps=1e-8, wolfe_c2=0.9, decay_gamma=0.95):
         self.ham_loss = ham_loss.lower()
         self.learning_rate = learning_rate
         self.so_lan_thu = so_lan_thu
@@ -53,6 +53,8 @@ class GradientDescentModel:
         self.adaptive_beta1 = adaptive_beta1  # Adam-like momentum parameter
         self.adaptive_beta2 = adaptive_beta2  # Adam-like second moment parameter
         self.adaptive_eps = adaptive_eps  # Adam-like epsilon
+        self.wolfe_c2 = wolfe_c2  # Wolfe curvature condition parameter
+        self.decay_gamma = decay_gamma  # Exponential decay factor
         
         # Adaptive step size variables
         if self.step_size_method == 'adaptive':
@@ -240,7 +242,7 @@ class GradientDescentModel:
 
                 # In thêm step size
                 current_step_size = self.step_sizes_history[-1] if self.step_sizes_history else 0
-                print(f"   Vòng {lan_thu + 1}: Loss = {loss_value:.6f}, Gradient = {gradient_norm:.6f}, Step size = {current_step_size:.6f}")
+                print(f"   Vòng {lan_thu + 1}: Loss = {loss_value:.6f}, Gradient = {gradient_norm:.6f}, Step size = {current_step_size}")
         
         self.training_time = time.time() - start_time
         

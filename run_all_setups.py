@@ -24,7 +24,7 @@ def find_all_setup_scripts(base_dir: str = "src/algorithms") -> List[Tuple[str, 
     base_path = Path(base_dir)
     
     if not base_path.exists():
-        print(f"❌ Directory {base_dir} not found!")
+        print(f"Directory {base_dir} not found!")
         return setup_scripts
     
     # Walk through all subdirectories
@@ -35,7 +35,11 @@ def find_all_setup_scripts(base_dir: str = "src/algorithms") -> List[Tuple[str, 
             # Look for setup scripts (files matching pattern)
             for script_file in algorithm_dir.glob("*setup*.py"):
                 if script_file.name != "__pycache__" and not script_file.name.startswith("_"):
-                    relative_path = str(script_file.relative_to(Path.cwd()))
+                    try:
+                        relative_path = str(script_file.relative_to(Path.cwd()))
+                    except ValueError:
+                        # Fallback to absolute path if relative path fails
+                        relative_path = str(script_file.absolute())
                     setup_scripts.append((algorithm_name, relative_path))
     
     # Sort by algorithm name and script name for consistent order
@@ -87,9 +91,13 @@ def run_setup_script(script_path: str) -> Dict[str, any]:
         result['execution_time'] = time.time() - start_time
         
     except Exception as e:
-        result['error'] = str(e)
+        result['error'] = str(e).encode('ascii', errors='replace').decode('ascii')
         result['execution_time'] = time.time() - start_time
-        print(f"❌ Error running {script_path}: {e}")
+        safe_error = str(e).encode('ascii', errors='replace').decode('ascii')
+        try:
+            print(f"Error running {script_path}: {safe_error}")
+        except UnicodeEncodeError:
+            print(f"Error running {script_path}: [Unicode encoding error]")
         # print(f"   Full traceback: {traceback.format_exc()}")
     
     return result
@@ -99,30 +107,30 @@ def print_progress_bar(current: int, total: int, script_name: str, width: int = 
     """Print a progress bar for the current execution."""
     percent = current / total
     filled = int(width * percent)
-    bar = '█' * filled + '-' * (width - filled)
-    print(f'\r🔄 [{bar}] {percent:.1%} - Running: {script_name[:40]}...', end='', flush=True)
+    bar = '#' * filled + '-' * (width - filled)
+    print(f'\r[{bar}] {percent:.1%} - Running: {script_name[:40]}...', end='', flush=True)
 
 
 def main():
     """Main function to run all setup scripts."""
-    print("🚀 AUTOMATED SETUP RUNNER")
+    print("AUTOMATED SETUP RUNNER")
     print("=" * 60)
     
     # Find all setup scripts
-    print("📁 Discovering setup scripts...")
+    print("Discovering setup scripts...")
     setup_scripts = find_all_setup_scripts()
     
     if not setup_scripts:
-        print("❌ No setup scripts found!")
+        print("No setup scripts found!")
         return
     
-    print(f"✅ Found {len(setup_scripts)} setup scripts:")
+    print(f"Found {len(setup_scripts)} setup scripts:")
     for i, (algorithm, script) in enumerate(setup_scripts[:5], 1):  # Show first 5
         print(f"   {i}. {algorithm}: {Path(script).name}")
     if len(setup_scripts) > 5:
         print(f"   ... and {len(setup_scripts) - 5} more")
     
-    print(f"\n🎯 Starting execution of {len(setup_scripts)} experiments...")
+    print(f"\nStarting execution of {len(setup_scripts)} experiments...")
     print("   (No popup windows will appear - all plots saved to files)")
     print("-" * 60)
     
@@ -142,36 +150,36 @@ def main():
         
         if result['success']:
             successful += 1
-            status = "✅"
+            status = "[OK]"
         else:
             failed += 1
-            status = "❌"
+            status = "[FAIL]"
         
         # Clear progress bar and show result
         print(f"\r{status} {script_display_name:<50} ({result['execution_time']:.1f}s)")
     
     # Final summary
     print("\n" + "=" * 60)
-    print("📊 EXECUTION SUMMARY")
+    print("EXECUTION SUMMARY")
     print("=" * 60)
     print(f"   Total Experiments: {len(setup_scripts)}")
-    print(f"   ✅ Successful: {successful}")
-    print(f"   ❌ Failed: {failed}")
-    print(f"   📈 Success Rate: {successful/len(setup_scripts)*100:.1f}%")
+    print(f"   Successful: {successful}")
+    print(f"   Failed: {failed}")
+    print(f"   Success Rate: {successful/len(setup_scripts)*100:.1f}%")
     
     if failed > 0:
-        print(f"\n❌ Failed experiments:")
+        print(f"\nFailed experiments:")
         for result in results:
             if not result['success']:
                 script_name = Path(result['script']).name
                 print(f"   - {script_name}: {result['error']}")
     
     total_time = sum(r['execution_time'] for r in results)
-    print(f"\n⏱️  Total execution time: {total_time:.1f} seconds")
-    print(f"📂 All results saved to: data/03_algorithms/")
-    print(f"🎯 All visualization plots saved automatically!")
+    print(f"\nTotal execution time: {total_time:.1f} seconds")
+    print(f"All results saved to: data/03_algorithms/")
+    print(f"All visualization plots saved automatically!")
     
-    print("\n✨ All experiments completed! Check the data directory for results.")
+    print("\nAll experiments completed! Check the data directory for results.")
 
 
 if __name__ == "__main__":

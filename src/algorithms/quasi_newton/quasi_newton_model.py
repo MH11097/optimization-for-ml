@@ -44,7 +44,8 @@ class QuasiNewtonModel:
     
     def __init__(self, ham_loss='ols', so_lan_thu=100, diem_dung=1e-6, 
                  regularization=0.01, armijo_c1=1e-4, wolfe_c2=0.9,
-                 backtrack_rho=0.8, max_line_search_iter=50, damping=1e-8, convergence_check_freq=10):
+                 backtrack_rho=0.8, max_line_search_iter=50, damping=1e-8, convergence_check_freq=10,
+                 method='bfgs', memory_size=10):
         self.ham_loss = ham_loss.lower()
         self.so_lan_thu = so_lan_thu
         self.diem_dung = diem_dung
@@ -55,6 +56,8 @@ class QuasiNewtonModel:
         self.backtrack_rho = backtrack_rho
         self.max_line_search_iter = max_line_search_iter
         self.damping = damping
+        self.method = method.lower()  # 'bfgs', 'lbfgs'
+        self.memory_size = memory_size  # For L-BFGS
         
         # Validate supported loss function
         if self.ham_loss not in ['ols', 'ridge', 'lasso']:
@@ -95,7 +98,7 @@ class QuasiNewtonModel:
             
             # Tính loss và gradient mới
             new_loss = self.loss_func(X, y, new_weights)
-            new_gradient = self.grad_func(X, y, new_weights)
+            new_gradient, _ = self.grad_func(X, y, new_weights)
             
             # Kiểm tra Armijo condition (sufficient decrease)
             armijo_condition = current_loss + self.armijo_c1 * alpha * directional_derivative
@@ -111,7 +114,7 @@ class QuasiNewtonModel:
         
         # Nếu line search fail, return step cuối và gradient mới
         new_weights = weights + alpha * direction
-        new_gradient = self.grad_func(X, y, new_weights)
+        new_gradient, _ = self.grad_func(X, y, new_weights)
         return alpha, self.max_line_search_iter, new_gradient
     
     def _cap_nhat_bfgs(self, H_inv, s, y):

@@ -41,7 +41,7 @@ class SGDModel:
     
     def __init__(self, learning_rate=0.01, so_epochs=100, random_state=42, 
                  batch_size=1, ham_loss='ols', tolerance=1e-6, regularization=0.01, convergence_check_freq=10,
-                 learning_rate_schedule='constant'):
+                 learning_rate_schedule='constant', momentum=0.0, decay_gamma=0.95, use_adaptive_lr=False):
         self.learning_rate = learning_rate  # Base learning rate
         self.learning_rate_schedule = learning_rate_schedule  # 'constant', 'linear_decay', 'sqrt_decay'
         self.so_epochs = so_epochs
@@ -51,6 +51,9 @@ class SGDModel:
         self.tolerance = tolerance
         self.regularization = regularization
         self.convergence_check_freq = convergence_check_freq  # Mỗi N epochs
+        self.momentum = momentum  # Momentum parameter
+        self.decay_gamma = decay_gamma  # Decay factor for exponential decay
+        self.use_adaptive_lr = use_adaptive_lr  # Whether to use adaptive learning rate
         
         # Sử dụng unified functions với format mới (bias trong X)
         self.loss_func = lambda X, y, w: tinh_gia_tri_ham_loss(self.ham_loss, X, y, w, None, self.regularization)
@@ -66,6 +69,7 @@ class SGDModel:
         self.converged = False
         self.final_cost = None
         self.final_epoch = 0
+        self.total_iterations = 0  # Track total number of iterations
     
     def _get_learning_rate(self, epoch):
         """

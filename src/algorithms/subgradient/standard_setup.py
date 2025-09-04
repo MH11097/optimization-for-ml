@@ -42,7 +42,7 @@ import os
 # Add the src directory to path để import utils
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from utils.optimization_utils import tinh_mse, compute_r2_score, predict
+from utils.optimization_utils import tinh_mse, tinh_r2_score, predict
 from utils.visualization_utils import ve_duong_hoi_tu, ve_so_sanh_thuc_te_du_doan
 
 def setup_output_dir():
@@ -413,7 +413,7 @@ def main():
     output_dir = setup_output_dir()
     
     # Load data
-    X_train, X_test, y_train, y_test = load_processed_data()
+    X_train, X_test, y_train, y_test = load_sampled_data()
     
     # Train model
     weights, cost_history, smooth_cost_history, l1_penalty_history, subgradient_norms, training_time, best_cost = subgradient_method_fit(X_train, y_train)

@@ -721,21 +721,21 @@ def ve_duong_dong_muc_optimization(loss_function, weights_history, X, y,
     
     for i, idx in enumerate(annotation_indices):
         # Calculate actual iteration number correctly
-        if original_iterations is not None:
+        if original_iterations is not None and not np.isinf(original_iterations):
             # Map weight history index to actual iteration
             # weights_history is sampled at convergence check frequency
             # so each index corresponds to idx * convergence_check_freq iterations
             # But we need to handle the final iteration specially
             if idx == len(w1_path) - 1:  # Final point
-                actual_iter = original_iterations
+                actual_iter = int(original_iterations)
             else:
                 # Use the passed convergence_check_freq to map correctly
-                actual_iter = idx * convergence_check_freq
+                actual_iter = int(idx * convergence_check_freq)
                 # Don't exceed original_iterations
-                actual_iter = min(actual_iter, original_iterations)
+                actual_iter = min(actual_iter, int(original_iterations))
         else:
             # Fallback to using weights_history index directly
-            actual_iter = idx
+            actual_iter = int(idx)
             
         ax.annotate(f'Iter {actual_iter}', 
                    (w1_path[idx], w2_path[idx]),

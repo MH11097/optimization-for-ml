@@ -26,7 +26,6 @@ def get_experiment_name():
 
 def main():
     """Chạy Fast OLS Gradient Descent với tham số như ols_01.py"""
-    print("GRADIENT DESCENT - FAST OLS SETUP (lr=0.1)")
     
     # Load data
     X_train, X_test, y_train, y_test = load_du_lieu()

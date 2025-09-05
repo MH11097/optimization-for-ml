@@ -24,7 +24,6 @@ def main():
     model = GradientDescentModel(
         ham_loss='ols',
         learning_rate=0.01,  # Base learning rate cho Adam-like adaptive
-        so_lan_thu=10000,
         diem_dung=1e-5,
         step_size_method='adaptive',
         adaptive_beta1=0.9,    # First moment decay

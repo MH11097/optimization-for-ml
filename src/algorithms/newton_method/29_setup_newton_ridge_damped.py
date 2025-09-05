@@ -38,7 +38,6 @@ def main():
     model = DampedNewtonModel(
         ham_loss='ridge',
         regularization=0.01,      # Ridge regularization
-        so_lan_thu=10000,
         diem_dung=1e-8,
         numerical_regularization=1e-8,  # Cho numerical stability
         armijo_c1=1e-4,

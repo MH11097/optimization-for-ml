@@ -37,7 +37,6 @@ def main():
     # Khởi tạo model với L-BFGS memory=10
     model = QuasiNewtonModel(
         ham_loss='ols',
-        so_lan_thu=10000,
         diem_dung=1e-6,
         method='lbfgs',      # L-BFGS method
         memory_size=10,      # Store 10 recent (s,y) pairs

@@ -24,7 +24,6 @@ def main():
     model = GradientDescentModel(
         ham_loss='ols',
         learning_rate=0.1,  # Initial learning rate
-        so_lan_thu=10000,
         diem_dung=1e-5,
         step_size_method='decreasing_exponential',
         decay_gamma=0.95  # Exponential decay factor: lr_k = lr_0 * gamma^k

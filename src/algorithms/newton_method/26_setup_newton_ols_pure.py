@@ -28,7 +28,6 @@ def main():
     model = NewtonModel(
         ham_loss='ols',
         regularization=0.0,  # Không regularization cho OLS
-        so_lan_thu=50,
         diem_dung=1e-10,
         numerical_regularization=1e-8  # Chỉ cho numerical stability
     )

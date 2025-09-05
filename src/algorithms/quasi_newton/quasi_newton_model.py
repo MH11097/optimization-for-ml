@@ -16,7 +16,7 @@ import json
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from utils.optimization_utils import (
-    du_doan, danh_gia_mo_hinh, in_ket_qua_danh_gia, kiem_tra_hoi_tu,
+    du_doan, danh_gia_mo_hinh, in_ket_qua_danh_gia, kiem_tra_dieu_kien_dung,
     tinh_gia_tri_ham_loss, tinh_gradient_ham_loss, tinh_hessian_ham_loss,
     add_bias_column
 )
@@ -42,7 +42,7 @@ class QuasiNewtonModel:
     - convergence_check_freq: Tần suất kiểm tra hội tụ (mỗi N iterations)
     """
     
-    def __init__(self, ham_loss='ols', so_lan_thu=10000, diem_dung=1e-6, 
+    def __init__(self, ham_loss='ols', so_lan_thu=100000, diem_dung=1e-6, 
                  regularization=0.01, armijo_c1=1e-4, wolfe_c2=0.9,
                  backtrack_rho=0.8, max_line_search_iter=50, damping=1e-8, convergence_check_freq=10,
                  method='bfgs', memory_size=10):
@@ -79,6 +79,26 @@ class QuasiNewtonModel:
         self.training_time = 0
         self.converged = False
         self.final_iteration = 0
+
+    def _get_best_results(self):
+        """
+        Lấy kết quả tốt nhất dựa trên gradient norm thấp nhất
+        
+        Returns:
+            dict: Chứa best_weights, best_loss, best_gradient_norm, best_iteration
+        """
+        if not self.gradient_norms:
+            raise ValueError("Không có lịch sử gradient norms để tìm kết quả tốt nhất")
+        
+        # Tìm index có gradient norm thấp nhất
+        best_idx = np.argmin(self.gradient_norms)
+        
+        return {
+            'best_weights': self.weights_history[best_idx],
+            'best_loss': self.loss_history[best_idx],
+            'best_gradient_norm': self.gradient_norms[best_idx],
+            'best_iteration': best_idx * self.convergence_check_freq
+        }
     
     def _wolfe_line_search(self, X, y, weights, direction, gradient):
         """
@@ -274,7 +294,7 @@ class QuasiNewtonModel:
                     self.weights_history.append(self.weights.copy())
                     
                     cost_change = 0.0 if len(self.loss_history) == 0 else (self.loss_history[-1] - loss_value) if len(self.loss_history) == 1 else (self.loss_history[-2] - self.loss_history[-1])
-                    converged, reason = kiem_tra_hoi_tu(
+                    should_stop, converged, reason = kiem_tra_dieu_kien_dung(
                         gradient_norm=gradient_norm,
                         cost_change=cost_change,
                         iteration=lan_thu,
@@ -284,9 +304,12 @@ class QuasiNewtonModel:
                         weights=self.weights
                     )
                     
-                    if converged:
-                        print(f"✅ BFGS Quasi-Newton stopped: {reason}")
-                        self.converged = True
+                    if should_stop:
+                        if converged:
+                            print(f"✅ BFGS Quasi-Newton converged: {reason}")
+                        else:
+                            print(f"⚠️ BFGS Quasi-Newton stopped (not converged): {reason}")
+                        self.converged = converged
                         self.final_iteration = lan_thu + 1
                         break
                         
@@ -358,9 +381,21 @@ class QuasiNewtonModel:
             print(f"Average step size: {np.mean(self.step_sizes):.6f}")
             print(f"Average line search iterations: {np.mean(self.line_search_iterations):.1f}")
         
+        # Lấy kết quả tốt nhất thay vì kết quả cuối cùng
+        best_results = self._get_best_results()
+        best_weights = best_results['best_weights']
+        best_loss = best_results['best_loss']
+        best_gradient_norm = best_results['best_gradient_norm']
+        best_iteration = best_results['best_iteration']
+        
+        print(f"🏆 Best results (gradient norm thấp nhất):")
+        print(f"   Best iteration: {best_iteration}")
+        print(f"   Best loss: {best_loss:.8f}")
+        print(f"   Best gradient norm: {best_gradient_norm:.2e}")
+        
         return {
-            'weights': self.weights,  # Bao gồm bias ở cuối
-            'bias': self.weights[-1],  # Bias riêng để tương thích
+            'weights': best_weights,  # Trả về best weights thay vì final
+            'bias': best_weights[-1],  # Bias riêng để tương thích
             'H_inv': self.H_inv,
             'loss_history': self.loss_history,
             'gradient_norms': self.gradient_norms,
@@ -370,7 +405,12 @@ class QuasiNewtonModel:
             'condition_numbers': self.condition_numbers,
             'training_time': self.training_time,
             'converged': self.converged,
-            'final_iteration': self.final_iteration
+            'final_iteration': self.final_iteration,
+            'best_iteration': best_iteration,
+            'best_loss': best_loss,
+            'best_gradient_norm': best_gradient_norm,
+            'final_loss': self.loss_history[-1],  # Để so sánh
+            'final_gradient_norm': self.gradient_norms[-1]  # Để so sánh
         }
     
     def predict(self, X):

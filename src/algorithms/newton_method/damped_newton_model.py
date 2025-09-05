@@ -16,7 +16,7 @@ import json
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from utils.optimization_utils import (
-    du_doan, danh_gia_mo_hinh, in_ket_qua_danh_gia, kiem_tra_hoi_tu,
+    du_doan, danh_gia_mo_hinh, in_ket_qua_danh_gia, kiem_tra_dieu_kien_dung,
     tinh_gia_tri_ham_loss, tinh_gradient_ham_loss, tinh_hessian_ham_loss,
     add_bias_column, giai_he_phuong_trinh_tuyen_tinh
 )
@@ -41,7 +41,7 @@ class DampedNewtonModel:
     - convergence_check_freq: Tần suất kiểm tra hội tụ (mỗi N iterations)
     """
     
-    def __init__(self, ham_loss='ols', regularization=0.01, so_lan_thu=50, 
+    def __init__(self, ham_loss='ols', regularization=0.01, so_lan_thu=100000, 
                  diem_dung=1e-10, numerical_regularization=1e-8, 
                  armijo_c1=1e-4, backtrack_rho=0.8, max_line_search_iter=50,
                  convergence_check_freq=1):
@@ -173,7 +173,7 @@ class DampedNewtonModel:
                 self.weights_history.append(self.weights.copy())
                 
                 cost_change = 0.0 if len(self.loss_history) == 0 else (self.loss_history[-1] - loss_value) if len(self.loss_history) == 1 else (self.loss_history[-2] - self.loss_history[-1])
-                converged, reason = kiem_tra_hoi_tu(
+                should_stop, converged, reason = kiem_tra_dieu_kien_dung(
                     gradient_norm=gradient_norm,
                     cost_change=cost_change, 
                     iteration=lan_thu,
@@ -181,9 +181,12 @@ class DampedNewtonModel:
                     max_iterations=self.so_lan_thu
                 )
                 
-                if converged:
-                    print(f"✅ Damped Newton Method stopped: {reason}")
-                    self.converged = True
+                if should_stop:
+                    if converged:
+                        print(f"✅ Damped Newton Method converged: {reason}")
+                    else:
+                        print(f"⚠️ Damped Newton Method stopped (not converged): {reason}")
+                    self.converged = converged
                     self.final_iteration = lan_thu + 1
                     break
             

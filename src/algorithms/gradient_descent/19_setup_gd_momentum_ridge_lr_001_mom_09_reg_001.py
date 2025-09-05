@@ -24,7 +24,6 @@ def main():
     model = MomentumGDModel(
         ham_loss='ridge',
         learning_rate=0.1,  # Learning rate
-        so_lan_thu=10000,
         diem_dung=1e-5,
         momentum=0.9,       # High momentum
         regularization=0.01  # Ridge regularization parameter

@@ -775,21 +775,29 @@ def ve_duong_dong_muc_optimization(loss_function, weights_history, X, y,
 
 def tao_bang_so_sanh_markdown(results_data: List[Dict[str, Any]], save_path: str):
     """
-    Tạo bảng so sánh các algorithms dưới dạng Markdown với format đẹp
+    Tạo bảng so sánh các algorithms dưới dạng Markdown với format đẹp, bao gồm complexity metrics
     
     Tham số:
         results_data: danh sách dictionary chứa thông tin các algorithms
         save_path: đường dẫn lưu file .md
     """
-    print(f"Tạo bảng so sánh markdown: {save_path}")
+    print(f"Tạo bảng so sánh markdown với complexity analysis: {save_path}")
     
     # Tạo DataFrame từ results_data
     df = pd.DataFrame(results_data)
+    
+    # Check if complexity data is available
+    has_complexity = any(result.get('has_complexity_data', False) for result in results_data)
     
     # Chọn các cột chính để hiển thị
     essential_cols = ['algorithm_name', 'loss_function', 'training_time', 'converged', 'iterations', 'final_loss']
     if 'learning_rate' in df.columns:
         essential_cols.insert(2, 'learning_rate')
+    
+    # Add complexity columns if available
+    if has_complexity:
+        complexity_cols = ['total_operations', 'operations_per_iter', 'convergence_efficiency']
+        essential_cols.extend([col for col in complexity_cols if col in df.columns])
     
     # Filter columns that exist
     display_cols = [col for col in essential_cols if col in df.columns]
@@ -802,15 +810,25 @@ def tao_bang_so_sanh_markdown(results_data: List[Dict[str, Any]], save_path: str
         display_df['final_loss'] = display_df['final_loss'].round(6)
     if 'learning_rate' in display_df.columns:
         display_df['learning_rate'] = display_df['learning_rate'].apply(lambda x: f"{x:.4f}" if pd.notna(x) else "N/A")
+    if 'total_operations' in display_df.columns:
+        display_df['total_operations'] = display_df['total_operations'].apply(lambda x: f"{x:,}" if pd.notna(x) else "0")
+    if 'operations_per_iter' in display_df.columns:
+        display_df['operations_per_iter'] = display_df['operations_per_iter'].round(1)
+    if 'convergence_efficiency' in display_df.columns:
+        display_df['convergence_efficiency'] = display_df['convergence_efficiency'].round(3)
     
-    # Sắp xếp theo performance (converged first, then by time)
+    # Sắp xếp theo performance (converged first, then by efficiency or time)
     sort_cols = ['converged']
-    if 'training_time' in display_df.columns:
+    if has_complexity and 'convergence_efficiency' in display_df.columns:
+        sort_cols.extend(['convergence_efficiency', 'total_operations'])
+    elif 'training_time' in display_df.columns:
         sort_cols.append('training_time')
-    display_df = display_df.sort_values(sort_cols, ascending=[False, True])
+    display_df = display_df.sort_values(sort_cols, ascending=[False, False, True] if has_complexity else [False, True])
     
     # Tạo markdown content
     markdown_content = f"# Algorithm Comparison Report\n\n"
+    if has_complexity:
+        markdown_content += "📊 **With Computational Complexity Analysis**\n\n"
     markdown_content += f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
     markdown_content += f"**Total Algorithms:** {len(results_data)}\n\n"
     
@@ -822,6 +840,13 @@ def tao_bang_so_sanh_markdown(results_data: List[Dict[str, Any]], save_path: str
     markdown_content += "## Summary Statistics\n\n"
     markdown_content += f"- **Converged Algorithms:** {converged_count}/{len(df)} ({convergence_rate:.1f}%)\n"
     markdown_content += f"- **Average Training Time:** {avg_time:.4f} seconds\n"
+    
+    if has_complexity:
+        avg_ops = df['total_operations'].mean()
+        avg_ops_per_iter = df['operations_per_iter'].mean()
+        markdown_content += f"- **Average Total Operations:** {avg_ops:,.0f}\n"
+        markdown_content += f"- **Average Operations per Iteration:** {avg_ops_per_iter:.1f}\n"
+    
     if 'final_loss' in df.columns:
         best_loss = df[df['final_loss'] != float('inf')]['final_loss'].min()
         markdown_content += f"- **Best Final Loss:** {best_loss:.6f}\n"
@@ -847,6 +872,12 @@ def tao_bang_so_sanh_markdown(results_data: List[Dict[str, Any]], save_path: str
             headers.append('Final Loss')
         elif col == 'learning_rate':
             headers.append('Learning Rate')
+        elif col == 'total_operations':
+            headers.append('Total Ops')
+        elif col == 'operations_per_iter':
+            headers.append('Ops/Iter')
+        elif col == 'convergence_efficiency':
+            headers.append('Conv. Eff.')
         else:
             headers.append(col.replace('_', ' ').title())
     
@@ -880,6 +911,13 @@ def tao_bang_so_sanh_markdown(results_data: List[Dict[str, Any]], save_path: str
         fastest = df.loc[df['training_time'].idxmin()]
         markdown_content += f"- **⚡ Fastest:** {fastest['algorithm_name']} ({fastest['training_time']:.4f}s)\n"
     
+    # Most efficient (lowest operations to convergence)
+    if has_complexity and 'operations_to_convergence' in df.columns:
+        converged_with_ops = df[(df['converged'] == True) & (df['operations_to_convergence'] > 0)]
+        if not converged_with_ops.empty:
+            most_efficient = converged_with_ops.loc[converged_with_ops['operations_to_convergence'].idxmin()]
+            markdown_content += f"- **🎯 Most Efficient:** {most_efficient['algorithm_name']} ({most_efficient['operations_to_convergence']:,} ops to convergence)\n"
+    
     # Most accurate (lowest loss)
     if 'final_loss' in df.columns:
         valid_loss_df = df[df['final_loss'] != float('inf')]
@@ -893,14 +931,37 @@ def tao_bang_so_sanh_markdown(results_data: List[Dict[str, Any]], save_path: str
         most_reliable = converged_df.loc[converged_df['training_time'].idxmin()]
         markdown_content += f"- **🔒 Most Reliable:** {most_reliable['algorithm_name']} (Converged in {most_reliable['training_time']:.4f}s)\n"
     
+    # Add complexity-specific analysis if available
+    if has_complexity:
+        markdown_content += "\n## 📊 Computational Complexity Insights\n\n"
+        
+        # Highest computational intensity
+        if 'operations_per_iter' in df.columns:
+            highest_intensity = df.loc[df['operations_per_iter'].idxmax()]
+            markdown_content += f"- **⚙️ Highest Computational Intensity:** {highest_intensity['algorithm_name']} ({highest_intensity['operations_per_iter']:.1f} ops/iter)\n"
+        
+        # Most memory efficient
+        if 'memory_efficiency' in df.columns:
+            memory_efficient = df.loc[df['memory_efficiency'].idxmin()]  # Lower is better for memory efficiency
+            markdown_content += f"- **💾 Most Memory Efficient:** {memory_efficient['algorithm_name']}\n"
+        
+        # Best scaling
+        if 'ops_per_problem_unit' in df.columns:
+            best_scaling = df.loc[df['ops_per_problem_unit'].idxmin()]  # Lower is better
+            markdown_content += f"- **📈 Best Scaling:** {best_scaling['algorithm_name']} ({best_scaling['ops_per_problem_unit']:.2f} ops/problem unit)\n"
+    
     markdown_content += "\n---\n"
     markdown_content += f"*Report generated by Algorithm Comparator on {datetime.now().strftime('%Y-%m-%d at %H:%M:%S')}*\n"
+    if has_complexity:
+        markdown_content += "*🔬 Complexity metrics provide hardware-independent performance evaluation*\n"
     
     # Lưu file
     with open(save_path, 'w', encoding='utf-8') as f:
         f.write(markdown_content)
     
-    print(f"   Bảng so sánh markdown đã lưu: {save_path}")
+    print(f"   ✅ Bảng so sánh markdown đã lưu: {save_path}")
+    if has_complexity:
+        print(f"   📊 Bao gồm {sum(1 for r in results_data if r.get('has_complexity_data', False))} algorithms với complexity metrics")
 
 
 def ve_duong_hoi_tu_so_sanh(convergence_data: Dict[str, Dict], save_path: str,

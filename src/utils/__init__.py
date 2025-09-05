@@ -33,7 +33,7 @@ from .optimization_utils import (
     tinh_loss_lasso_smooth,
     
     # Hội tụ và line search
-    kiem_tra_hoi_tu,
+    kiem_tra_dieu_kien_dung,
     backtracking_line_search,
     
     # Debug utilities
@@ -105,7 +105,7 @@ __all__ = [
     'tinh_loss_ols',
     'tinh_loss_ridge',
     'tinh_loss_lasso_smooth',
-    'kiem_tra_hoi_tu',
+    'kiem_tra_dieu_kien_dung',
     'backtracking_line_search',
     'in_thong_tin_ma_tran',
     'in_thong_tin_gradient',

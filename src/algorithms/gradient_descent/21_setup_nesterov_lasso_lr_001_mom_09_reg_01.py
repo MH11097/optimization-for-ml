@@ -24,7 +24,6 @@ def main():
     model = NesterovGDModel(
         ham_loss='lasso',    # L1 regularization
         learning_rate=0.1,   # Learning rate
-        so_lan_thu=10000,
         diem_dung=1e-5,
         momentum=0.9,        # High momentum for acceleration
         regularization=0.1   # L1 regularization parameter

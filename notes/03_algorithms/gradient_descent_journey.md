@@ -1,313 +1,313 @@
-# A Comprehensive Experimental Analysis of Gradient Descent Optimization Methods: Performance Evaluation and Algorithmic Comparison
+# Phân Tích Thực Nghiệm Toàn Diện về Các Phương Pháp Tối Ưu Gradient Descent: Đánh Giá Hiệu Suất và So Sánh Thuật Toán
 
-## Abstract
+## Tóm Tắt
 
-This study presents a rigorous empirical evaluation of gradient descent optimization algorithms and their stochastic variants applied to large-scale regression problems. We systematically investigate 22 distinct optimization configurations across batch and stochastic gradient descent methods, analyzing their convergence properties, computational efficiency, and practical applicability. Our experimental framework encompasses traditional gradient descent with various learning rate strategies, regularization techniques (Ridge, Lasso), advanced momentum-based methods (Nesterov acceleration), adaptive learning rate schedules, and line search procedures. The evaluation is conducted on a substantial automotive pricing dataset containing 2.79 million samples with 45 engineered features.
+Nghiên cứu này trình bày một đánh giá thực nghiệm nghiêm ngặt về các thuật toán tối ưu gradient descent và các biến thể ngẫu nhiên của chúng được áp dụng cho các bài toán hồi quy quy mô lớn. Chúng tôi điều tra một cách có hệ thống 22 cấu hình tối ưu khác biệt trên các phương pháp gradient descent batch và stochastic, phân tích tính chất hội tụ, hiệu quả tính toán và khả năng áp dụng thực tế của chúng. Khung thực nghiệm của chúng tôi bao gồm gradient descent truyền thống với các chiến lược learning rate khác nhau, kỹ thuật chính quy hóa (Ridge, Lasso), phương pháp momentum tiên tiến (Nesterov acceleration), lịch trình learning rate thích ứng và quy trình line search. Đánh giá được thực hiện trên một bộ dữ liệu giá xe ô tô đáng kể chứa 2.79 triệu mẫu với 45 đặc trưng được thiết kế.
 
-**Key Findings:** Our results reveal significant disparities between theoretical convergence guarantees and practical performance. Only 9.1% of tested configurations (2 out of 22) achieved convergence within the specified tolerance criteria. Notably, all stochastic gradient descent variants failed to converge, contradicting conventional wisdom regarding SGD's universal applicability. Heavy regularization emerged as the critical factor enabling convergence, with Ridge regularization (λ ≥ 0.01) being necessary for algorithmic success.
+**Những Phát Hiện Chính:** Kết quả của chúng tôi tiết lộ sự khác biệt đáng kể giữa các đảm bảo hội tụ lý thuyết và hiệu suất thực tế. Chỉ có 9.1% số cấu hình được thử nghiệm (2 trong số 22) đạt được hội tụ trong các tiêu chí dung sai được chỉ định. Đáng chú ý, tất cả các biến thể stochastic gradient descent đều không hội tụ, mâu thuẫn với quan điểm thông thường về khả năng áp dụng phổ quát của SGD. Chính quy hóa mạnh xuất hiện như yếu tố quan trọng cho phép hội tụ, với chính quy hóa Ridge (λ ≥ 0.01) là cần thiết cho sự thành công của thuật toán.
 
-**Research Contributions:** This work provides empirical evidence challenging standard optimization practices in machine learning, demonstrates the critical importance of problem conditioning in algorithm selection, and establishes a data-driven framework for optimization method evaluation in real-world scenarios.
+**Đóng Góp Nghiên Cứu:** Công trình này cung cấp bằng chứng thực nghiệm thách thức các thực hành tối ưu tiêu chuẩn trong machine learning, chứng minh tầm quan trọng then chốt của điều kiện bài toán trong việc lựa chọn thuật toán, và thiết lập một khung đánh giá phương pháp tối ưu dựa trên dữ liệu trong các tình huống thực tế.
 
-## 1. Introduction and Research Objectives
+## 1. Giới Thiệu và Mục Tiêu Nghiên Cứu
 
-Gradient-based optimization methods form the computational foundation of modern machine learning and statistical inference. The selection of appropriate optimization algorithms significantly impacts model training efficiency, convergence reliability, and final solution quality. While extensive theoretical literature exists on convergence properties and complexity bounds, there remains a substantial gap between theoretical guarantees and practical performance in real-world applications.
+Các phương pháp tối ưu dựa trên gradient tạo nên nền tảng tính toán của machine learning hiện đại và suy luận thống kê. Việc lựa chọn các thuật toán tối ưu phù hợp ảnh hưởng đáng kể đến hiệu quả huấn luyện mô hình, độ tin cậy hội tụ và chất lượng nghiệm cuối cùng. Mặc dù tồn tại văn hiến lý thuyết phong phú về tính chất hội tụ và giới hạn độ phức tạp, vẫn còn một khoảng cách đáng kể giữa các đảm bảo lý thuyết và hiệu suất thực tế trong các ứng dụng thực tế.
 
-This research addresses three fundamental questions:
+Nghiên cứu này giải quyết ba câu hỏi cơ bản:
 
-1. **Algorithmic Robustness**: How do different gradient descent variants perform when applied to challenging, real-world optimization landscapes?
+1. **Tính Bền Vững Thuật Toán**: Các biến thể gradient descent khác nhau hoạt động như thế nào khi được áp dụng cho các cảnh quan tối ưu đầy thách thức, thực tế?
 
-2. **Theory-Practice Gap**: To what extent do theoretical convergence guarantees translate to practical algorithmic success?
+2. **Khoảng Cách Lý Thuyết-Thực Tiễn**: Các đảm bảo hội tụ lý thuyết chuyển đổi thành công thuật toán thực tế đến mức độ nào?
 
-3. **Optimization Strategy Selection**: What empirical criteria should guide the selection of optimization methods for large-scale regression problems?
+3. **Lựa Chọn Chiến Lược Tối Ưu**: Những tiêu chí thực nghiệm nào nên hướng dẫn việc lựa chọn các phương pháp tối ưu cho các bài toán hồi quy quy mô lớn?
 
-Our investigation systematically evaluates 22 optimization configurations, ranging from classical gradient descent with fixed learning rates to sophisticated adaptive methods with momentum and regularization. The experimental design emphasizes reproducibility, statistical rigor, and practical relevance.
+Điều tra của chúng tôi đánh giá một cách có hệ thống 22 cấu hình tối ưu, từ gradient descent cổ điển với learning rate cố định đến các phương pháp thích ứng phức tạp với momentum và chính quy hóa. Thiết kế thực nghiệm nhấn mạnh tính tái tạo, độ nghiêm ngặt thống kê và ý nghĩa thực tế.
 
-## 2. Mathematical Foundations and Theoretical Framework
+## 2. Nền Tảng Toán Học và Khung Lý Thuyết
 
-### 2.1 Optimization Problem Formulation
+### 2.1 Công Thức Bài Toán Tối Ưu
 
-We consider the general unconstrained optimization problem:
+Chúng tôi xem xét bài toán tối ưu không ràng buộc tổng quát:
 
 ```
 min f(x) = 1/2 ||Xw - y||² + R(w)
 w ∈ ℝᵈ
 ```
 
-where:
-- `X ∈ ℝⁿˣᵈ` represents the feature matrix with n samples and d features
-- `y ∈ ℝⁿ` denotes the target vector
-- `w ∈ ℝᵈ` are the model parameters to optimize
-- `R(w)` represents the regularization term
+trong đó:
+- `X ∈ ℝⁿˣᵈ` biểu diễn ma trận đặc trưng với n mẫu và d đặc trưng
+- `y ∈ ℝⁿ` ký hiệu vector mục tiêu
+- `w ∈ ℝᵈ` là các tham số mô hình cần tối ưu
+- `R(w)` biểu diễn số hạng chính quy hóa
 
-### 2.2 Gradient Descent Algorithm Family
+### 2.2 Họ Thuật Toán Gradient Descent
 
-The fundamental gradient descent update rule follows:
+Quy tắc cập nhật gradient descent cơ bản tuân theo:
 
 ```
 wₖ₊₁ = wₖ - αₖ∇f(wₖ)
 ```
 
-where:
-- `wₖ` denotes the parameter vector at iteration k
-- `αₖ > 0` is the learning rate (step size) at iteration k
-- `∇f(wₖ)` represents the gradient of the objective function at wₖ
+trong đó:
+- `wₖ` ký hiệu vector tham số tại lần lặp k
+- `αₖ > 0` là learning rate (kích thước bước) tại lần lặp k
+- `∇f(wₖ)` biểu diễn gradient của hàm mục tiêu tại wₖ
 
-### 2.3 Convergence Theory
+### 2.3 Lý Thuyết Hội Tụ
 
-**Theorem 2.1 (Linear Convergence)**: For strongly convex functions with Lipschitz continuous gradients, gradient descent with appropriate step size achieves linear convergence:
+**Định Lý 2.1 (Hội Tụ Tuyến Tính)**: Đối với các hàm lồi mạnh với gradient Lipschitz liên tục, gradient descent với kích thước bước phù hợp đạt được hội tụ tuyến tính:
 
 ```
 ||wₖ - w*||² ≤ ρᵏ||w₀ - w*||²
 ```
 
-where ρ = (κ-1)/(κ+1) < 1 and κ = L/μ is the condition number.
+trong đó ρ = (κ-1)/(κ+1) < 1 và κ = L/μ là số điều kiện.
 
-**Proof Sketch**: The convergence rate depends fundamentally on the condition number κ = L/μ, where L is the Lipschitz constant and μ is the strong convexity parameter.
+**Phác Thảo Chứng Minh**: Tốc độ hội tụ phụ thuộc cơ bản vào số điều kiện κ = L/μ, trong đó L là hằng số Lipschitz và μ là tham số lồi mạnh.
 
-### 2.4 Stochastic Gradient Descent Framework
+### 2.4 Khung Stochastic Gradient Descent
 
-For stochastic variants, we consider mini-batch gradient estimators:
+Đối với các biến thể ngẫu nhiên, chúng tôi xem xét các bộ ước lượng gradient mini-batch:
 
 ```
 ∇̂f(wₖ) = 1/|Bₖ| Σᵢ∈Bₖ ∇fᵢ(wₖ)
 ```
 
-where Bₖ ⊆ {1,...,n} represents the mini-batch at iteration k.
+trong đó Bₖ ⊆ {1,...,n} biểu diễn mini-batch tại lần lặp k.
 
-**Theorem 2.2 (SGD Convergence)**: Under standard assumptions, SGD with diminishing step sizes satisfying the Robbins-Monro conditions achieves convergence in expectation:
+**Định Lý 2.2 (Hội Tụ SGD)**: Dưới các giả định tiêu chuẩn, SGD với kích thước bước giảm dần thỏa mãn các điều kiện Robbins-Monro đạt được hội tụ theo kỳ vọng:
 
-- Σₖ αₖ = ∞ (sufficient decrease condition)
-- Σₖ αₖ² < ∞ (convergence condition)
+- Σₖ αₖ = ∞ (điều kiện giảm đủ)
+- Σₖ αₖ² < ∞ (điều kiện hội tụ)
 
-### 2.5 Regularization Effects on Conditioning
+### 2.5 Tác Động Chính Quy Hóa Đến Điều Kiện
 
-Regularization fundamentally alters the optimization landscape by modifying the Hessian:
+Chính quy hóa thay đổi cơ bản cảnh quan tối ưu bằng cách sửa đổi Hessian:
 
-**Ridge Regularization**: `H_ridge = XᵀX + λI`
-**Lasso Regularization**: Introduces non-smoothness requiring subgradient methods
+**Chính Quy Hóa Ridge**: `H_ridge = XᵀX + λI`
+**Chính Quy Hóa Lasso**: Giới thiệu tính không trơn yêu cầu các phương pháp subgradient
 
-The regularization parameter λ improves conditioning by ensuring:
+Tham số chính quy hóa λ cải thiện điều kiện bằng cách đảm bảo:
 ```
 κ_new = (λₘₐₓ + λ)/(λₘᵢₙ + λ) < κ_original = λₘₐₓ/λₘᵢₙ
 ```
 
-## 3. Experimental Methodology and Design
+## 3. Phương Pháp Thực Nghiệm và Thiết Kế
 
-### 3.1 Dataset Characteristics
+### 3.1 Đặc Tính Tập Dữ Liệu
 
-Our experimental evaluation utilizes a comprehensive automotive pricing dataset with the following specifications:
+Đánh giá thực nghiệm của chúng tôi sử dụng một bộ dữ liệu giá xe ô tô toàn diện với các đặc tả sau:
 
-- **Sample Size**: 2,790,000 observations (2,230,000 training, 560,000 testing)
-- **Feature Dimensionality**: 45 engineered features derived from 66 original attributes
-- **Target Variable**: Log-transformed vehicle prices to address distributional skewness
-- **Preprocessing**: Standardized features, categorical encoding, outlier handling
+- **Kích Thước Mẫu**: 2,790,000 quan sát (2,230,000 huấn luyện, 560,000 kiểm tra)
+- **Chiều Đặc Trưng**: 45 đặc trưng được thiết kế từ 66 thuộc tính gốc
+- **Biến Mục Tiêu**: Giá xe được chuyển đổi logarit để giải quyết độ lệch phân phối
+- **Tiền Xử Lý**: Đặc trưng được chuẩn hóa, mã hóa categorical, xử lý outlier
 
-### 3.2 Algorithmic Configuration Space
+### 3.2 Không Gian Cấu Hình Thuật Toán
 
-We systematically evaluate 22 distinct optimization configurations across four primary categories:
+Chúng tôi đánh giá một cách có hệ thống 22 cấu hình tối ưu khác biệt qua bốn danh mục chính:
 
-#### 3.2.1 Batch Gradient Descent Variants (13 configurations)
-1. **Basic Gradient Descent**: Learning rates α ∈ {0.0001, 0.001, 0.01, 0.1, 0.2, 0.3}
-2. **Regularized Methods**: Ridge (λ ∈ {0.01, 0.5}), Lasso (λ = 0.01)
-3. **Advanced Techniques**: Adaptive learning rates, line search (Armijo, Wolfe conditions)
-4. **Learning Rate Schedules**: Linear decay, square-root decay, exponential decay
-5. **Momentum Methods**: Classical momentum, Nesterov acceleration
+#### 3.2.1 Biến Thể Batch Gradient Descent (13 cấu hình)
+1. **Gradient Descent Cơ Bản**: Learning rate α ∈ {0.0001, 0.001, 0.01, 0.1, 0.2, 0.3}
+2. **Phương Pháp Chính Quy Hóa**: Ridge (λ ∈ {0.01, 0.5}), Lasso (λ = 0.01)
+3. **Kỹ Thuật Tiên Tiến**: Learning rate thích ứng, line search (Armijo, điều kiện Wolfe)
+4. **Lịch Trình Learning Rate**: Giảm tuyến tính, giảm căn bậc hai, giảm mũ
+5. **Phương Pháp Momentum**: Momentum cổ điển, gia tốc Nesterov
 
-#### 3.2.2 Stochastic Gradient Descent Variants (9 configurations)
-1. **Batch Size Analysis**: |B| ∈ {32, 1000, 1600, 3200, 6400, 20000, 30000}
-2. **Learning Rate Schedules**: Linear, square-root, exponential decay
-3. **Momentum Integration**: Stochastic momentum variants
-4. **Adaptive Methods**: Backtracking line search for SGD
+#### 3.2.2 Biến Thể Stochastic Gradient Descent (9 cấu hình)
+1. **Phân Tích Kích Thước Batch**: |B| ∈ {32, 1000, 1600, 3200, 6400, 20000, 30000}
+2. **Lịch Trình Learning Rate**: Giảm tuyến tính, căn bậc hai, mũ
+3. **Tích Hợp Momentum**: Biến thể momentum ngẫu nhiên
+4. **Phương Pháp Thích Ứng**: Backtracking line search cho SGD
 
-### 3.3 Convergence Criteria and Evaluation Metrics
+### 3.3 Tiêu Chí Hội Tụ và Chỉ Số Đánh Giá
 
-**Primary Convergence Criterion**: ||∇f(wₖ)||₂ < ε with ε = 10⁻⁶
-**Secondary Criteria**: Maximum iterations = 10,000 (GD), 100 epochs (SGD)
+**Tiêu Chí Hội Tụ Chính**: ||∇f(wₖ)||₂ < ε với ε = 10⁻⁶
+**Tiêu Chí Phụ**: Số lần lặp tối đa = 10,000 (GD), 100 epoch (SGD)
 
-**Performance Metrics**:
-1. **Convergence Success Rate**: Binary indicator of tolerance achievement
-2. **Iterations to Convergence**: Computational efficiency measure
-3. **Final Objective Value**: Solution quality assessment
-4. **Training Time**: Wall-clock computational cost
-5. **Gradient Norm Trajectory**: Convergence behavior analysis
+**Chỉ Số Hiệu Suất**:
+1. **Tỷ Lệ Thành Công Hội Tụ**: Chỉ số nhị phân của việc đạt được dung sai
+2. **Lần Lặp Để Hội Tụ**: Thước đo hiệu quả tính toán
+3. **Giá Trị Mục Tiêu Cuối**: Đánh giá chất lượng nghiệm
+4. **Thời Gian Huấn Luyện**: Chi phí tính toán thực tế
+5. **Quỹ Đạo Chuẩn Gradient**: Phân tích hành vi hội tụ
 
-### 3.4 Experimental Protocol
+### 3.4 Giao Thức Thực Nghiệm
 
-**Reproducibility Measures**:
-- Fixed random seed (seed = 42) for all experiments
-- Identical weight initialization across methods
-- Consistent dataset preprocessing pipeline
-- Standardized convergence monitoring
+**Biện Pháp Tái Tạo**:
+- Seed ngẫu nhiên cố định (seed = 42) cho tất cả thí nghiệm
+- Khởi tạo trọng số giống hệt nhau qua các phương pháp
+- Pipeline tiền xử lý dữ liệu nhất quán
+- Giám sát hội tụ được chuẩn hóa
 
-**Statistical Validation**:
-- Multiple random initializations for variance estimation
-- Confidence interval construction for performance metrics
-- Statistical significance testing for method comparisons
+**Xác Thực Thống Kê**:
+- Nhiều khởi tạo ngẫu nhiên để ước lượng phương sai
+- Xây dựng khoảng tin cậy cho chỉ số hiệu suất
+- Kiểm định ý nghĩa thống kê cho so sánh phương pháp
 
-**Computational Environment**:
-- Hardware specifications documented for reproducibility
-- Implementation in Python with NumPy/SciPy optimization
-- Extensive logging of algorithmic parameters and convergence traces
+**Môi Trường Tính Toán**:
+- Đặc tả phần cứng được ghi lại để tái tạo
+- Triển khai bằng Python với tối ưu NumPy/SciPy
+- Ghi log toàn diện về tham số thuật toán và dấu vết hội tụ
 
-## 4. Experimental Results and Analysis
+## 4. Kết Quả Thực Nghiệm và Phân Tích
 
-### 4.1 Overall Performance Summary
+### 4.1 Tóm Tắt Hiệu Suất Tổng Thể
 
-**Table 4.1: Algorithmic Success Rate Summary**
+**Bảng 4.1: Tóm Tắt Tỷ Lệ Thành Công Thuật Toán**
 
-| Method Category | Total Configurations | Successful | Success Rate | Mean Iterations |
-|----------------|---------------------|------------|-------------|----------------|
-| Batch GD | 13 | 2 | 15.4% | 2,000 (failed) |
-| Stochastic GD | 9 | 0 | 0.0% | N/A (all failed) |
-| **Overall** | **22** | **2** | **9.1%** | **2,000** |
+| Danh Mục Phương Pháp | Tổng Số Cấu Hình | Thành Công | Tỷ Lệ Thành Công | Lần Lặp Trung Bình |
+|----------------------|-------------------|------------|------------------|-------------------|
+| Batch GD | 13 | 2 | 15.4% | 2,000 (thất bại) |
+| Stochastic GD | 9 | 0 | 0.0% | N/A (tất cả thất bại) |
+| **Tổng Thể** | **22** | **2** | **9.1%** | **2,000** |
 
-**Critical Finding**: The overwhelming majority (90.9%) of tested optimization configurations failed to achieve convergence within specified tolerance criteria, revealing substantial challenges in practical optimization of this problem instance.
+**Phát Hiện Quan Trọng**: Phần lớn áp đảo (90.9%) các cấu hình tối ưu được thử nghiệm không đạt được hội tụ trong các tiêu chí dung sai được chỉ định, tiết lộ những thách thức đáng kể trong tối ưu thực tế của instance bài toán này.
 
-### 4.2 Batch Gradient Descent Analysis
+### 4.2 Phân Tích Batch Gradient Descent
 
-#### 4.2.1 Learning Rate Sensitivity Analysis
+#### 4.2.1 Phân Tích Độ Nhạy Learning Rate
 
-**Experiment Series A: Ordinary Least Squares (5 configurations)**
+**Chuỗi Thí Nghiệm A: Ordinary Least Squares (5 cấu hình)**
 
-| Configuration | Learning Rate | Iterations | Final Loss | Gradient Norm | Status |
-|--------------|---------------|------------|------------|---------------|--------|
-| Setup 01 | 0.0001 | 10,000 | 0.01258 | 9.45×10⁻³ | Failed |
-| Setup 02 | 0.001 | 10,000 | 0.01192 | 2.52×10⁻⁵ | Failed |
-| Setup 03 | 0.01 | 10,000 | 0.01192 | 2.52×10⁻⁵ | Failed |
-| Setup 04 | 0.2 | 10,000 | 0.01192 | 1.01×10⁻⁵ | Failed |
-| Setup 05 | 0.3 | 600 | ∞ | ∞ | Explosion |
+| Cấu Hình | Learning Rate | Lần Lặp | Loss Cuối | Chuẩn Gradient | Trạng Thái |
+|----------|---------------|---------|-----------|----------------|------------|
+| Setup 01 | 0.0001 | 10,000 | 0.01258 | 9.45×10⁻³ | Thất Bại |
+| Setup 02 | 0.001 | 10,000 | 0.01192 | 2.52×10⁻⁵ | Thất Bại |
+| Setup 03 | 0.01 | 10,000 | 0.01192 | 2.52×10⁻⁵ | Thất Bại |
+| Setup 04 | 0.2 | 10,000 | 0.01192 | 1.01×10⁻⁵ | Thất Bại |
+| Setup 05 | 0.3 | 600 | ∞ | ∞ | Nổ |
 
-**Key Observations**:
-1. **No successful convergence** despite systematic learning rate exploration
-2. **Gradient explosion** occurs at α ≥ 0.3, indicating theoretical stability limits
-3. **Near-convergence behavior** at α = 0.2, suggesting critical learning rate threshold
-4. **Computational inefficiency**: 10,000 iterations insufficient for convergence
+**Quan Sát Chính**:
+1. **Không có hội tụ thành công** mặc dù khám phá learning rate có hệ thống
+2. **Nổ gradient** xảy ra tại α ≥ 0.3, chỉ ra giới hạn ổn định lý thuyết
+3. **Hành vi gần hội tụ** tại α = 0.2, gợi ý ngưỡng learning rate quan trọng
+4. **Hiệu quả tính toán kém**: 10,000 lần lặp không đủ cho hội tụ
 
-#### 4.2.2 Regularization Impact Assessment
+#### 4.2.2 Đánh Giá Tác Động Chính Quy Hóa
 
-**Experiment Series B: Ridge Regularization (3 configurations)**
+**Chuỗi Thí Nghiệm B: Chính Quy Hóa Ridge (3 cấu hình)**
 
-| Configuration | Learning Rate | Regularization | Iterations | Status | Training Time |
-|--------------|---------------|----------------|------------|--------|---------------|
-| Setup 06 | 0.001 | λ = 0.01 | 10,000 | Failed | 75.94s |
-| Setup 07 | 0.1 | λ = 0.01 | 3,800 | **Success** | 30.75s |
-| Setup 08 | 0.1 | λ = 0.5 | 200 | **Success** | 1.84s |
+| Cấu Hình | Learning Rate | Chính Quy Hóa | Lần Lặp | Trạng Thái | Thời Gian Huấn Luyện |
+|----------|---------------|----------------|---------|------------|----------------------|
+| Setup 06 | 0.001 | λ = 0.01 | 10,000 | Thất Bại | 75.94s |
+| Setup 07 | 0.1 | λ = 0.01 | 3,800 | **Thành Công** | 30.75s |
+| Setup 08 | 0.1 | λ = 0.5 | 200 | **Thành Công** | 1.84s |
 
-**Statistical Analysis**:
-- **Success Rate**: Ridge methods achieve 66.7% success vs. 0% for OLS
-- **Convergence Speed**: Heavy regularization (λ = 0.5) reduces iterations by 95%
-- **Computational Efficiency**: 19× speedup with strong regularization
+**Phân Tích Thống Kê**:
+- **Tỷ Lệ Thành Công**: Phương pháp Ridge đạt 66.7% thành công so với 0% cho OLS
+- **Tốc Độ Hội Tụ**: Chính quy hóa mạnh (λ = 0.5) giảm lần lặp 95%
+- **Hiệu Quả Tính Toán**: Tăng tốc 19× với chính quy hóa mạnh
 
-**Mathematical Interpretation**: Ridge regularization improves problem conditioning by modifying the Hessian eigenvalue spectrum, enabling larger step sizes and faster convergence.
+**Giải Thích Toán Học**: Chính quy hóa Ridge cải thiện điều kiện bài toán bằng cách sửa đổi phổ trị riêng Hessian, cho phép kích thước bước lớn hơn và hội tụ nhanh hơn.
 
-#### 4.2.3 Advanced Methods Performance
+#### 4.2.3 Hiệu Suất Phương Pháp Tiên Tiến
 
-**Experiment Series C: Sophisticated Optimization Techniques (8 configurations)**
+**Chuỗi Thí Nghiệm C: Kỹ Thuật Tối Ưu Phức Tạp (8 cấu hình)**
 
-| Method | Configuration | Iterations | Final Loss | Status |
-|--------|---------------|------------|------------|--------|
-| Adaptive | Setup 09 | 10,000 | 0.02105 | Failed |
-| Backtracking | Setup 10 | 89 | 0.01192 | Failed |
-| Wolfe Conditions | Setup 14 | 67 | 0.01192 | Failed |
-| Linear Decay | Setup 12 | 234 | 0.01192 | Failed |
-| Exponential Decay | Setup 15 | 167 | 0.01192 | Failed |
-| Momentum | Setup 16 | 78 | 0.01192 | Failed |
-| Nesterov (OLS) | Setup 18 | 440 | 0.01192 | Success |
-| Nesterov (Ridge) | Setup 20 | 700 | 0.01276 | Success |
+| Phương Pháp | Cấu Hình | Lần Lặp | Loss Cuối | Trạng Thái |
+|-------------|----------|---------|-----------|------------|
+| Adaptive | Setup 09 | 10,000 | 0.02105 | Thất Bại |
+| Backtracking | Setup 10 | 89 | 0.01192 | Thất Bại |
+| Điều Kiện Wolfe | Setup 14 | 67 | 0.01192 | Thất Bại |
+| Giảm Tuyến Tính | Setup 12 | 234 | 0.01192 | Thất Bại |
+| Giảm Mũ | Setup 15 | 167 | 0.01192 | Thất Bại |
+| Momentum | Setup 16 | 78 | 0.01192 | Thất Bại |
+| Nesterov (OLS) | Setup 18 | 440 | 0.01192 | Thành Công |
+| Nesterov (Ridge) | Setup 20 | 700 | 0.01276 | Thành Công |
 
-**Critical Insight**: Advanced optimization techniques demonstrate **100% failure rate** for non-regularized problems, challenging conventional wisdom about sophisticated method superiority.
+**Insight Quan Trọng**: Các kỹ thuật tối ưu tiên tiến chứng minh **100% tỷ lệ thất bại** cho các bài toán không chính quy hóa, thách thức quan điểm thông thường về tính vượt trội của phương pháp phức tạp.
 
-### 4.3 Stochastic Gradient Descent Analysis
+### 4.3 Phân Tích Stochastic Gradient Descent
 
-**Complete Algorithmic Failure**: All 9 SGD configurations failed to converge, achieving final costs ranging from 23.06 to 49.35 (target ≈ 0.012).
+**Thất Bại Thuật Toán Hoàn Toàn**: Tất cả 9 cấu hình SGD không hội tụ, đạt chi phí cuối từ 23.06 đến 49.35 (mục tiêu ≈ 0.012).
 
-| Configuration | Batch Size | Final Cost | Performance Ratio | Status |
-|--------------|------------|------------|-------------------|--------|
-| Backtracking | 1,000 | 23.06 | 1,922× worse | Failed |
-| Momentum | 1,000 | 39.38 | 3,282× worse | Failed |
-| Exponential Decay | 1,000 | 43.83 | 3,653× worse | Failed |
-| Standard SGD | 32 | 47.46 | 3,955× worse | Failed |
-| Large Batch | 30,000 | 47.46 | 3,955× worse | Failed |
+| Cấu Hình | Kích Thước Batch | Chi Phí Cuối | Tỷ Lệ Hiệu Suất | Trạng Thái |
+|----------|------------------|-------------|------------------|------------|
+| Backtracking | 1,000 | 23.06 | Tệ hơn 1,922× | Thất Bại |
+| Momentum | 1,000 | 39.38 | Tệ hơn 3,282× | Thất Bại |
+| Giảm Mũ | 1,000 | 43.83 | Tệ hơn 3,653× | Thất Bại |
+| SGD Tiêu Chuẩn | 32 | 47.46 | Tệ hơn 3,955× | Thất Bại |
+| Batch Lớn | 30,000 | 47.46 | Tệ hơn 3,955× | Thất Bại |
 
-**Statistical Significance**: With 95% confidence, SGD methods demonstrate systematic convergence failure on this problem instance, contradicting theoretical expectations for stochastic optimization.
+**Ý Nghĩa Thống Kê**: Với độ tin cậy 95%, các phương pháp SGD chứng minh thất bại hội tụ có hệ thống trên instance bài toán này, mâu thuẫn với kỳ vọng lý thuyết về tối ưu ngẫu nhiên.
 
-### 4.4 Comparative Algorithm Rankings
+### 4.4 Xếp Hạng So Sánh Thuật Toán
 
-**Performance Tier Classification**:
+**Phân Loại Tầng Hiệu Suất**:
 
-**Tier 1 (Successful)**: 
-1. Ridge GD (λ=0.5, α=0.1): 200 iterations
-2. Ridge GD (λ=0.01, α=0.1): 3,800 iterations
+**Tầng 1 (Thành Công)**: 
+1. Ridge GD (λ=0.5, α=0.1): 200 lần lặp
+2. Ridge GD (λ=0.01, α=0.1): 3,800 lần lặp
 
-**Tier 2 (Near-Miss)**: 
-3. Standard GD (α=0.2): 99.9% convergence
-4. Nesterov variants: Slow but eventually successful
+**Tầng 2 (Gần Đạt)**: 
+3. Standard GD (α=0.2): Hội tụ 99.9%
+4. Biến thể Nesterov: Chậm nhưng cuối cùng thành công
 
-**Tier 3 (Failed)**: All remaining 18 configurations
+**Tầng 3 (Thất Bại)**: Tất cả 18 cấu hình còn lại
 
-**Statistical Analysis**: Two-sample t-tests confirm significant performance differences between regularized and non-regularized methods (p < 0.001).
+**Phân Tích Thống Kê**: Kiểm định t hai mẫu xác nhận sự khác biệt hiệu suất đáng kể giữa các phương pháp có và không chính quy hóa (p < 0.001).
 
-## 5. Discussion and Theoretical Implications
+## 5. Thảo Luận và Ý Nghĩa Lý Thuyết
 
-### 5.1 Reconciling Theory with Experimental Evidence
+### 5.1 Hòa Giải Lý Thuyết với Bằng Chứng Thực Nghiệm
 
-Our experimental findings reveal substantial discrepancies between established optimization theory and practical algorithmic performance. Three critical gaps emerge:
+Các phát hiện thực nghiệm của chúng tôi tiết lộ sự khác biệt đáng kể giữa lý thuyết tối ưu đã được thiết lập và hiệu suất thuật toán thực tế. Ba khoảng cách quan trọng xuất hiện:
 
-#### 5.1.1 Convergence Guarantee Limitations
+#### 5.1.1 Hạn Chế Đảm Bảo Hội Tụ
 
-**Theoretical Expectation**: Standard convergence analysis predicts linear convergence rates for strongly convex problems with appropriate learning rates.
+**Kỳ Vọng Lý Thuyết**: Phân tích hội tụ tiêu chuẩn dự đoán tốc độ hội tụ tuyến tính cho các bài toán lồi mạnh với learning rate phù hợp.
 
-**Empirical Reality**: 90.9% of configurations failed convergence despite satisfying theoretical prerequisites. This suggests that:
+**Thực Tế Thực Nghiệm**: 90.9% cấu hình thất bại hội tụ mặc dù thỏa mãn các điều kiện tiên quyết lý thuyết. Điều này gợi ý rằng:
 
-1. **Condition Number Sensitivity**: The dataset exhibits extreme ill-conditioning (κ > 10⁹), pushing algorithms beyond practical convergence regions
-2. **Finite Precision Effects**: Numerical precision limitations become dominant in poorly conditioned problems
-3. **Tolerance Threshold Challenges**: The specified tolerance (10⁻⁶) may be unrealistic for this problem scale
+1. **Độ Nhạy Số Điều Kiện**: Tập dữ liệu thể hiện điều kiện cực kỳ tệ (κ > 10⁹), đẩy thuật toán vượt ra ngoài vùng hội tụ thực tế
+2. **Tác Động Độ Chính Xác Hữu Hạn**: Hạn chế độ chính xác số trở nên chi phối trong các bài toán điều kiện tệ
+3. **Thách Thức Ngưỡng Dung Sai**: Dung sai được chỉ định (10⁻⁶) có thể không thực tế cho quy mô bài toán này
 
-#### 5.1.2 Stochastic Optimization Paradox
+#### 5.1.2 Nghịch Lý Tối Ưu Ngẫu Nhiên
 
-**Theoretical Foundation**: SGD literature establishes convergence under standard assumptions (Lipschitz gradients, bounded variance).
+**Nền Tảng Lý Thuyết**: Văn hiến SGD thiết lập hội tụ dưới các giả định tiêu chuẩn (gradient Lipschitz, phương sai bị chặn).
 
-**Experimental Evidence**: Complete SGD failure (0% success rate) challenges fundamental assumptions:
+**Bằng Chứng Thực Nghiệm**: Thất bại SGD hoàn toàn (0% tỷ lệ thành công) thách thức các giả định cơ bản:
 
-- **Gradient Noise Dominance**: Mini-batch gradient variance overwhelms convergence signal
-- **Learning Rate Scheduling Inadequacy**: Standard decay schedules insufficient for problem characteristics
-- **Batch Size Ineffectiveness**: Neither small (32) nor large (30,000) batch sizes enable convergence
+- **Sự Chi Phối Nhiễu Gradient**: Phương sai gradient mini-batch áp đảo tín hiệu hội tụ
+- **Sự Không Đầy Đủ của Lịch Trình Learning Rate**: Lịch trình giảm tiêu chuẩn không đủ cho đặc tính bài toán
+- **Sự Không Hiệu Quả của Kích Thước Batch**: Cả kích thước batch nhỏ (32) và lớn (30,000) đều không cho phép hội tụ
 
-#### 5.1.3 Advanced Method Underperformance
+#### 5.1.3 Hiệu Suất Kém của Phương Pháp Tiên Tiến
 
-**Conventional Wisdom**: Sophisticated techniques (momentum, adaptive learning rates, line search) should outperform basic methods.
+**Quan Điểm Thông Thường**: Các kỹ thuật phức tạp (momentum, learning rate thích ứng, line search) nên vượt trội hơn các phương pháp cơ bản.
 
-**Experimental Results**: Advanced methods demonstrate worse performance than simple approaches, suggesting:
+**Kết Quả Thực Nghiệm**: Các phương pháp tiên tiến chứng minh hiệu suất tệ hơn so với các cách tiếp cận đơn giản, gợi ý:
 
-- **Complexity Penalty**: Additional algorithmic complexity introduces instability
-- **Hyperparameter Sensitivity**: Advanced methods require precise tuning unavailable in automated settings
-- **Problem-Specific Optimization**: Simple methods with appropriate regularization prove more robust
+- **Hình Phạt Độ Phức Tạp**: Độ phức tạp thuật toán bổ sung gây ra sự bất ổn
+- **Độ Nhạy Siêu Tham Số**: Các phương pháp tiên tiến đòi hỏi điều chỉnh chính xác không có sẵn trong cài đặt tự động
+- **Tối Ưu Đặc Thù Bài Toán**: Các phương pháp đơn giản với chính quy hóa phù hợp chứng tỏ bền vững hơn
 
-### 5.2 Regularization as Fundamental Necessity
+### 5.2 Chính Quy Hóa như Sự Cần Thiết Cơ Bản
 
-Our results establish regularization not as an optional enhancement but as a fundamental requirement for optimization success:
+Kết quả của chúng tôi thiết lập chính quy hóa không phải như một cải tiến tùy chọn mà như một yêu cầu cơ bản cho thành công tối ưu:
 
-**Mathematical Analysis**: Ridge regularization transforms the Hessian:
+**Phân Tích Toán Học**: Chính quy hóa Ridge biến đổi Hessian:
 ```
-H_original = X^T X (potentially singular)
-H_ridge = X^T X + λI (guaranteed positive definite)
+H_original = X^T X (có thể suy biến)
+H_ridge = X^T X + λI (đảm bảo xác định dương)
 ```
 
-**Practical Impact**: 
-- **Conditioning Improvement**: κ_new = (λ_max + λ)/(λ_min + λ) << κ_original
-- **Stability Enhancement**: Eigenvalue lower bound ensures numerical stability
-- **Convergence Enablement**: Only regularized methods achieved convergence
+**Tác Động Thực Tế**: 
+- **Cải Thiện Điều Kiện**: κ_new = (λ_max + λ)/(λ_min + λ) << κ_original
+- **Tăng Cường Ổn Định**: Giới hạn dưới trị riêng đảm bảo ổn định số
+- **Cho Phép Hội Tụ**: Chỉ các phương pháp chính quy hóa đạt được hội tụ
 
-### 5.3 Algorithm Selection Framework
+### 5.3 Khung Lựa Chọn Thuật Toán
 
-Based on empirical evidence, we propose a data-driven algorithm selection framework:
+Dựa trên bằng chứng thực nghiệm, chúng tôi đề xuất một khung lựa chọn thuật toán dựa trên dữ liệu:
 
-#### 5.3.1 Problem Characterization Phase
-1. **Condition Number Estimation**: Compute κ = ||X^T X||_2 / ||X^T X||_2^{-1}
-2. **Gradient Noise Assessment**: Evaluate ||∇f_batch - ∇f_full||_2
-3. **Scale Analysis**: Determine problem dimensionality and sample size ratio
+#### 5.3.1 Giai Đoạn Đặc Tính Hóa Bài Toán
+1. **Ước Lượng Số Điều Kiện**: Tính κ = ||X^T X||_2 / ||X^T X||_2^{-1}
+2. **Đánh Giá Nhiễu Gradient**: Đánh giá ||∇f_batch - ∇f_full||_2
+3. **Phân Tích Quy Mô**: Xác định tỷ lệ chiều bài toán và kích thước mẫu
 
-#### 5.3.2 Method Selection Decision Tree
+#### 5.3.2 Cây Quyết Định Lựa Chọn Phương Pháp
 
 ```
 if κ > 10^6:
@@ -327,36 +327,36 @@ if convergence_failed:
     retry_optimization()
 ```
 
-### 5.4 Computational Efficiency Considerations
+### 5.4 Xem Xét Hiệu Quả Tính Toán
 
-**Resource-Performance Tradeoffs**:
+**Đánh Đổi Tài Nguyên-Hiệu Suất**:
 
-| Method Category | Computational Cost | Success Probability | Efficiency Score |
-|----------------|-------------------|--------------------|-----------------|
-| Basic GD | O(nd) | 0.0 | 0.0 |
+| Danh Mục Phương Pháp | Chi Phí Tính Toán | Xác Suất Thành Công | Điểm Hiệu Quả |
+|----------------------|-------------------|---------------------|---------------|
+| GD Cơ Bản | O(nd) | 0.0 | 0.0 |
 | Ridge GD | O(nd) | 0.67 | 0.67 |
-| Advanced GD | O(nd + complexity) | 0.0 | 0.0 |
-| SGD Variants | O(|B|d) | 0.0 | 0.0 |
+| GD Tiên Tiến | O(nd + độ phức tạp) | 0.0 | 0.0 |
+| Biến Thể SGD | O(|B|d) | 0.0 | 0.0 |
 
-**Efficiency Metric**: E = (Success Rate) × (Computational Speed)
+**Chỉ Số Hiệu Quả**: E = (Tỷ Lệ Thành Công) × (Tốc Độ Tính Toán)
 
-**Key Finding**: Simple regularized methods maximize efficiency by combining high success rates with minimal computational overhead.
+**Phát Hiện Chính**: Các phương pháp chính quy hóa đơn giản tối đa hóa hiệu quả bằng cách kết hợp tỷ lệ thành công cao với chi phí tính toán tối thiểu.
 
-### 5.5 Practical Recommendations for Practitioners
+### 5.5 Khuyến Nghị Thực Tế cho Các Nhà Thực Hành
 
-#### 5.5.1 Default Optimization Strategy
-1. **Start with Ridge regularization** (λ = 0.01)
-2. **Use moderate learning rates** (α = 0.1)
-3. **Monitor conditioning** before algorithm selection
-4. **Avoid SGD for ill-conditioned problems**
-5. **Increase regularization before trying complex methods**
+#### 5.5.1 Chiến Lược Tối Ưu Mặc Định
+1. **Bắt đầu với chính quy hóa Ridge** (λ = 0.01)
+2. **Sử dụng learning rate vừa phải** (α = 0.1)
+3. **Giám sát điều kiện** trước khi lựa chọn thuật toán
+4. **Tránh SGD cho các bài toán điều kiện tệ**
+5. **Tăng chính quy hóa trước khi thử các phương pháp phức tạp**
 
-#### 5.5.2 Diagnostic Procedures
-1. **Early Convergence Assessment**: Evaluate gradient norm trends within first 100 iterations
-2. **Stability Monitoring**: Detect gradient explosion or oscillatory behavior
-3. **Regularization Tuning**: Systematically increase λ until convergence achieved
+#### 5.5.2 Quy Trình Chẩn Đoán
+1. **Đánh Giá Hội Tụ Sớm**: Đánh giá xu hướng chuẩn gradient trong 100 lần lặp đầu tiên
+2. **Giám Sát Ổn Định**: Phát hiện nổ gradient hoặc hành vi dao động
+3. **Điều Chỉnh Chính Quy Hóa**: Tăng λ một cách có hệ thống cho đến khi đạt hội tụ
 
-#### 5.5.3 Implementation Guidelines
+#### 5.5.3 Hướng Dẫn Triển Khai
 ```python
 def robust_optimization(X, y, tolerance=1e-6):
     lambda_values = [0, 0.01, 0.1, 1.0, 10.0]
@@ -368,126 +368,126 @@ def robust_optimization(X, y, tolerance=1e-6):
             if result.converged:
                 return result
     
-    raise OptimizationError("No configuration achieved convergence")
+    raise OptimizationError("Không có cấu hình nào đạt được hội tụ")
 ```
 
-## 6. Conclusions and Future Research Directions
+## 6. Kết Luận và Hướng Nghiên Cứu Tương Lai
 
-### 6.1 Principal Findings
+### 6.1 Những Phát Hiện Chính
 
-This comprehensive experimental analysis of gradient descent optimization methods yields several critical insights that challenge established practices in numerical optimization:
+Phân tích thực nghiệm toàn diện này về các phương pháp tối ưu gradient descent mang lại một số insight quan trọng thách thức các thực hành đã được thiết lập trong tối ưu số:
 
-**Finding 1: Widespread Algorithmic Failure**
-Only 9.1% of tested configurations achieved convergence, demonstrating that theoretical guarantees provide insufficient guidance for practical algorithm selection. The 90.9% failure rate suggests fundamental limitations in current optimization approaches for ill-conditioned problems.
+**Phát Hiện 1: Thất Bại Thuật Toán Rộng Rãi**
+Chỉ có 9.1% số cấu hình được thử nghiệm đạt được hội tụ, chứng minh rằng các đảm bảo lý thuyết cung cấp hướng dẫn không đầy đủ cho việc lựa chọn thuật toán thực tế. Tỷ lệ thất bại 90.9% gợi ý những hạn chế cơ bản trong các cách tiếp cận tối ưu hiện tại cho các bài toán điều kiện tệ.
 
-**Finding 2: Regularization as Optimization Enabler**
-Ridge regularization emerged as the decisive factor separating successful from failed optimization attempts. Methods without regularization achieved 0% success rate, while regularized variants achieved 66.7% success, establishing regularization as a necessity rather than an enhancement.
+**Phát Hiện 2: Chính Quy Hóa như Công Cụ Cho Phép Tối Ưu**
+Chính quy hóa Ridge xuất hiện như yếu tố quyết định phân tách các nỗ lực tối ưu thành công khỏi thất bại. Các phương pháp không chính quy hóa đạt 0% tỷ lệ thành công, trong khi các biến thể chính quy hóa đạt 66.7% thành công, thiết lập chính quy hóa như một sự cần thiết chứ không phải cải tiến.
 
-**Finding 3: Complete Stochastic Method Failure**
-All stochastic gradient descent variants failed to converge, contradicting conventional wisdom regarding SGD's universal applicability. This challenges the foundation of modern large-scale optimization practices.
+**Phát Hiện 3: Thất Bại Hoàn Toàn Phương Pháp Ngẫu Nhiên**
+Tất cả các biến thể stochastic gradient descent không hội tụ, mâu thuẫn với quan điểm thông thường về khả năng áp dụng phổ quát của SGD. Điều này thách thức nền tảng của các thực hành tối ưu quy mô lớn hiện đại.
 
-**Finding 4: Advanced Method Underperformance**
-Sophisticated optimization techniques (momentum, adaptive rates, line search) demonstrated inferior performance compared to simple regularized gradient descent, suggesting that algorithmic complexity can hinder rather than improve optimization success.
+**Phát Hiện 4: Hiệu Suất Kém của Phương Pháp Tiên Tiến**
+Các kỹ thuật tối ưu phức tạp (momentum, tỷ lệ thích ứng, line search) chứng minh hiệu suất kém hơn so với gradient descent chính quy hóa đơn giản, gợi ý rằng độ phức tạp thuật toán có thể cản trở chứ không phải cải thiện thành công tối ưu.
 
-### 6.2 Theoretical Contributions
+### 6.2 Đóng Góp Lý Thuyết
 
-#### 6.2.1 Theory-Practice Gap Quantification
+#### 6.2.1 Định Lượng Khoảng Cách Lý Thuyết-Thực Tiễn
 
-Our results provide empirical evidence quantifying the substantial gap between optimization theory and practical performance:
+Kết quả của chúng tôi cung cấp bằng chứng thực nghiệm định lượng khoảng cách đáng kể giữa lý thuyết tối ưu và hiệu suất thực tế:
 
-- **Convergence Theory Limitations**: Standard convergence analysis fails to predict real-world algorithmic success
-- **Condition Number Sensitivity**: Problems with κ > 10⁶ require specialized treatment beyond theoretical recommendations
-- **Tolerance Realism**: Theoretical convergence criteria may be impractical for large-scale problems
+- **Hạn Chế Lý Thuyết Hội Tụ**: Phân tích hội tụ tiêu chuẩn không thể dự đoán thành công thuật toán thực tế
+- **Độ Nhạy Số Điều Kiện**: Các bài toán với κ > 10⁶ đòi hỏi xử lý đặc biệt vượt ra ngoài khuyến nghị lý thuyết
+- **Thực Tế Dung Sai**: Các tiêu chí hội tụ lý thuyết có thể không thực tế cho các bài toán quy mô lớn
 
-#### 6.2.2 Regularization Theory Extension
+#### 6.2.2 Mở Rộng Lý Thuyết Chính Quy Hóa
 
-This work extends regularization theory beyond statistical considerations to optimization necessity:
+Công trình này mở rộng lý thuyết chính quy hóa vượt ra ngoài các xem xét thống kê đến sự cần thiết tối ưu:
 
-**Theorem 6.1 (Regularization Necessity)**: For optimization problems with condition number κ > 10⁶, regularization parameter λ ≥ 0.01 is necessary for gradient descent convergence in practice.
+**Định Lý 6.1 (Sự Cần Thiết Chính Quy Hóa)**: Đối với các bài toán tối ưu với số điều kiện κ > 10⁶, tham số chính quy hóa λ ≥ 0.01 là cần thiết cho hội tụ gradient descent trong thực tế.
 
-**Proof Sketch**: Empirical evidence demonstrates zero convergence success for λ = 0 and positive success rates for λ ≥ 0.01.
+**Phác Thảo Chứng Minh**: Bằng chứng thực nghiệm chứng minh không có thành công hội tụ cho λ = 0 và tỷ lệ thành công dương cho λ ≥ 0.01.
 
-#### 6.2.3 Algorithm Selection Theory
+#### 6.2.3 Lý Thuyết Lựa Chọn Thuật Toán
 
-We propose a data-driven algorithm selection framework based on problem characteristics rather than theoretical complexity:
+Chúng tôi đề xuất một khung lựa chọn thuật toán dựa trên dữ liệu dựa trên đặc tính bài toán chứ không phải độ phức tạp lý thuyết:
 
 ```
-Optimization_Success_Probability = f(condition_number, regularization_strength, problem_scale)
+Xác_Suất_Thành_Công_Tối_Ưu = f(số_điều_kiện, cường_độ_chính_quy_hóa, quy_mô_bài_toán)
 ```
 
-### 6.3 Practical Impact and Applications
+### 6.3 Tác Động Thực Tế và Ứng Dụng
 
-#### 6.3.1 Industrial Machine Learning
+#### 6.3.1 Machine Learning Công Nghiệp
 
-**Immediate Applications**:
-- **Model Training Protocols**: Establish regularization as default optimization strategy
-- **Algorithm Selection Frameworks**: Prioritize simple regularized methods over complex alternatives
-- **Convergence Monitoring**: Implement early failure detection and regularization adjustment
+**Ứng Dụng Ngay Lập Tức**:
+- **Giao Thức Huấn Luyện Mô Hình**: Thiết lập chính quy hóa như chiến lược tối ưu mặc định
+- **Khung Lựa Chọn Thuật Toán**: Ưu tiên các phương pháp chính quy hóa đơn giản hơn các lựa chọn phức tạp
+- **Giám Sát Hội Tụ**: Triển khai phát hiện thất bại sớm và điều chỉnh chính quy hóa
 
-**Long-term Implications**:
-- **Optimization Software Design**: Integrate condition number assessment and automatic regularization
-- **Hyperparameter Tuning**: Prioritize regularization strength over learning rate optimization
-- **Performance Benchmarking**: Include regularization effects in optimization method evaluations
+**Ý Nghĩa Dài Hạn**:
+- **Thiết Kế Phần Mềm Tối Ưu**: Tích hợp đánh giá số điều kiện và chính quy hóa tự động
+- **Điều Chỉnh Siêu Tham Số**: Ưu tiên cường độ chính quy hóa hơn tối ưu learning rate
+- **Đánh Giá Hiệu Suất**: Bao gồm tác động chính quy hóa trong đánh giá phương pháp tối ưu
 
-#### 6.3.2 Academic Research Directions
+#### 6.3.2 Hướng Nghiên Cứu Học Thuật
 
-**Immediate Research Opportunities**:
-1. **Condition Number Prediction**: Develop efficient methods for estimating problem conditioning before optimization
-2. **Adaptive Regularization**: Design algorithms that automatically adjust regularization during optimization
-3. **SGD Rehabilitation**: Investigate modifications enabling SGD success in ill-conditioned problems
+**Cơ Hội Nghiên Cứu Ngay Lập Tức**:
+1. **Dự Đoán Số Điều Kiện**: Phát triển các phương pháp hiệu quả để ước lượng điều kiện bài toán trước tối ưu
+2. **Chính Quy Hóa Thích Ứng**: Thiết kế thuật toán tự động điều chỉnh chính quy hóa trong quá trình tối ưu
+3. **Phục Hồi SGD**: Điều tra các sửa đổi cho phép thành công SGD trong các bài toán điều kiện tệ
 
-### 6.4 Limitations and Scope
+### 6.4 Hạn Chế và Phạm Vi
 
-#### 6.4.1 Experimental Limitations
+#### 6.4.1 Hạn Chế Thực Nghiệm
 
-**Dataset Specificity**: Results are specific to the automotive pricing dataset; generalization requires validation across diverse problem instances.
+**Đặc Thù Tập Dữ Liệu**: Kết quả đặc thù cho bộ dữ liệu giá xe ô tô; tổng quát hóa đòi hỏi xác thực qua các instance bài toán đa dạng.
 
-**Algorithm Coverage**: Analysis focuses on gradient-based methods; second-order methods (Newton, quasi-Newton) warrant separate investigation.
+**Phạm Vi Thuật Toán**: Phân tích tập trung vào các phương pháp dựa trên gradient; các phương pháp bậc hai (Newton, quasi-Newton) đáng được điều tra riêng.
 
-**Hyperparameter Space**: While comprehensive within scope, exhaustive hyperparameter exploration remains computationally prohibitive.
+**Không Gian Siêu Tham Số**: Mặc dù toàn diện trong phạm vi, khám phá siêu tham số đầy đủ vẫn không khả thi về mặt tính toán.
 
-#### 6.4.2 Methodological Constraints
+#### 6.4.2 Ràng Buộc Phương Pháp Luận
 
-**Tolerance Specification**: The choice of ε = 10⁻⁶ influences success rates; alternative tolerance criteria may yield different conclusions.
+**Đặc Tả Dung Sai**: Lựa chọn ε = 10⁻⁶ ảnh hưởng đến tỷ lệ thành công; các tiêu chí dung sai thay thế có thể mang lại kết luận khác.
 
-**Iteration Limits**: Fixed iteration bounds may disadvantage slowly converging methods; adaptive stopping criteria could alter rankings.
+**Giới Hạn Lần Lặp**: Giới hạn lần lặp cố định có thể bất lợi cho các phương pháp hội tụ chậm; tiêu chí dừng thích ứng có thể thay đổi xếp hạng.
 
-**Implementation Variance**: Results depend on specific algorithmic implementations; alternative implementations might produce different outcomes.
+**Phương Sai Triển Khai**: Kết quả phụ thuộc vào các triển khai thuật toán cụ thể; các triển khai thay thế có thể tạo ra kết quả khác.
 
-### 6.5 Future Research Agenda
+### 6.5 Chương Trình Nghiên Cứu Tương Lai
 
-#### 6.5.1 Immediate Priorities
+#### 6.5.1 Ưu Tiên Ngay Lập Tức
 
-1. **Cross-Dataset Validation**: Replicate experiments across diverse optimization landscapes
-2. **Second-Order Method Analysis**: Evaluate Newton and quasi-Newton methods under identical conditions
-3. **Regularization Theory**: Develop theoretical foundations for optimal regularization parameter selection
-4. **SGD Improvement**: Design stochastic methods robust to ill-conditioning
+1. **Xác Thực Chéo Tập Dữ Liệu**: Lặp lại thí nghiệm qua các cảnh quan tối ưu đa dạng
+2. **Phân Tích Phương Pháp Bậc Hai**: Đánh giá các phương pháp Newton và quasi-Newton dưới điều kiện giống hệt
+3. **Lý Thuyết Chính Quy Hóa**: Phát triển nền tảng lý thuyết cho lựa chọn tham số chính quy hóa tối ưu
+4. **Cải Thiện SGD**: Thiết kế các phương pháp ngẫu nhiên bền vững với điều kiện tệ
 
-#### 6.5.2 Long-Term Research Directions
+#### 6.5.2 Hướng Nghiên Cứu Dài Hạn
 
-1. **Condition-Aware Optimization**: Develop algorithms that adapt to problem conditioning automatically
-2. **Regularization-Optimization Unification**: Integrate regularization selection into optimization algorithms
-3. **Practical Convergence Theory**: Develop convergence analysis accounting for finite precision and tolerance constraints
-4. **Meta-Optimization Frameworks**: Design systems that automatically select optimization methods based on problem characteristics
+1. **Tối Ưu Nhận Thức Điều Kiện**: Phát triển thuật toán thích ứng với điều kiện bài toán tự động
+2. **Thống Nhất Chính Quy Hóa-Tối Ưu**: Tích hợp lựa chọn chính quy hóa vào thuật toán tối ưu
+3. **Lý Thuyết Hội Tụ Thực Tế**: Phát triển phân tích hội tụ tính đến độ chính xác hữu hạn và ràng buộc dung sai
+4. **Khung Meta-Tối Ưu**: Thiết kế hệ thống tự động lựa chọn phương pháp tối ưu dựa trên đặc tính bài toán
 
-#### 6.5.3 Methodological Innovations
+#### 6.5.3 Đổi Mới Phương Pháp Luận
 
-1. **Robust Optimization Metrics**: Develop performance measures that account for conditioning effects
-2. **Optimization Landscape Analysis**: Create tools for characterizing optimization difficulty before algorithm selection
-3. **Hybrid Method Development**: Combine regularization with advanced techniques for improved robustness
+1. **Chỉ Số Tối Ưu Bền Vững**: Phát triển các biện pháp hiệu suất tính đến tác động điều kiện
+2. **Phân Tích Cảnh Quan Tối Ưu**: Tạo công cụ đặc tính hóa độ khó tối ưu trước khi lựa chọn thuật toán
+3. **Phát Triển Phương Pháp Hybrid**: Kết hợp chính quy hóa với các kỹ thuật tiên tiến để cải thiện độ bền vững
 
-### 6.6 Final Remarks
+### 6.6 Nhận Xét Cuối
 
-This study demonstrates the critical importance of empirical validation in optimization algorithm development and selection. The substantial gap between theoretical expectations and practical performance highlights the need for evidence-based optimization practices rather than reliance on theoretical sophistication alone.
+Nghiên cứu này chứng minh tầm quan trọng then chốt của xác thực thực nghiệm trong phát triển và lựa chọn thuật toán tối ưu. Khoảng cách đáng kể giữa kỳ vọng lý thuyết và hiệu suất thực tế nhấn mạnh sự cần thiết của các thực hành tối ưu dựa trên bằng chứng thay vì dựa vào sự phức tạp lý thuyết một mình.
 
-The dominance of simple regularized methods over complex alternatives suggests that robustness and reliability should be prioritized over theoretical elegance in practical optimization scenarios. Future research should focus on bridging the theory-practice gap through realistic problem modeling and empirical validation.
+Sự thống trị của các phương pháp chính quy hóa đơn giản so với các lựa chọn phức tạp gợi ý rằng độ bền vững và độ tin cậy nên được ưu tiên hơn sự thanh lịch lý thuyết trong các tình huống tối ưu thực tế. Nghiên cứu tương lai nên tập trung vào việc thu hẹp khoảng cách lý thuyết-thực tiễn thông qua mô hình hóa bài toán thực tế và xác thực thực nghiệm.
 
-**Key Message**: In optimization, as in many areas of applied mathematics, simple methods with appropriate problem conditioning often outperform sophisticated approaches. The path to reliable optimization lies not in algorithmic complexity but in understanding and addressing fundamental problem characteristics.
+**Thông Điệp Chính**: Trong tối ưu, như trong nhiều lĩnh vực toán học ứng dụng, các phương pháp đơn giản với điều kiện bài toán phù hợp thường vượt trội hơn các cách tiếp cận phức tạp. Con đường đến tối ưu đáng tin cậy không nằm ở độ phức tạp thuật toán mà ở việc hiểu và giải quyết các đặc tính bài toán cơ bản.
 
 ---
 
-**Acknowledgments**: The authors acknowledge the computational resources required for extensive experimentation and the importance of reproducible research practices in optimization algorithm evaluation.
+**Lời Cảm Ơn**: Các tác giả thừa nhận tài nguyên tính toán cần thiết cho thí nghiệm rộng rãi và tầm quan trọng của các thực hành nghiên cứu có thể tái tạo trong đánh giá thuật toán tối ưu.
 
-**Data Availability**: Experimental configurations and results are available for research reproduction and validation.
+**Tính Có Sẵn Dữ Liệu**: Cấu hình thí nghiệm và kết quả có sẵn để tái tạo và xác thực nghiên cứu.
 
-**Conflict of Interest**: The authors declare no conflicts of interest related to this research.
+**Xung Đột Lợi Ích**: Các tác giả tuyên bố không có xung đột lợi ích liên quan đến nghiên cứu này.

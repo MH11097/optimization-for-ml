@@ -16,7 +16,7 @@ import json
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from utils.optimization_utils import (
-    du_doan, danh_gia_mo_hinh, in_ket_qua_danh_gia, kiem_tra_hoi_tu,
+    du_doan, danh_gia_mo_hinh, in_ket_qua_danh_gia, kiem_tra_dieu_kien_dung,
     tinh_gia_tri_ham_loss, tinh_gradient_ham_loss, tinh_hessian_ham_loss,
     add_bias_column
 )
@@ -40,7 +40,7 @@ class NesterovGDModel:
     """
     
     def __init__(self, ham_loss='ols', learning_rate=0.01, momentum=0.9, 
-                 so_lan_thu=10000, diem_dung=1e-6, regularization=0.01, convergence_check_freq=10):
+                 so_lan_thu=100000, diem_dung=1e-6, regularization=0.01, convergence_check_freq=10):
         self.ham_loss = ham_loss.lower()
         self.learning_rate = learning_rate
         self.momentum = momentum
@@ -63,6 +63,26 @@ class NesterovGDModel:
         self.training_time = 0
         self.converged = False
         self.final_iteration = 0
+
+    def _get_best_results(self):
+        """
+        Lấy kết quả tốt nhất dựa trên gradient norm thấp nhất
+        
+        Returns:
+            dict: Chứa best_weights, best_loss, best_gradient_norm, best_iteration
+        """
+        if not self.gradient_norms:
+            raise ValueError("Không có lịch sử gradient norms để tìm kết quả tốt nhất")
+        
+        # Tìm index có gradient norm thấp nhất
+        best_idx = np.argmin(self.gradient_norms)
+        
+        return {
+            'best_weights': self.weights_history[best_idx],
+            'best_loss': self.loss_history[best_idx],
+            'best_gradient_norm': self.gradient_norms[best_idx],
+            'best_iteration': best_idx * self.convergence_check_freq
+        }
         
     def fit(self, X, y):
         """
@@ -156,7 +176,7 @@ class NesterovGDModel:
                 safe_iteration = int(lan_thu) if np.isfinite(lan_thu) else lan_thu
                 safe_max_iter = int(self.so_lan_thu) if np.isfinite(self.so_lan_thu) else self.so_lan_thu
                 
-                converged, reason = kiem_tra_hoi_tu(
+                should_stop, converged, reason = kiem_tra_dieu_kien_dung(
                     gradient_norm=float(gradient_norm),
                     cost_change=float(cost_change),
                     iteration=safe_iteration,
@@ -166,9 +186,12 @@ class NesterovGDModel:
                     weights=self.weights
                 )
                 
-                if converged:
-                    print(f"✅ Nesterov AGD stopped: {reason}")
-                    self.converged = True
+                if should_stop:
+                    if converged:
+                        print(f"✅ Nesterov AGD converged: {reason}")
+                    else:
+                        print(f"⚠️ Nesterov AGD stopped (not converged): {reason}")
+                    self.converged = converged
                     # Safe integer conversion for final_iteration
                     if np.isfinite(lan_thu):
                         self.final_iteration = int(lan_thu + 1)
@@ -193,9 +216,21 @@ class NesterovGDModel:
         print(f"Bias cuối: {self.weights[-1]:.6f}")  # Bias là phần tử cuối của weights
         print(f"Số weights (bao gồm bias): {len(self.weights)}")
         
+        # Lấy kết quả tốt nhất thay vì kết quả cuối cùng
+        best_results = self._get_best_results()
+        best_weights = best_results['best_weights']
+        best_loss = best_results['best_loss']
+        best_gradient_norm = best_results['best_gradient_norm']
+        best_iteration = best_results['best_iteration']
+        
+        print(f"🏆 Best results (gradient norm thấp nhất):")
+        print(f"   Best iteration: {best_iteration}")
+        print(f"   Best loss: {best_loss:.6f}")
+        print(f"   Best gradient norm: {best_gradient_norm:.6f}")
+        
         return {
-            'weights': self.weights,  # Bao gồm bias ở cuối
-            'bias': float(self.weights[-1]),  # Bias riêng để tương thích
+            'weights': best_weights,  # Trả về best weights thay vì final
+            'bias': float(best_weights[-1]),  # Bias riêng để tương thích
             'velocity': self.velocity,
             'loss_history': self.loss_history,
             'gradient_norms': self.gradient_norms,
@@ -203,7 +238,12 @@ class NesterovGDModel:
             'weights_history': self.weights_history,
             'training_time': self.training_time,
             'converged': self.converged,
-            'final_iteration': int(self.final_iteration) if np.isfinite(self.final_iteration) else self.final_iteration
+            'final_iteration': int(self.final_iteration) if np.isfinite(self.final_iteration) else self.final_iteration,
+            'best_iteration': best_iteration,
+            'best_loss': best_loss,
+            'best_gradient_norm': best_gradient_norm,
+            'final_loss': self.loss_history[-1],  # Để so sánh
+            'final_gradient_norm': self.gradient_norms[-1]  # Để so sánh
         }
     
     def predict(self, X):

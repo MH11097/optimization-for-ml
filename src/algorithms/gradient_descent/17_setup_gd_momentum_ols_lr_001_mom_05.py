@@ -24,7 +24,6 @@ def main():
     model = MomentumGDModel(
         ham_loss='ols',
         learning_rate=0.1,  # Learning rate
-        so_lan_thu=10000,
         diem_dung=1e-5,
         momentum=0.5  # Lower momentum để so sánh với 0.9
     )

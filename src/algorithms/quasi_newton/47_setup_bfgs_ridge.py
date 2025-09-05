@@ -38,7 +38,6 @@ def main():
     model = QuasiNewtonModel(
         ham_loss='ridge',
         regularization=0.01,
-        so_lan_thu=10000,
         diem_dung=1e-6,
         armijo_c1=1e-4,
         wolfe_c2=0.9,

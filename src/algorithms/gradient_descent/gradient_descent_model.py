@@ -16,7 +16,7 @@ import json
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from utils.optimization_utils import (
-    du_doan, danh_gia_mo_hinh, in_ket_qua_danh_gia, kiem_tra_hoi_tu,
+    du_doan, danh_gia_mo_hinh, in_ket_qua_danh_gia, kiem_tra_dieu_kien_dung,
     tinh_gia_tri_ham_loss, tinh_gradient_ham_loss, tinh_hessian_ham_loss,
     add_bias_column
 )
@@ -36,7 +36,7 @@ class GradientDescentModel:
     - convergence_check_freq: Tần suất kiểm tra hội tụ (mỗi N iterations)
     """
     
-    def __init__(self, ham_loss='ols', learning_rate=0.1, so_lan_thu=10000, diem_dung=1e-5, regularization=0.01, 
+    def __init__(self, ham_loss='ols', learning_rate=0.1, so_lan_thu=100000, diem_dung=1e-5, regularization=0.01, 
                  convergence_check_freq=100, step_size_method='constant', backtrack_c1=1e-4, backtrack_rho=0.8, 
                  adaptive_beta1=0.9, adaptive_beta2=0.999, adaptive_eps=1e-8, wolfe_c2=0.9, decay_gamma=0.95):
         self.ham_loss = ham_loss.lower()
@@ -75,6 +75,29 @@ class GradientDescentModel:
         self.training_time = 0
         self.converged = False
         self.final_iteration = 0
+        
+        # Khởi tạo complexity tracker
+        self.complexity_tracker = None  # Will be initialized in fit()
+
+    def _get_best_results(self):
+        """
+        Lấy kết quả tốt nhất dựa trên gradient norm thấp nhất
+        
+        Returns:
+            dict: Chứa best_weights, best_loss, best_gradient_norm, best_iteration
+        """
+        if not self.gradient_norms:
+            raise ValueError("Không có lịch sử gradient norms để tìm kết quả tốt nhất")
+        
+        # Tìm index có gradient norm thấp nhất
+        best_idx = np.argmin(self.gradient_norms)
+        
+        return {
+            'best_weights': self.weights_history[best_idx],
+            'best_loss': self.loss_history[best_idx],
+            'best_gradient_norm': self.gradient_norms[best_idx],
+            'best_iteration': best_idx * self.convergence_check_freq
+        }
     
     def _backtracking_line_search(self, X, y, weights, gradient, direction):
         """
@@ -228,6 +251,13 @@ class GradientDescentModel:
         n_features_with_bias = X_with_bias.shape[1]
         self.weights = np.random.normal(0, 0.01, n_features_with_bias)
         
+        # Initialize complexity tracker
+        from utils.computational_complexity import ComputationalComplexityTracker
+        self.complexity_tracker = ComputationalComplexityTracker(
+            problem_size=(X.shape[0], X.shape[1])
+        )
+        self.complexity_tracker.start_tracking()
+        
         # Reset histories
         self.loss_history = []
         self.gradient_norms = []
@@ -244,7 +274,11 @@ class GradientDescentModel:
         
         for lan_thu in range(self.so_lan_thu):
             # Tính gradient (luôn cần cho weight update)
-            gradient_w, _ = self.grad_func(X_with_bias, y, self.weights) 
+            gradient_w, _ = self.grad_func(X_with_bias, y, self.weights)
+            
+            # Record complexity metrics
+            self.complexity_tracker.record_gradient_evaluation(X_with_bias.shape)
+            self.complexity_tracker.record_vector_operation(len(gradient_w), "basic")  # Weight update
             
             # Tính step size cho iteration này
             if self.step_size_method == 'adaptive':
@@ -267,6 +301,9 @@ class GradientDescentModel:
                     # If somehow we get a vector, take the mean
                     self.step_sizes_history.append(float(np.mean(step_size)))
             
+            # Record memory allocation for weight copy
+            self.complexity_tracker.record_memory_allocation(len(self.weights))
+            
             # Chỉ tính loss và lưu history khi cần thiết
             should_check_converged = (
                 (lan_thu + 1) % self.convergence_check_freq == 0 or 
@@ -278,12 +315,16 @@ class GradientDescentModel:
                 loss_value = self.loss_func(X_with_bias, y, self.weights)
                 gradient_norm = np.linalg.norm(gradient_w)
                 
+                # Record complexity metrics for loss computation and norm
+                self.complexity_tracker.record_function_evaluation(X_with_bias.shape)
+                self.complexity_tracker.record_vector_operation(len(gradient_w), "norm")
+                
                 # Lưu vào history
                 self.loss_history.append(loss_value)
                 self.gradient_norms.append(gradient_norm)
                 self.weights_history.append(self.weights.copy())                    
                 cost_change = 0.0 if len(self.loss_history) == 0 else (self.loss_history[-1] - loss_value) if len(self.loss_history) == 1 else (self.loss_history[-2] - self.loss_history[-1])
-                converged, reason = kiem_tra_hoi_tu(
+                should_stop, converged, reason = kiem_tra_dieu_kien_dung(
                     gradient_norm=gradient_norm,
                     cost_change=cost_change,
                     iteration=lan_thu,
@@ -293,15 +334,22 @@ class GradientDescentModel:
                     weights=self.weights
                 )
                 
-                if converged:
-                    print(f"✅ Gradient Descent stopped: {reason}")
-                    self.converged = True
+                if should_stop:
+                    if converged:
+                        print(f"✅ Gradient Descent converged: {reason}")
+                        self.complexity_tracker.mark_convergence(lan_thu + 1)
+                    else:
+                        print(f"⚠️ Gradient Descent stopped (not converged): {reason}")
+                    self.converged = converged
                     self.final_iteration = lan_thu + 1
                     break
 
                 # In thêm step size
                 current_step_size = self.step_sizes_history[-1] if self.step_sizes_history else 0
                 print(f"   Vòng {lan_thu + 1}: Loss = {loss_value:.6f}, Gradient = {gradient_norm:.6f}, Step size = {current_step_size}")
+            
+            # End iteration tracking
+            self.complexity_tracker.end_iteration()
         
         self.training_time = time.time() - start_time
         
@@ -311,18 +359,43 @@ class GradientDescentModel:
         
         print(f"Thời gian training: {self.training_time:.2f}s")
         print(f"Loss cuối: {self.loss_history[-1]:.6f}")
-        print(f"Gradient norm cuối: {self.gradient_norms[-1]:.6f}")  
+        print(f"Gradient norm cuối: {self.gradient_norms[-1]:.6f}")
+        
+        # Print complexity summary
+        complexity_summary = self.complexity_tracker.get_summary_stats()
+        print(f"📊 Complexity Summary:")
+        print(f"   Total operations: {complexity_summary['total_operations']:,}")
+        print(f"   Function evaluations: {complexity_summary['function_evaluations']}")
+        print(f"   Gradient evaluations: {complexity_summary['gradient_evaluations']}")
+        
+        # Lấy kết quả tốt nhất thay vì kết quả cuối cùng
+        best_results = self._get_best_results()
+        best_weights = best_results['best_weights']
+        best_loss = best_results['best_loss']
+        best_gradient_norm = best_results['best_gradient_norm']
+        best_iteration = best_results['best_iteration']
+        
+        print(f"🏆 Best results (gradient norm thấp nhất):")
+        print(f"   Best iteration: {best_iteration}")
+        print(f"   Best loss: {best_loss:.6f}")
+        print(f"   Best gradient norm: {best_gradient_norm:.6f}")
         
         return {
-            'weights': self.weights,  
-            'bias': self.weights[-1], 
+            'weights': best_weights,  # Trả về best weights thay vì final
+            'bias': best_weights[-1], 
             'loss_history': self.loss_history,
             'gradient_norms': self.gradient_norms,
             'weights_history': self.weights_history,
             'step_sizes_history': self.step_sizes_history,
             'training_time': self.training_time,
             'converged': self.converged,
-            'final_iteration': self.final_iteration
+            'final_iteration': self.final_iteration,
+            'best_iteration': best_iteration,
+            'best_loss': best_loss,
+            'best_gradient_norm': best_gradient_norm,
+            'final_loss': self.loss_history[-1],  # Để so sánh
+            'final_gradient_norm': self.gradient_norms[-1],  # Để so sánh
+            'complexity_metrics': self.complexity_tracker.get_complexity_analysis(self.final_iteration, self.converged)
         }
     
     def predict(self, X):
@@ -372,6 +445,18 @@ class GradientDescentModel:
         results_dir = Path(base_dir) / ten_file
         results_dir.mkdir(parents=True, exist_ok=True)
         
+        # Get complexity analysis
+        complexity_analysis = self.complexity_tracker.get_complexity_analysis(
+            self.final_iteration, self.converged
+        ) if hasattr(self, 'complexity_tracker') and self.complexity_tracker else None
+        
+        # Lấy kết quả tốt nhất
+        best_results = self._get_best_results()
+        best_weights = best_results['best_weights']
+        best_loss = best_results['best_loss']
+        best_gradient_norm = best_results['best_gradient_norm'] 
+        best_iteration = best_results['best_iteration']
+        
         # Save comprehensive results.json
         results_data = {
             "algorithm": f"Gradient Descent - {self.ham_loss.upper()}",
@@ -388,32 +473,43 @@ class GradientDescentModel:
                 "final_iteration": self.final_iteration,
                 "total_iterations": self.so_lan_thu,
                 "final_loss": float(self.loss_history[-1]),
-                "final_gradient_norm": float(self.gradient_norms[-1])
+                "final_gradient_norm": float(self.gradient_norms[-1]),
+                # Thêm thông tin best results
+                "best_iteration": best_iteration,
+                "best_loss": float(best_loss),
+                "best_gradient_norm": float(best_gradient_norm),
+                "improvement_from_final": {
+                    "loss_improvement": float(self.loss_history[-1] - best_loss),
+                    "gradient_improvement": float(self.gradient_norms[-1] - best_gradient_norm),
+                    "iterations_earlier": self.final_iteration - best_iteration
+                }
             },
             "weights_analysis": {
-                "n_features": len(self.weights) - 1,  # Không tính bias
-                "n_weights_total": len(self.weights),  # Tính cả bias
-                "bias_value": float(self.weights[-1]),
-                "weights_without_bias": self.weights[:-1].tolist(),
-                "complete_weight_vector": self.weights.tolist(),
+                "n_features": len(best_weights) - 1,  # Không tính bias
+                "n_weights_total": len(best_weights),  # Tính cả bias
+                "bias_value": float(best_weights[-1]),
+                "weights_without_bias": best_weights[:-1].tolist(),
+                "complete_weight_vector": best_weights.tolist(),
                 "weights_stats": {
-                    "min": float(np.min(self.weights[:-1])),  # Stats chỉ của weights, không tính bias
-                    "max": float(np.max(self.weights[:-1])),
-                    "mean": float(np.mean(self.weights[:-1])),
-                    "std": float(np.std(self.weights[:-1]))
+                    "min": float(np.min(best_weights[:-1])),  # Stats chỉ của weights, không tính bias
+                    "max": float(np.max(best_weights[:-1])),
+                    "mean": float(np.mean(best_weights[:-1])),
+                    "std": float(np.std(best_weights[:-1]))
                 }
             },
             "convergence_analysis": {
                 "iterations_to_converge": self.final_iteration,
+                "best_iteration_found": best_iteration,
                 "final_cost_change": float(self.loss_history[-1] - self.loss_history[-2]) if len(self.loss_history) > 1 else 0.0,
                 "convergence_rate": "linear",  # Gradient Descent có convergence rate tuyến tính
-                "loss_reduction_ratio": float(self.loss_history[0] / self.loss_history[-1]) if len(self.loss_history) > 0 else 1.0
+                "loss_reduction_ratio": float(self.loss_history[0] / best_loss) if len(self.loss_history) > 0 else 1.0
             },
             "algorithm_specific": {
                 "gradient_descent_type": "standard",
                 "step_size_method": self.step_size_method,
                 "step_size_constant": self.step_size_method == 'constant',
                 "momentum_used": False,
+                "returns_best_result": True,  # Đánh dấu rằng trả về best result
                 "backtracking_parameters": {
                     "c1": self.backtrack_c1,
                     "rho": self.backtrack_rho
@@ -425,6 +521,10 @@ class GradientDescentModel:
                 } if self.step_size_method == 'adaptive' else None
             }
         }
+        
+        # Add complexity metrics if available
+        if complexity_analysis:
+            results_data["computational_complexity"] = complexity_analysis
         
         if self.ham_loss in ['ridge', 'lasso']:
             results_data["parameters"]["regularization"] = self.regularization
@@ -448,7 +548,16 @@ class GradientDescentModel:
             step_sizes_df.to_csv(results_dir / "step_sizes_history.csv", index=False)
         training_df.to_csv(results_dir / "training_history.csv", index=False)
         
-        print(f"\n Kết quả đã được lưu vào: {results_dir.absolute()}")
+        # Save complexity metrics separately for detailed analysis
+        if complexity_analysis:
+            with open(results_dir / "complexity_analysis.json", 'w') as f:
+                json.dump(complexity_analysis, f, indent=2)
+        
+        print(f"\n✅ Kết quả đã được lưu vào: {results_dir.absolute()}")
+        print(f"🏆 Sử dụng best results từ iteration {best_iteration} (gradient norm: {best_gradient_norm:.6f})")
+        if complexity_analysis:
+            print(f"📊 Complexity metrics saved to: complexity_analysis.json")
+        
         return results_dir
     
     def plot_results(self, X_test, y_test, ten_file, base_dir="data/03_algorithms/gradient_descent"):

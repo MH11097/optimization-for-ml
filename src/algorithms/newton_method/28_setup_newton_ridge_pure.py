@@ -36,7 +36,6 @@ def main():
     model = NewtonModel(
         ham_loss='ridge',
         regularization=0.01,      # Ridge regularization
-        so_lan_thu=50,
         diem_dung=1e-10,
         numerical_regularization=1e-8  # Cho numerical stability
     )

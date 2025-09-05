@@ -24,7 +24,6 @@ def main():
     model = GradientDescentModel(
         ham_loss='ols',
         learning_rate=0.1,  # Base learning rate cho Wolfe line search
-        so_lan_thu=10000,
         diem_dung=1e-5,
         step_size_method='wolfe_conditions',
         backtrack_c1=1e-4,  # Armijo constant (sufficient decrease)

@@ -486,7 +486,7 @@ def load_du_lieu():
         y_train = tai_du_lieu_chunked(data_dir / "y_train.csv").values.ravel()
         y_test = tai_du_lieu_chunked(data_dir / "y_test.csv").values.ravel()
         
-        print(f"✅ Loaded processed data: Train {X_train.shape}, Test {X_test.shape}")
+        print(f"   Loaded processed data: Train {X_train.shape}, Test {X_test.shape}")
                 
         return X_train, X_test, y_train, y_test
         

@@ -83,7 +83,7 @@ class AlgorithmComparator:
                 print(f"      Không đọc được {results_file}: {e}")
     
     def _extract_key_metrics(self, data: Dict[Any, Any], exp_folder: Path, alg_name: str) -> Dict[str, Any]:
-        """Trích xuất các metrics chính cần thiết"""
+        """Trích xuất các metrics chính cần thiết bao gồm complexity metrics"""
         training_results = data.get('training_results', {})
         
         result_info = {
@@ -102,6 +102,42 @@ class AlgorithmComparator:
         params = data.get('parameters', {})
         if 'learning_rate' in params:
             result_info['learning_rate'] = params['learning_rate']
+        
+        # Extract complexity metrics if available
+        complexity_data = data.get('computational_complexity', {})
+        if complexity_data:
+            basic_metrics = complexity_data.get('basic_metrics', {})
+            per_iter_metrics = complexity_data.get('per_iteration_averages', {})
+            efficiency_metrics = complexity_data.get('efficiency_metrics', {})
+            scalability_metrics = complexity_data.get('scalability_metrics', {})
+            
+            # Add key complexity metrics
+            result_info.update({
+                'total_operations': basic_metrics.get('total_operations', 0),
+                'function_evaluations': basic_metrics.get('function_evaluations', 0),
+                'gradient_evaluations': basic_metrics.get('gradient_evaluations', 0),
+                'operations_per_iter': per_iter_metrics.get('operations_per_iter', 0),
+                'convergence_efficiency': efficiency_metrics.get('convergence_efficiency', 0),
+                'operations_to_convergence': efficiency_metrics.get('operations_to_convergence', 0),
+                'peak_memory': basic_metrics.get('peak_memory_size', 0),
+                'memory_efficiency': scalability_metrics.get('memory_efficiency', 0),
+                'ops_per_problem_unit': scalability_metrics.get('operations_per_problem_unit', 0),
+                'has_complexity_data': True
+            })
+        else:
+            # Mark as missing complexity data
+            result_info.update({
+                'total_operations': 0,
+                'function_evaluations': 0,
+                'gradient_evaluations': 0,
+                'operations_per_iter': 0,
+                'convergence_efficiency': 0,
+                'operations_to_convergence': 0,
+                'peak_memory': 0,
+                'memory_efficiency': 0,
+                'ops_per_problem_unit': 0,
+                'has_complexity_data': False
+            })
         
         return result_info
     
@@ -149,8 +185,8 @@ class AlgorithmComparator:
         return convergence_data
     
     def run_comparison(self):
-        """Chạy quy trình so sánh và tạo 3 file chính"""
-        print("ALGORITHM COMPARATOR - SIMPLIFIED VERSION")
+        """Chạy quy trình so sánh và tạo files bao gồm complexity analysis"""
+        print("ALGORITHM COMPARATOR - WITH COMPLEXITY ANALYSIS")
         print("=" * 50)
         
         # Step 1: Thu thập kết quả
@@ -160,7 +196,10 @@ class AlgorithmComparator:
             print("Không tìm thấy kết quả nào để so sánh!")
             return
         
-        # Step 2: Tạo bảng so sánh markdown
+        # Check if any experiments have complexity data
+        complexity_available = any(result.get('has_complexity_data', False) for result in self.results_data)
+        
+        # Step 2: Tạo bảng so sánh markdown (bao gồm complexity metrics)
         print("Tạo bảng so sánh markdown...")
         markdown_file = self.output_dir / "algorithm_comparison.md"
         tao_bang_so_sanh_markdown(self.results_data, str(markdown_file))
@@ -178,6 +217,13 @@ class AlgorithmComparator:
         print("Tạo optimization trajectory plot...")
         self._create_trajectory_plot()
         
+        # Step 5: Tạo complexity comparison plots nếu có dữ liệu
+        if complexity_available:
+            print("Tạo computational complexity analysis...")
+            self._create_complexity_comparison()
+        else:
+            print("   Không có dữ liệu complexity để phân tích")
+        
         print("\n" + "=" * 50)
         print("COMPARISON COMPLETED!")
         print(f"Kết quả đã lưu vào: {self.output_dir.absolute()}")
@@ -185,10 +231,15 @@ class AlgorithmComparator:
         print("  - algorithm_comparison.md")
         print("  - convergence_comparison.png")
         print("  - optimization_trajectory.png")
+        if complexity_available:
+            print("  - complexity_comparison.png")
+            print("  - complexity_summary.csv")
+            print("  - operation_distribution.png (for first algorithm)")
         print("=" * 50)
         
         return {
             'total_experiments': len(self.results_data),
+            'complexity_available': complexity_available,
             'output_dir': str(self.output_dir)
         }
     
@@ -238,6 +289,63 @@ class AlgorithmComparator:
                     continue
         
         print("   Không tìm thấy dữ liệu trajectory phù hợp")
+
+    def _create_complexity_comparison(self):
+        """Tạo các plots so sánh computational complexity"""
+        from ..utils.complexity_visualization import (
+            plot_complexity_comparison, create_complexity_summary_table, plot_operation_distribution
+        )
+        
+        # Collect complexity data from results
+        complexity_results = []
+        algorithm_names = []
+        
+        for result in self.results_data:
+            if result.get('has_complexity_data', False):
+                # Load full complexity analysis from the results file
+                result_path = Path(result['full_path']) / "results.json"
+                if result_path.exists():
+                    import json
+                    with open(result_path, 'r') as f:
+                        full_data = json.load(f)
+                    
+                    complexity_data = full_data.get('computational_complexity', {})
+                    if complexity_data:
+                        complexity_results.append(complexity_data)
+                        algorithm_names.append(result['algorithm_name'])
+        
+        if not complexity_results:
+            print("   Không có dữ liệu complexity chi tiết để tạo plots")
+            return
+        
+        print(f"   Tạo complexity comparison cho {len(complexity_results)} algorithms...")
+        
+        # Create comparison plot
+        comparison_file = self.output_dir / "complexity_comparison.png"
+        plot_complexity_comparison(
+            complexity_results,
+            save_path=str(comparison_file),
+            title="Computational Complexity Comparison"
+        )
+        
+        # Create summary table
+        summary_file = self.output_dir / "complexity_summary.csv"
+        summary_df = create_complexity_summary_table(
+            complexity_results,
+            algorithm_names,
+            save_path=str(summary_file)
+        )
+        
+        # Create operation distribution for first algorithm
+        if complexity_results:
+            distribution_file = self.output_dir / "operation_distribution.png"
+            plot_operation_distribution(
+                complexity_results[0],
+                save_path=str(distribution_file),
+                title=f"Operation Distribution - {algorithm_names[0]}"
+            )
+        
+        print(f"   ✅ Complexity analysis completed với {len(complexity_results)} algorithms")
 
 
 def main():

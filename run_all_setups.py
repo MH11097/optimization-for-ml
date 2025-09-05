@@ -156,7 +156,7 @@ def print_progress_bar(current: int, total: int, script_name: str, width: int = 
     percent = current / total
     filled = int(width * percent)
     bar = '#' * filled + '-' * (width - filled)
-    print(f'\r[{bar}] {percent:.1%} - Running: {script_name[:40]}...', end='', flush=True)
+    print(f'\n[{bar}] {percent:.1%} - Running: {script_name}\n', end='', flush=True)
 
 
 def parse_arguments():

@@ -30,7 +30,7 @@ def main():
     model = DampedNewtonModel(
         ham_loss='ols',
         diem_dung=1e-10,
-        armijo_c1=1e-4,
+        armijo_c1=1e-2,
         backtrack_rho=0.8,
         max_line_search_iter=50
     )

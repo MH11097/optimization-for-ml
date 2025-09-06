@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Setup script for Dual Regularized Newton Method - Ridge
-- Hessian regularization: lambda = 0.1 for stability  
-- Ridge penalty: regularization = 0.01
-- Max Iterations: 100
-- Tolerance: 1e-8
+Setup script for Pure Newton Method - Ridge Regression
+- Regularization: 0.01 (Ridge)
+- Numerical regularization: 1e-8 (stability)
+- Max Iterations: 50
+- Tolerance: 1e-10
 """
 
 import sys
@@ -23,21 +23,20 @@ def get_experiment_name():
     import inspect
     frame = inspect.currentframe()
     filename = frame.f_back.f_globals['__file__']
-    return Path(filename).stem  # Lấy tên file không có extension
+    return Path(filename).stem
 
 def main():
-    """Chạy Dual Regularized Newton Method cho Ridge"""
-    print("NEWTON METHOD - DUAL REGULARIZED RIDGE SETUP")
+    """Chạy Pure Newton Method cho Ridge Regression"""
+    print("NEWTON METHOD - PURE NEWTON RIDGE SETUP")
     
     # Load data
     X_train, X_test, y_train, y_test = load_du_lieu()
     
-    # Khởi tạo model với cả Ridge penalty và Hessian regularization
+    # Khởi tạo model với Ridge regularization
     model = NewtonModel(
         ham_loss='ridge',
-        regularization=0.01,  # Ridge penalty parameter
+        regularization=0.01,      # Ridge regularization
         diem_dung=1e-10,
-        numerical_regularization=0.1  # Hessian regularization: H + λI (stronger)
     )
     
     # Huấn luyện model
@@ -47,16 +46,13 @@ def main():
     metrics = model.evaluate(X_test, y_test)
     
     # Lưu kết quả với tên file tự động
-    ten_file = get_experiment_name()  # Sẽ là "setup_newton_regularized_ridge_lambda_01_reg_001"
+    ten_file = get_experiment_name()
     results_dir = model.save_results(ten_file)
     
     # Tạo biểu đồ
     model.plot_results(X_test, y_test, ten_file)
     
-    print(f"\nDual Regularized Newton training completed!")
-    print(f"Ridge penalty: {model.regularization}")
-    print(f"Hessian regularization: {model.numerical_regularization}")
-    print(f"Results saved to: {results_dir.absolute()}")
+    print(f"\nTraining and visualization completed!")
     
     return model, results, metrics
 

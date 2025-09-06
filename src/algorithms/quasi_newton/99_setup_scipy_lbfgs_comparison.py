@@ -65,7 +65,7 @@ def run_scipy_lbfgs_optimization(X_train, y_train, loss_type='ols', regularizati
     Trả về:
         dict: kết quả tối ưu hóa
     """
-    print(f"\n🔬 Running SciPy L-BFGS optimization for {loss_type.upper()}...")
+    print(f"\nRunning SciPy L-BFGS optimization for {loss_type.upper()}...")
     
     # Thêm bias column
     X_with_bias = add_bias_column(X_train)
@@ -122,7 +122,7 @@ def run_scipy_lbfgs_optimization(X_train, y_train, loss_type='ols', regularizati
         iterations = result.nit if hasattr(result, 'nit') else result.nfev
         final_gradient_norm = np.linalg.norm(gradient_func(final_weights))
         
-        print(f"   ✅ Optimization completed!")
+        print(f"   Optimization completed!")
         print(f"   Training time: {training_time:.4f} seconds")
         print(f"   Converged: {converged}")
         print(f"   Iterations: {iterations}")
@@ -133,43 +133,43 @@ def run_scipy_lbfgs_optimization(X_train, y_train, loss_type='ols', regularizati
         print(f"   Bias (last weight): {final_weights[-1]:.6f}")
         
         return {
-            'weights': final_weights,
-            'final_loss': final_loss,
-            'training_time': training_time,
-            'converged': converged,
-            'iterations': iterations,
-            'function_evaluations': result.nfev,
-            'final_gradient_norm': final_gradient_norm,
+            'weights': final_weights.tolist(),
+            'final_loss': float(final_loss),
+            'training_time': float(training_time),
+            'converged': bool(converged),
+            'iterations': int(iterations),
+            'function_evaluations': int(result.nfev),
+            'final_gradient_norm': float(final_gradient_norm),
             'algorithm': f'SciPy_L_BFGS_{loss_type.upper()}',
             'loss_type': loss_type,
-            'regularization': regularization,
-            'memory_size': memory_size,
-            'message': result.message,
-            'initial_loss': initial_loss,
-            'initial_gradient_norm': initial_gradient_norm
+            'regularization': float(regularization),
+            'memory_size': int(memory_size),
+            'message': str(result.message),
+            'initial_loss': float(initial_loss),
+            'initial_gradient_norm': float(initial_gradient_norm)
         }
     
     except Exception as e:
         training_time = time.time() - start_time
-        print(f"   ❌ Optimization failed: {e}")
+        print(f"   Optimization failed: {e}")
         print(f"   Training time before failure: {training_time:.4f} seconds")
         
         # Return fallback result
         return {
-            'weights': initial_weights,
-            'final_loss': initial_loss,
-            'training_time': training_time,
+            'weights': initial_weights.tolist(),
+            'final_loss': float(initial_loss),
+            'training_time': float(training_time),
             'converged': False,
             'iterations': 0,
             'function_evaluations': 0,
-            'final_gradient_norm': initial_gradient_norm,
+            'final_gradient_norm': float(initial_gradient_norm),
             'algorithm': f'SciPy_L_BFGS_{loss_type.upper()}',
             'loss_type': loss_type,
-            'regularization': regularization,
-            'memory_size': memory_size,
+            'regularization': float(regularization),
+            'memory_size': int(memory_size),
             'message': f"Optimization failed: {e}",
-            'initial_loss': initial_loss,
-            'initial_gradient_norm': initial_gradient_norm,
+            'initial_loss': float(initial_loss),
+            'initial_gradient_norm': float(initial_gradient_norm),
             'error': str(e)
         }
 
@@ -239,11 +239,11 @@ def run_comparison_experiments():
     Chạy các thí nghiệm so sánh cho OLS, Ridge, Lasso với L-BFGS
     """
     print("="*80)
-    print("🔬 SCIPY L-BFGS COMPARISON - LIMITED-MEMORY BFGS ALGORITHM")
+    print("SCIPY L-BFGS COMPARISON - LIMITED-MEMORY BFGS ALGORITHM")
     print("="*80)
     
     # Load data
-    print("\n📂 Loading data...")
+    print("\nLoading data...")
     X_train, X_test, y_train, y_test = load_du_lieu()
     
     print(f"   Data shapes: Train {X_train.shape}, Test {X_test.shape}")
@@ -263,7 +263,7 @@ def run_comparison_experiments():
     
     for config in configs:
         print(f"\n" + "="*50)
-        print(f"🧪 EXPERIMENT: {config['loss_type'].upper()} L-BFGS")
+        print(f"EXPERIMENT: {config['loss_type'].upper()} L-BFGS")
         print(f"   Regularization: {config['regularization']}")
         print(f"   Memory size: {config['memory_size']}")
         print("="*50)
@@ -278,7 +278,7 @@ def run_comparison_experiments():
         )
         
         # Evaluate
-        print(f"\n📊 Evaluating on test set...")
+        print(f"\nEvaluating on test set...")
         evaluation = evaluate_scipy_results(result, X_test, y_test)
         
         # Combine results
@@ -289,12 +289,12 @@ def run_comparison_experiments():
         }
         
         # Print evaluation summary
-        print(f"   📈 LOG SCALE METRICS:")
+        print(f"   LOG SCALE METRICS:")
         print(f"      MSE: {evaluation['metrics_log_scale']['mse']:.8f}")
         print(f"      R²:  {evaluation['metrics_log_scale']['r2']:.6f}")
         print(f"      MAE: {evaluation['metrics_log_scale']['mae']:.6f}")
         
-        print(f"   🎯 ORIGINAL SCALE METRICS:")
+        print(f"   ORIGINAL SCALE METRICS:")
         print(f"      MSE:  {evaluation['metrics_original_scale']['mse']:,.2f}")
         print(f"      RMSE: {evaluation['metrics_original_scale']['rmse']:,.2f}")
         print(f"      MAE:  {evaluation['metrics_original_scale']['mae']:,.2f}")
@@ -314,11 +314,11 @@ def run_comparison_experiments():
         with open(output_dir / "results.json", "w") as f:
             json.dump(combined_result, f, indent=2)
         
-        print(f"   💾 Results saved to: {output_dir / 'results.json'}")
+        print(f"   Results saved to: {output_dir / 'results.json'}")
     
     # Summary comparison
     print(f"\n" + "="*90)
-    print("📋 SUMMARY COMPARISON - L-BFGS")
+    print("SUMMARY COMPARISON - L-BFGS")
     print("="*90)
     
     print(f"\n{'Algorithm':<20} {'Loss':<7} {'Mem':<4} {'Conv':<5} {'Iters':<6} {'FEval':<6} {'R²(log)':<9} {'Time(s)':<8}")
@@ -328,7 +328,7 @@ def run_comparison_experiments():
         algorithm = result['algorithm'][:19]  # Truncate for display
         loss_type = result['loss_type'][:6]
         memory_size = result['memory_size']
-        converged = "✅" if result['converged'] else "❌"
+        converged = "YES" if result['converged'] else "NO"
         iters = result['iterations']
         func_eval = result['function_evaluations']
         r2_log = result['metrics_log_scale']['r2']
@@ -336,21 +336,21 @@ def run_comparison_experiments():
         
         print(f"{algorithm:<20} {loss_type:<7} {memory_size:<4} {converged:<5} {iters:<6} {func_eval:<6} {r2_log:<9.6f} {time_s:<8.4f}")
     
-    print(f"\n✅ All SciPy L-BFGS comparisons completed!")
-    print(f"📁 Results saved in data/03_algorithms/quasi_newton/scipy_lbfgs_*/")
+    print(f"\nAll SciPy L-BFGS comparisons completed!")
+    print(f"Results saved in data/03_algorithms/quasi_newton/scipy_lbfgs_*/")
     
     # L-BFGS specific insights
-    print(f"\n🔍 L-BFGS ALGORITHM INSIGHTS:")
-    print(f"   • L-BFGS sử dụng limited memory để lưu trữ Hessian approximation")
-    print(f"   • Memory size (m) thường từ 3-20, default = 10")
-    print(f"   • Rất hiệu quả cho large-scale optimization problems")
-    print(f"   • Sử dụng ít memory hơn BFGS nhưng vẫn hội tụ nhanh")
-    print(f"   • Line search strategy quan trọng cho convergence")
+    print(f"\nL-BFGS ALGORITHM INSIGHTS:")
+    print(f"   • L-BFGS uses limited memory to store Hessian approximation")
+    print(f"   • Memory size (m) typically ranges from 3-20, default = 10")
+    print(f"   • Very efficient for large-scale optimization problems")
+    print(f"   • Uses less memory than BFGS but still converges quickly")
+    print(f"   • Line search strategy is important for convergence")
     
     # Memory size analysis
     ridge_results = [r for r in all_results if r['loss_type'] == 'ridge']
     if len(ridge_results) >= 3:
-        print(f"\n📊 MEMORY SIZE IMPACT (Ridge regression):")
+        print(f"\nMEMORY SIZE IMPACT (Ridge regression):")
         for result in ridge_results:
             mem_size = result['memory_size']
             iters = result['iterations']

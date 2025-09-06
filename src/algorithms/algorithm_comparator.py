@@ -26,8 +26,11 @@ from utils.visualization_utils import (
 )
 # Example usage với đa dạng setup paths từ different algorithms
 setup_paths = [
-    "stochastic_gd/04a_setup_sgd_optimal_momentum_05",
-    "stochastic_gd/04b_setup_sgd_optimal_momentum_09",
+    "quasi_newton/01a_setup_bfgs_ols",
+    "quasi_newton/01b_setup_bfgs_ridge",
+    "quasi_newton/02a_setup_lbfgs_ols_m5",
+    "quasi_newton/02b_setup_lbfgs_ols_m10",
+    "quasi_newton/02c_setup_lbfgs_ridge_m5",
 ]
 
 class AlgorithmComparator:

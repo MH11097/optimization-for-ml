@@ -135,19 +135,19 @@ def run_scipy_bfgs_optimization(X_train, y_train, loss_type='ols', regularizatio
                 print(f"   Final inverse Hessian: Available but condition not computed")
         
         return {
-            'weights': final_weights,
-            'final_loss': final_loss,
-            'training_time': training_time,
-            'converged': converged,
-            'iterations': iterations,
-            'function_evaluations': result.nfev,
-            'final_gradient_norm': final_gradient_norm,
+            'weights': final_weights.tolist(),
+            'final_loss': float(final_loss),
+            'training_time': float(training_time),
+            'converged': bool(converged),
+            'iterations': int(iterations),
+            'function_evaluations': int(result.nfev),
+            'final_gradient_norm': float(final_gradient_norm),
             'algorithm': f'SciPy_BFGS_{loss_type.upper()}',
             'loss_type': loss_type,
-            'regularization': regularization,
-            'message': result.message,
-            'initial_loss': initial_loss,
-            'initial_gradient_norm': initial_gradient_norm
+            'regularization': float(regularization),
+            'message': str(result.message),
+            'initial_loss': float(initial_loss),
+            'initial_gradient_norm': float(initial_gradient_norm)
         }
     
     except Exception as e:
@@ -157,19 +157,19 @@ def run_scipy_bfgs_optimization(X_train, y_train, loss_type='ols', regularizatio
         
         # Return fallback result
         return {
-            'weights': initial_weights,
-            'final_loss': initial_loss,
-            'training_time': training_time,
+            'weights': initial_weights.tolist(),
+            'final_loss': float(initial_loss),
+            'training_time': float(training_time),
             'converged': False,
             'iterations': 0,
             'function_evaluations': 0,
-            'final_gradient_norm': initial_gradient_norm,
+            'final_gradient_norm': float(initial_gradient_norm),
             'algorithm': f'SciPy_BFGS_{loss_type.upper()}',
             'loss_type': loss_type,
-            'regularization': regularization,
+            'regularization': float(regularization),
             'message': f"Optimization failed: {e}",
-            'initial_loss': initial_loss,
-            'initial_gradient_norm': initial_gradient_norm,
+            'initial_loss': float(initial_loss),
+            'initial_gradient_norm': float(initial_gradient_norm),
             'error': str(e)
         }
 

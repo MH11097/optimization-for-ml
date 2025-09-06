@@ -1,0 +1,22 @@
+{
+  "algorithm": "SR1 Quasi-Newton - RIDGE",
+  "loss_function": "RIDGE",
+  "parameters": {
+    "max_iterations": 10000,
+    "tolerance": 1e-05,
+    "regularization": 0.01
+  },
+  "training_results": {
+    "training_time": 5.709976434707642,
+    "converged": false,
+    "final_iteration": 10000
+  },
+  "algorithm_specific": {
+    "method_type": "quasi_newton_sr1",
+    "second_order_approximation": true,
+    "line_search_used": true,
+    "skipped_updates": 1,
+    "total_updates": 1069,
+    "skip_rate": 0.0009354536950420954
+  }
+}

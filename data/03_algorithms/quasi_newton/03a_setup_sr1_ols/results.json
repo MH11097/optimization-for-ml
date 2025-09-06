@@ -1,0 +1,22 @@
+{
+  "algorithm": "SR1 Quasi-Newton - OLS",
+  "loss_function": "OLS",
+  "parameters": {
+    "max_iterations": 10000,
+    "tolerance": 1e-05,
+    "regularization": null
+  },
+  "training_results": {
+    "training_time": 2.6406779289245605,
+    "converged": false,
+    "final_iteration": 10000
+  },
+  "algorithm_specific": {
+    "method_type": "quasi_newton_sr1",
+    "second_order_approximation": true,
+    "line_search_used": true,
+    "skipped_updates": 1,
+    "total_updates": 449,
+    "skip_rate": 0.0022271714922048997
+  }
+}

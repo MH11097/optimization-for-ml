@@ -57,8 +57,8 @@ Các phương pháp tối ưu hóa bậc hai sử dụng cả thông tin gradien
 
 #### 1. Phương Pháp Newton Tiêu Chuẩn
 
-**Setup Pure Newton OLS - QUADRATIC CONVERGENCE BUT NUMERICAL DISASTER**
-- Cấu hình: `pure_newton_ols`
+**Setup 01: Pure Newton OLS - QUADRATIC CONVERGENCE BUT NUMERICAL DISASTER**
+- Cấu hình: `01_setup_newton_ols_pure`
 - **Kết quả ấn tượng:** 3 vòng lặp hội tụ hoàn hảo
 - **Final loss:** 0.01192, gradient norm: 4.4e-11 (machine precision)
 - **Condition number:** 954,721,433 - Số kinh hoàng
@@ -70,8 +70,8 @@ Các phương pháp tối ưu hóa bậc hai sử dụng cả thông tin gradien
 - Yêu cầu tính toán: Tính toán và nghịch đảo Hessian mỗi vòng lặp
 - Độ phức tạp bộ nhớ: O(n²) để lưu trữ Hessian
 
-**Setup Newton Ridge Pure - REGULARIZATION MIRACLE**
-- Cấu hình: `28_setup_newton_ridge_pure`
+**Setup 03: Newton Ridge Pure - REGULARIZATION MIRACLE**
+- Cấu hình: `03_setup_newton_ridge_pure`
 - **Kết quả cải thiện đáng kể:** 7 vòng lặp (chậm hơn nhưng ổn định)
 - **Condition number kỳ diệu:** 955.6 - Giảm từ 954M xuống 955!
 - **Numerical stability:** Ridge regularization là life saver
@@ -93,22 +93,22 @@ Các phương pháp tối ưu hóa bậc hai sử dụng cả thông tin gradien
 - Điều kiện Armijo: f(θₖ + αpₖ) ≤ f(θₖ) + c₁α∇f(θₖ)^Tpₖ
 - Đảm bảo hội tụ toàn cục
 
-**Setup 16: Damped Newton cho OLS**
-- Cấu hình: `setup_newton_ols_damped.py`
+**Setup 02: Damped Newton cho OLS**
+- Cấu hình: `02_setup_newton_ols_damped.py`
 - Hội tụ: 4 vòng lặp
 - Tính năng: Tính chất hội tụ toàn cục
 - Độ bền vững: Hoạt động từ khởi tạo kém
 - Kích thước bước: Biến thiên, được xác định bởi line search
 
-**Setup 23: Damped Newton cho Ridge**
-- Cấu hình: `setup_newton_ridge_damped.py`
+**Setup 04: Damped Newton cho Ridge**
+- Cấu hình: `04_setup_newton_ridge_damped.py`
 - Hội tụ: 3 vòng lặp
 - Kết hợp: Ridge conditioning + hội tụ toàn cục
 - Phương pháp tối ưu cho bài toán có cấu trúc tốt
 - Xuất sắc số học: Ổn định và hội tụ tốt nhất
 
-**Setup 31: Newton với Backtracking**
-- Cấu hình: `setup_newton_backtracking_ols_c1_0001.py`
+**Setup 06: Newton với Backtracking**
+- Cấu hình: `06_setup_newton_backtracking_ols_c1_0001.py`
 - Line search tăng cường với backtracking
 - Tham số Armijo c₁ = 1e-4
 - Lựa chọn kích thước bước tự động
@@ -124,15 +124,15 @@ Các phương pháp tối ưu hóa bậc hai sử dụng cả thông tin gradien
 
 #### 3. Newton Cải Tiến cho Ổn Định Số Học
 
-**Setup 24: Regularization Hessian**
-- Cấu hình: `setup_newton_regularized_ols_lambda_001.py`
+**Setup 05: Regularization Hessian**
+- Cấu hình: `05_setup_newton_regularized_ols_lambda_001.py`
 - Hessian cải tiến: H_reg = H + λI với λ = 0.001
 - Mục đích: Đảm bảo positive definiteness
 - Hội tụ: 4 vòng lặp
 - Ổn định số học: Ngăn vấn đề ma trận singular
 
-**Setup 32: Regularization Kép**
-- Cấu hình: `setup_newton_regularized_ridge_lambda_01_reg_001.py`
+**Setup 07: Regularization Kép**
+- Cấu hình: `07_setup_newton_regularized_ridge_lambda_01_reg_001.py`
 - Regularization kết hợp: Mục tiêu Ridge + cải tiến Hessian
 - Ổn định tăng cường: Cả lợi ích tối ưu và tổng quát hóa
 - Hội tụ: 3 vòng lặp
@@ -176,20 +176,20 @@ Bₖ₊₁ = Bₖ + (yₖyₖ^T)/(yₖ^Tsₖ) - (Bₖsₖsₖ^TBₖ)/(sₖ^TBₖ
 - Tốc độ hội tụ siêu tuyến tính
 - Yêu cầu lưu trữ O(n²) cho ma trận đầy đủ
 
-**Setup 25: BFGS cho OLS**
-- Cấu hình: `setup_bfgs_ols.py`
+**Setup 10: BFGS cho OLS**
+- Cấu hình: `10_setup_bfgs_ols.py`
 - Hội tụ: Siêu tuyến tính (giữa tuyến tính và bậc hai)
 - Yêu cầu bộ nhớ: O(n²) cho xấp xỉ Hessian đầy đủ
 - Hiệu suất: Cân bằng xuất sắc của tốc độ và chi phí tính toán
 
-**Setup 26: BFGS cho Ridge Regression**
-- Cấu hình: `setup_bfgs_ridge.py`
+**Setup 11: BFGS cho Ridge Regression**
+- Cấu hình: `11_setup_bfgs_ridge.py`
 - Lợi ích kết hợp: Xấp xỉ BFGS + ổn định regularization
 - Conditioning tăng cường thông qua Ridge regularization
 - Tính chất hội tụ bền vững
 
-**Setup 30: BFGS với Line Search**
-- Cấu hình: `setup_bfgs_backtracking_ols_c1_0001.py`
+**Setup 09: BFGS với Line Search**
+- Cấu hình: `09_setup_bfgs_backtracking_ols_c1_0001.py`
 - Hướng BFGS với Armijo line search
 - Đảm bảo hội tụ toàn cục
 - Lựa chọn kích thước bước tự động
@@ -213,20 +213,20 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 - L-BFGS: Lưu trữ O(mn) với m << n
 - Giá trị m thông thường: 3-20
 
-**Setup 27: Triển Khai L-BFGS Cơ Bản**
-- Cấu hình: `setup_lr1_ols.py`
+**Setup 12: Triển Khai L-BFGS Cơ Bản**
+- Cấu hình: `12_setup_lbfgs_ols_basic.py`
 - Tham số bộ nhớ: m = 5 (mặc định)
 - Phù hợp cho tối ưu quy mô lớn
 - Trade-off: Hiệu quả bộ nhớ vs tốc độ hội tụ
 
-**Setup 28: L-BFGS với Bộ Nhớ Tăng**
-- Cấu hình: `setup_lbfgs_ols_m_10.py`
+**Setup 13: L-BFGS với Bộ Nhớ Tăng**
+- Cấu hình: `13_setup_lbfgs_ols_m_10.py`
 - Tham số bộ nhớ: m = 10
 - Xấp xỉ Hessian tốt hơn với nhiều lịch sử hơn
 - Cải thiện hội tụ với chi phí bộ nhớ khiêm tốn
 
-**Setup 29: L-BFGS với Ridge Regularization**
-- Cấu hình: `setup_lbfgs_ridge_m_5_reg_001.py`
+**Setup 14: L-BFGS với Ridge Regularization**
+- Cấu hình: `14_setup_lbfgs_ridge_m_5_reg_001.py`
 - Tham số bộ nhớ: m = 5
 - Tham số regularization: λ = 0.001
 - Tối ưu cho bài toán regularized quy mô lớn
@@ -264,24 +264,35 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 
 ### Benchmarking Hiệu Suất
 
-#### A. Xếp Hạng Newton Methods - SỰ THẮt THỰC TẼ
+#### A. Xếp Hạng Newton Methods - SỰ THẮt THỰC TẾ
 
-**THÀNH CÔNG (5/7 setups):**
-1. **Pure Newton OLS** - 3 iterations, condition 954M - Fastest but numerically suicidal
-2. **Damped Newton OLS** - 3 iterations, condition 954M - Same speed, line search stability
-3. **Newton Backtracking** - 3 iterations, condition 954M - Line search variant
-4. **Damped Newton Ridge** - 6 iterations, condition 955 - **BEST PRODUCTION CHOICE**
-5. **Newton Ridge Pure** - 7 iterations, condition 955 - Regularization magic
+**THÀNH CÔNG (5/8 setups):**
+1. **Setup 01: Pure Newton OLS** - 3 iterations, condition 954M - Fastest but numerically suicidal
+2. **Setup 02: Damped Newton OLS** - 3 iterations, condition 954M - Same speed, line search stability
+3. **Setup 06: Newton Backtracking** - 3 iterations, condition 954M - Line search variant
+4. **Setup 04: Damped Newton Ridge** - 6 iterations, condition 955 - **BEST PRODUCTION CHOICE**
+5. **Setup 03: Newton Ridge Pure** - 7 iterations, condition 955 - Regularization magic
 
-**THẤT BẠI (2/7 setups):**
-6. **Regularized Newton OLS** - 100 iterations, NO CONVERGENCE - Wrong regularization approach
-7. **Regularized Newton Ridge** - 100 iterations, NO CONVERGENCE - Over-regularized
+**THẤT BẠI (3/8 setups):**
+6. **Setup 05: Regularized Newton OLS** - 100 iterations, NO CONVERGENCE - Wrong regularization approach
+7. **Setup 07: Regularized Newton Ridge** - 100 iterations, NO CONVERGENCE - Over-regularized
+8. **Setup 08: Scipy Comparison** - Performance comparison with reference implementations
+
+**QUASI-NEWTON SETUPS (09-16):**
+9. **Setup 09: BFGS Backtracking** - Line search enhanced BFGS
+10. **Setup 10: BFGS OLS** - Standard BFGS for ordinary least squares
+11. **Setup 11: BFGS Ridge** - BFGS with Ridge regularization
+12. **Setup 12: L-BFGS Basic** - Memory-limited BFGS implementation
+13. **Setup 13: L-BFGS Enhanced** - L-BFGS with increased memory parameter
+14. **Setup 14: L-BFGS Ridge** - L-BFGS with Ridge regularization
+15. **Setup 15: Scipy BFGS** - Reference BFGS comparison
+16. **Setup 16: Scipy L-BFGS** - Reference L-BFGS comparison
 
 **Kết Luận Thực Tế:**
 - **Speed:** Tất cả thành công đều nhanh (3-7 iterations)
 - **Stability:** Ridge regularization là game changer (954M → 955 condition number)
 - **Production:** Chỉ dùng Damped Newton + Ridge, avoid pure Newton với OLS
-- **Reality check:** 2/7 failures show Newton isn't foolproof
+- **Reality check:** 3/8 failures show Newton isn't foolproof
 
 ### Framework Lựa Chọn Thuật Toán
 

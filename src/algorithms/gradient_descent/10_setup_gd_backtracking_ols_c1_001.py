@@ -5,7 +5,7 @@ from pathlib import Path
 # Add the src directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from algorithms.gradient_descent.nesterov_gd_model import NesterovGDModel
+from algorithms.gradient_descent.gradient_descent_model import GradientDescentModel
 from utils.data_process_utils import load_du_lieu
 
 
@@ -21,12 +21,13 @@ def main():
     # Load data
     X_train, X_test, y_train, y_test = load_du_lieu()
     
-    model = NesterovGDModel(
-        ham_loss='lasso',    # L1 regularization
-        learning_rate=0.1,   # Learning rate
+    model = GradientDescentModel(
+        ham_loss='ols',
+        learning_rate=0.5,  # Base learning rate cho backtracking
         diem_dung=1e-5,
-        momentum=0.9,        # High momentum for acceleration
-        regularization=0.1   # L1 regularization parameter
+        step_size_method='backtracking',
+        backtrack_c1=1e-3,  # Armijo constant
+        backtrack_rho=0.8   # Reduction factor
     )
     
     # Huấn luyện model
@@ -36,15 +37,14 @@ def main():
     metrics = model.evaluate(X_test, y_test)
     
     # Lưu kết quả với tên file tự động
-    ten_file = get_experiment_name()  # Sẽ là "setup_gd_nesterov_lasso_lr_01_mom_09_reg_01"
+    ten_file = get_experiment_name()  # Sẽ là "setup_gd_backtracking_ols_c1_0001"
     results_dir = model.save_results(ten_file)
     
     # Tạo biểu đồ
     model.plot_results(X_test, y_test, ten_file)
     
-    print(f"\nNesterov GD + Lasso training completed!")
-    print(f"Momentum parameter: {model.momentum}")
-    print(f"L1 regularization: {model.regularization}")
+    print(f"\nBacktracking Line Search training completed!")
+    print(f"Final step size: {results['step_sizes_history'][-1]:.6f}")
     
     return model, results, metrics
 

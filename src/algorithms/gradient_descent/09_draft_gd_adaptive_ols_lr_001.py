@@ -23,11 +23,12 @@ def main():
     
     model = GradientDescentModel(
         ham_loss='ols',
-        learning_rate=0.001,  # Base learning rate cho backtracking
+        learning_rate=1,  # Base learning rate cho Adam-like adaptive
         diem_dung=1e-5,
-        step_size_method='backtracking',
-        backtrack_c1=1e-4,  # Armijo constant
-        backtrack_rho=0.8   # Reduction factor
+        step_size_method='adaptive',
+        adaptive_beta1=0.9,    # First moment decay
+        adaptive_beta2=0.999,  # Second moment decay
+        adaptive_eps=1e-8      # Epsilon for numerical stability
     )
     
     # Huấn luyện model
@@ -37,14 +38,15 @@ def main():
     metrics = model.evaluate(X_test, y_test)
     
     # Lưu kết quả với tên file tự động
-    ten_file = get_experiment_name()  # Sẽ là "setup_gd_backtracking_ols_c1_0001"
+    ten_file = get_experiment_name()  # Sẽ là "setup_gd_adaptive_ols_lr_001"
     results_dir = model.save_results(ten_file)
     
     # Tạo biểu đồ
     model.plot_results(X_test, y_test, ten_file)
     
-    print(f"\nBacktracking Line Search training completed!")
-    print(f"Final step size: {results['step_sizes_history'][-1]:.6f}")
+    print(f"\nAdaptive Step Size training completed!")
+    print(f"Initial avg step size: {results['step_sizes_history'][0]:.6f}")
+    print(f"Final avg step size: {results['step_sizes_history'][-1]:.6f}")
     
     return model, results, metrics
 

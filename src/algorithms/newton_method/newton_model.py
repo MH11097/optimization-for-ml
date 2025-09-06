@@ -299,18 +299,18 @@ class NewtonModel:
                 "final_loss": float(self.loss_history[-1]),
                 "final_gradient_norm": float(self.gradient_norms[-1]),
                 # Thêm thông tin best results
-                "best_iteration": best_iteration,
+                "best_iteration": int(best_iteration),
                 "best_loss": float(best_loss),
                 "best_gradient_norm": float(best_gradient_norm),
                 "improvement_from_final": {
                     "loss_improvement": float(self.loss_history[-1] - best_loss),
                     "gradient_improvement": float(self.gradient_norms[-1] - best_gradient_norm),
-                    "iterations_earlier": self.final_iteration - best_iteration
+                    "iterations_earlier": int(self.final_iteration - best_iteration)
                 }
             },
             "weights_analysis": {
-                "n_features": len(best_weights) - 1,  # Không tính bias
-                "n_weights_total": len(best_weights),  # Tính cả bias
+                "n_features": int(len(best_weights) - 1),  # Không tính bias
+                "n_weights_total": int(len(best_weights)),  # Tính cả bias
                 "bias_value": float(best_weights[-1]),
                 "weights_without_bias": best_weights[:-1].tolist(),
                 "complete_weight_vector": best_weights.tolist(),
@@ -322,8 +322,8 @@ class NewtonModel:
                 }
             },
             "convergence_analysis": {
-                "iterations_to_converge": self.final_iteration,
-                "best_iteration_found": best_iteration,
+                "iterations_to_converge": int(self.final_iteration),
+                "best_iteration_found": int(best_iteration),
                 "final_cost_change": float(self.loss_history[-1] - self.loss_history[-2]) if len(self.loss_history) > 1 else 0.0,
                 "convergence_rate": "quadratic",  # Newton Method có quadratic convergence
                 "loss_reduction_ratio": float(self.loss_history[0] / best_loss) if len(self.loss_history) > 0 else 1.0,

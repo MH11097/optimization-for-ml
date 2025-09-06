@@ -1,27 +1,27 @@
 {
   "basic_metrics": {
-    "function_evaluations": 74,
-    "gradient_evaluations": 7400,
+    "function_evaluations": 81,
+    "gradient_evaluations": 8100,
     "matrix_vector_multiplications": 0,
-    "vector_operations": 7474,
-    "memory_allocations": 7400,
+    "vector_operations": 8181,
+    "memory_allocations": 8100,
     "peak_memory_size": 63,
-    "total_operations": 93714075524
+    "total_operations": 102578920506
   },
   "iterations": {
-    "total_iterations": 7399,
-    "final_iteration": 7400,
+    "total_iterations": 8099,
+    "final_iteration": 8100,
     "converged": true,
-    "convergence_iteration": 7400
+    "convergence_iteration": 8100
   },
   "per_iteration_averages": {
-    "function_evaluations_per_iter": 0.010001351533991079,
-    "gradient_evaluations_per_iter": 1.000135153399108,
-    "operations_per_iter": 12665775.85133126,
+    "function_evaluations_per_iter": 0.010001234720335844,
+    "gradient_evaluations_per_iter": 1.0001234720335843,
+    "operations_per_iter": 12665627.917767625,
     "matrix_operations_per_iter": 0.0
   },
   "efficiency_metrics": {
-    "operations_to_convergence": 93695075335,
+    "operations_to_convergence": 102559920317,
     "convergence_efficiency": 1.0,
     "operations_per_convergence_iter": 12664064.26
   },
@@ -31,9 +31,9 @@
       "n_features": 62
     },
     "problem_complexity_factor": 6200000,
-    "operations_per_problem_unit": 15115.173471612903,
+    "operations_per_problem_unit": 16544.9871783871,
     "memory_efficiency": 0.0006296096420219464,
-    "theoretical_complexity": "O(100000*62*7399)"
+    "theoretical_complexity": "O(100000*62*8099)"
   },
   "operation_distribution": {
     "function_eval_percentage": 7.89635917403344e-08,

@@ -44,7 +44,7 @@ class DampedNewtonModel:
     def __init__(self, ham_loss='ols', regularization=0.01, so_lan_thu=10000, 
                  diem_dung=1e-10, numerical_regularization=1e-8, 
                  armijo_c1=1e-4, backtrack_rho=0.8, max_line_search_iter=50,
-                 convergence_check_freq=1):
+                 convergence_check_freq=10, use_line_search=True, learning_rate=1.0):
         self.ham_loss = ham_loss.lower()
         self.regularization = regularization
         self.so_lan_thu = so_lan_thu
@@ -54,6 +54,8 @@ class DampedNewtonModel:
         self.backtrack_rho = backtrack_rho
         self.max_line_search_iter = max_line_search_iter
         self.convergence_check_freq = convergence_check_freq
+        self.use_line_search = use_line_search
+        self.learning_rate = learning_rate
         
         # Validate supported loss function
         if self.ham_loss not in ['ols', 'ridge', 'lasso']:
@@ -124,7 +126,10 @@ class DampedNewtonModel:
         print(f"🚀 Training Damped Newton Method - {self.ham_loss.upper()}")
         print(f"   Regularization: {self.regularization}")
         print(f"   Numerical regularization: {self.numerical_regularization}")
-        print(f"   Line search - Armijo c1: {self.armijo_c1}, Backtrack ρ: {self.backtrack_rho}")
+        if self.use_line_search:
+            print(f"   Line search - Armijo c1: {self.armijo_c1}, Backtrack ρ: {self.backtrack_rho}")
+        else:
+            print(f"   Fixed step size: {self.learning_rate}")
         print(f"   Max iterations: {self.so_lan_thu}")
         
         # Thêm cột bias vào X
@@ -203,17 +208,22 @@ class DampedNewtonModel:
                 # Compute Newton direction: H^-1 * gradient
                 newton_direction = giai_he_phuong_trinh_tuyen_tinh(H_reg, gradient_w)
                 
-                # Backtracking line search
-                step_size, n_backtracks = self._backtracking_line_search(
-                    X_with_bias, y, self.weights, gradient_w, newton_direction
-                )
+                if self.use_line_search:
+                    # Backtracking line search
+                    step_size, n_backtracks = self._backtracking_line_search(
+                        X_with_bias, y, self.weights, gradient_w, newton_direction
+                    )
+                    self.line_search_iterations.append(n_backtracks)
+                else:
+                    # Fixed step size
+                    step_size = self.learning_rate
+                    self.line_search_iterations.append(0)  # No backtracking needed
                 
                 # Update weights
                 self.weights = self.weights - step_size * newton_direction
                 
                 # Record step information
                 self.step_sizes.append(step_size)
-                self.line_search_iterations.append(n_backtracks)
                 
             except np.linalg.LinAlgError:
                 print(f"Linear algebra error at iteration {lan_thu + 1}")
@@ -221,8 +231,11 @@ class DampedNewtonModel:
             
             # Progress update
             if (lan_thu + 1) % 10 == 0 and should_check_converged:
-                avg_backtracks = np.mean(self.line_search_iterations[-10:]) if self.line_search_iterations else 0
-                print(f"   Vòng {lan_thu + 1}: Loss = {loss_value:.8f}, Gradient = {gradient_norm:.2e}, α = {step_size:.4f}, Backtracks = {avg_backtracks:.1f}")
+                if self.use_line_search:
+                    avg_backtracks = np.mean(self.line_search_iterations[-10:]) if self.line_search_iterations else 0
+                    print(f"   Vòng {lan_thu + 1}: Loss = {loss_value:.8f}, Gradient = {gradient_norm:.2e}, α = {step_size:.4f}, Backtracks = {avg_backtracks:.1f}")
+                else:
+                    print(f"   Vòng {lan_thu + 1}: Loss = {loss_value:.8f}, Gradient = {gradient_norm:.2e}, α = {step_size:.4f} (fixed)")
         
         self.training_time = time.time() - start_time
         
@@ -235,7 +248,10 @@ class DampedNewtonModel:
         print(f"Bias cuối: {self.weights[-1]:.6f}")  # Bias là phần tử cuối của weights
         print(f"Số weights (bao gồm bias): {len(self.weights)}")
         print(f"Trung bình step size: {np.mean(self.step_sizes):.4f}")
-        print(f"Trung bình line search iterations: {np.mean(self.line_search_iterations):.1f}")
+        if self.use_line_search:
+            print(f"Trung bình line search iterations: {np.mean(self.line_search_iterations):.1f}")
+        else:
+            print(f"Step size mode: Fixed ({self.learning_rate})")
         
         return {
             'weights': self.weights,  # Bao gồm bias ở cuối
@@ -354,17 +370,19 @@ class DampedNewtonModel:
                 "max_backtracks": int(np.max(self.line_search_iterations)) if self.line_search_iterations else 0,
                 "min_backtracks": int(np.min(self.line_search_iterations)) if self.line_search_iterations else 0,
                 "total_line_search_calls": len(self.line_search_iterations),
-                "line_search_success_rate": "100%" # Always successful within max_iter
+                "line_search_success_rate": "100%" if self.use_line_search else "N/A (fixed step)"
             },
             "algorithm_specific": {
                 "method_type": "damped_newton",
                 "second_order_method": True,
                 "hessian_computation": "exact",
-                "line_search_used": True,
-                "line_search_type": "backtracking_armijo",
-                "damping_applied": "line_search_based",
+                "line_search_used": self.use_line_search,
+                "line_search_type": "backtracking_armijo" if self.use_line_search else "fixed_step",
+                "damping_applied": "line_search_based" if self.use_line_search else "fixed_step_based",
                 "fast_convergence": self.final_iteration <= 20,
-                "globalization_strategy": "armijo_line_search"
+                "globalization_strategy": "armijo_line_search" if self.use_line_search else "fixed_step_size",
+                "step_size_strategy": "adaptive" if self.use_line_search else "fixed",
+                "fixed_learning_rate": self.learning_rate if not self.use_line_search else None
             }
         }
         
@@ -374,16 +392,28 @@ class DampedNewtonModel:
         # Save training history
         print(f"   Lưu lịch sử training vào {results_dir}/training_history.csv")
         max_len = len(self.loss_history)
+        
+        # Debug: print array lengths
+        print(f"   Debug - loss_history: {len(self.loss_history)}, gradient_norms: {len(self.gradient_norms)}")
+        print(f"   Debug - step_sizes: {len(self.step_sizes)}, line_search_iterations: {len(self.line_search_iterations)}")
+        
+        # Ensure all arrays have the same length as loss_history
+        step_sizes_padded = self.step_sizes[:max_len] + [np.nan] * max(0, max_len - len(self.step_sizes))
+        line_search_padded = self.line_search_iterations[:max_len] + [np.nan] * max(0, max_len - len(self.line_search_iterations))
+        
+        # Ensure gradient_norms has same length
+        gradient_norms_trimmed = self.gradient_norms[:max_len]
+        
         training_df = pd.DataFrame({
-            'iteration': range(0, len(self.loss_history)*self.convergence_check_freq, self.convergence_check_freq),
+            'iteration': range(0, max_len * self.convergence_check_freq, self.convergence_check_freq),
             'loss': self.loss_history,
-            'gradient_norm': self.gradient_norms,
-            'step_size': self.step_sizes + [np.nan] * (max_len - len(self.step_sizes)),
-            'line_search_iterations': self.line_search_iterations + [np.nan] * (max_len - len(self.line_search_iterations))
+            'gradient_norm': gradient_norms_trimmed,
+            'step_size': step_sizes_padded,
+            'line_search_iterations': line_search_padded
         })
         training_df.to_csv(results_dir / "training_history.csv", index=False)
         
-        print(f"\n Kết quả đã được lưu vào: {results_dir.absolute()}")
+        print(f"\n✅ Kết quả đã được lưu vào: {results_dir.absolute()}")
         return results_dir
     
     def plot_results(self, X_test, y_test, ten_file, base_dir="data/03_algorithms/newton_method"):
@@ -403,51 +433,15 @@ class DampedNewtonModel:
         
         print(f"\n📊 Tạo biểu đồ...")
         
-        # 1. Convergence curves with line search info - now using actual iteration numbers
-        print("   - Vẽ đường hội tụ với thông tin line search")
-        import matplotlib.pyplot as plt
-        
+        # 1. Convergence curves - sử dụng unified function
+        print("   - Vẽ đường hội tụ")
         # Create iteration values based on convergence_check_freq
         iterations = list(range(0, len(self.loss_history) * self.convergence_check_freq, self.convergence_check_freq))
         
-        fig, axes = plt.subplots(2, 2, figsize=(15, 10))
-        
-        # Loss curve
-        axes[0,0].semilogy(iterations, self.loss_history, 'b-', linewidth=2)
-        axes[0,0].set_title('Loss Convergence')
-        axes[0,0].set_xlabel('Iteration')
-        axes[0,0].set_ylabel('Loss')
-        axes[0,0].grid(True, alpha=0.3)
-        
-        # Gradient norm
-        axes[0,1].semilogy(iterations, self.gradient_norms, 'r-', linewidth=2)
-        axes[0,1].set_title('Gradient Norm')
-        axes[0,1].set_xlabel('Iteration')
-        axes[0,1].set_ylabel('Gradient Norm')
-        axes[0,1].grid(True, alpha=0.3)
-        
-        # Step sizes
-        if self.step_sizes:
-            step_iterations = iterations[:len(self.step_sizes)]
-            axes[1,0].plot(step_iterations, self.step_sizes, 'g-', linewidth=2)
-            axes[1,0].set_title('Step Sizes (α)')
-            axes[1,0].set_xlabel('Iteration')
-            axes[1,0].set_ylabel('Step Size')
-            axes[1,0].grid(True, alpha=0.3)
-        
-        # Line search iterations
-        if self.line_search_iterations:
-            line_search_iterations_aligned = iterations[:len(self.line_search_iterations)]
-            axes[1,1].bar(line_search_iterations_aligned, self.line_search_iterations, 
-                         alpha=0.7, color='orange', width=self.convergence_check_freq*0.8)
-            axes[1,1].set_title('Line Search Iterations')
-            axes[1,1].set_xlabel('Iteration')
-            axes[1,1].set_ylabel('Backtrack Iterations')
-            axes[1,1].grid(True, alpha=0.3)
-        
-        plt.tight_layout()
-        plt.savefig(results_dir / "convergence_analysis.png", dpi=300, bbox_inches='tight')
-        plt.close()
+        ve_duong_hoi_tu(self.loss_history, self.gradient_norms, 
+                        iterations=iterations,
+                        title=f"Damped Newton {self.ham_loss.upper()} - Convergence Analysis",
+                        save_path=str(results_dir / "convergence_analysis.png"))
         
         # 2. Predictions vs Actual
         print("   - So sánh dự đoán vs thực tế")

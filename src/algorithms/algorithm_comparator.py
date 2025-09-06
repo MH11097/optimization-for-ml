@@ -26,11 +26,8 @@ from utils.visualization_utils import (
 )
 # Example usage với đa dạng setup paths từ different algorithms
 setup_paths = [
-    "gradient_descent/01_setup_gd_ols_lr_0001",
-    "gradient_descent/02_setup_gd_ols_lr_001", 
-    "gradient_descent/03_setup_gd_ols_lr_01",
-    "gradient_descent/04_setup_gd_ols_lr_03",
-    "gradient_descent/05_setup_gd_ols_lr_02",
+    "stochastic_gd/04a_setup_sgd_optimal_momentum_05",
+    "stochastic_gd/04b_setup_sgd_optimal_momentum_09",
 ]
 
 class AlgorithmComparator:
@@ -323,12 +320,6 @@ class AlgorithmComparator:
         # Creating trajectory...
         self._create_trajectory_plot()
         
-        # Step 5: Tạo complexity comparison plots nếu có dữ liệu
-        if complexity_available:
-            print("Creating computational complexity analysis...")
-            self._create_complexity_comparison()
-        else:
-            print("   No complexity data available for analysis")
         
         print("\n" + "=" * 50)
         print("COMPARISON COMPLETED!")
@@ -340,11 +331,7 @@ class AlgorithmComparator:
         else:
             print("  - convergence_data_summary.txt (Plot failed, text summary)")
         print("  - optimization_trajectory.png (Contour plot with trajectories)")
-        if complexity_available:
-            print("  - complexity_comparison.png")
-            print("  - complexity_summary.csv") 
-            print("  - operation_distribution.png (for first algorithm)")
-        print("=" * 50)
+    
         
         return {
             'total_experiments': len(self.results_data),
@@ -390,79 +377,6 @@ class AlgorithmComparator:
                 print(f"Trajectory error: {e}")
         
         print("Not enough valid data for trajectory plot")
-
-    def _create_complexity_comparison(self):
-        """Tạo các plots so sánh computational complexity"""
-        try:
-            from utils.complexity_visualization import (
-                plot_complexity_comparison, create_complexity_summary_table, plot_operation_distribution
-            )
-        except ImportError:
-            print("   Không thể import complexity_visualization module")
-            return
-        
-        # Collect complexity data from results
-        complexity_results = []
-        setup_names = []
-        
-        for result in self.results_data:
-            if result.get('has_complexity_data', False):
-                # Load full complexity analysis from the results file
-                result_path = Path(result['full_path']) / "results.json"
-                if result_path.exists():
-                    import json
-                    with open(result_path, 'r') as f:
-                        full_data = json.load(f)
-                    
-                    complexity_data = full_data.get('computational_complexity', {})
-                    if complexity_data:
-                        complexity_results.append(complexity_data)
-                        setup_names.append(result['setup_name'])  # Use setup_name thay vì algorithm_name
-        
-        if not complexity_results:
-            print("   Không có dữ liệu complexity chi tiết để tạo plots")
-            return
-        
-        print(f"   Tạo complexity comparison cho {len(complexity_results)} setups...")
-        
-        try:
-            # Create comparison plot
-            comparison_file = self.output_dir / "complexity_comparison.png"
-            plot_complexity_comparison(
-                complexity_results,
-                save_path=str(comparison_file),
-                title="Computational Complexity Comparison"
-            )
-            print(f"   ✅ Complexity comparison plot saved: {comparison_file}")
-        except Exception as e:
-            print(f"   ⚠️ Không thể tạo complexity comparison plot: {e}")
-        
-        try:
-            # Create summary table
-            summary_file = self.output_dir / "complexity_summary.csv"
-            summary_df = create_complexity_summary_table(
-                complexity_results,
-                setup_names,  # Use setup_names thay vì algorithm_names
-                save_path=str(summary_file)
-            )
-            print(f"   ✅ Complexity summary table saved: {summary_file}")
-        except Exception as e:
-            print(f"   ⚠️ Không thể tạo complexity summary table: {e}")
-        
-        try:
-            # Create operation distribution for first setup
-            if complexity_results and setup_names:
-                distribution_file = self.output_dir / "operation_distribution.png"
-                plot_operation_distribution(
-                    complexity_results[0],
-                    save_path=str(distribution_file),
-                    title=f"Operation Distribution - {setup_names[0]}"
-                )
-                print(f"   ✅ Operation distribution plot saved: {distribution_file}")
-        except Exception as e:
-            print(f"   ⚠️ Không thể tạo operation distribution plot: {e}")
-        
-        print(f"   ✅ Complexity analysis completed với {len(complexity_results)} setups")
     
     def _create_multi_setup_contour_plot(self, setups_data, save_path):
         """Tạo contour plot theo kiểu ve_duong_dong_muc_optimization nhưng cho multiple setups"""

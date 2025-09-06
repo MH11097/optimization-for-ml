@@ -1,474 +1,349 @@
-# BFGS Quasi-Newton Method
+# Quasi-Newton Methods Implementation
 
-## Mathematical Foundation
+This directory contains comprehensive implementations of three major Quasi-Newton optimization algorithms: **BFGS**, **L-BFGS**, and **SR1** for machine learning applications.
 
-### Definition
+## 🎯 Overview
 
-The Broyden-Fletcher-Goldfarb-Shanno (BFGS) algorithm is a quasi-Newton optimization method that approximates the Newton's method by iteratively building an approximation to the Hessian matrix using gradient information from previous iterations.
+Quasi-Newton methods are second-order optimization algorithms that approximate the Hessian matrix to achieve superlinear convergence while avoiding the computational cost of computing the actual Hessian. They are particularly effective for unconstrained optimization problems in machine learning.
 
-### Algorithm Formulation
+## 🧮 Algorithms Implemented
 
-The BFGS update rule follows the general quasi-Newton framework:
+### 1. BFGS (Broyden-Fletcher-Goldfarb-Shanno)
+- **Method**: `method='bfgs'`
+- **Memory**: O(n²) storage
+- **Convergence**: Superlinear
+- **Best for**: Small-medium problems with fast convergence needs
+- **Features**: Guaranteed positive definite updates, full Hessian approximation
 
-$$x_{k+1} = x_k - \alpha_k H_k \nabla f(x_k)$$
+### 2. L-BFGS (Limited-memory BFGS) 
+- **Method**: `method='lbfgs'`
+- **Memory**: O(mn) storage where m is memory size
+- **Convergence**: Near-superlinear
+- **Best for**: Large-scale problems, memory-constrained environments
+- **Features**: Two-loop recursion, configurable memory size
 
-where:
-- $x_k$ is the current iterate
-- $\alpha_k$ is the step size (typically from line search)
-- $H_k$ is the approximate inverse Hessian
-- $\nabla f(x_k)$ is the gradient at $x_k$
+### 3. SR1 (Symmetric Rank-1)
+- **Method**: `method='sr1'` 
+- **Memory**: O(n²) storage
+- **Convergence**: Linear to superlinear
+- **Best for**: Problems with indefinite Hessians, experimental use
+- **Features**: Can handle non-convex problems, skip condition for stability
 
-### Secant Condition
+## 🚀 Quick Start
 
-The fundamental requirement for quasi-Newton methods is the secant condition:
+```python
+from algorithms.quasi_newton.quasi_newton_model import QuasiNewtonModel
+from utils.data_process_utils import load_du_lieu
 
-$$B_{k+1} s_k = y_k$$
+# Load data
+X_train, X_test, y_train, y_test = load_du_lieu()
 
-where:
-- $B_{k+1}$ is the approximate Hessian at iteration $k+1$
-- $s_k = x_{k+1} - x_k$ (step vector)
-- $y_k = \nabla f(x_{k+1}) - \nabla f(x_k)$ (gradient difference)
+# Initialize model (choose your method)
+model = QuasiNewtonModel(
+    ham_loss='ols',           # 'ols', 'ridge', 'lasso'
+    method='bfgs',            # 'bfgs', 'lbfgs', 'sr1' 
+    diem_dung=1e-5,          # Convergence tolerance
+    memory_size=10,          # L-BFGS memory (ignored for other methods)
+    sr1_skip_threshold=1e-8  # SR1 skip condition (ignored for other methods)
+)
 
-This condition ensures that the Hessian approximation is consistent with the observed gradient changes.
+# Train and evaluate
+results = model.fit(X_train, y_train)
+metrics = model.evaluate(X_test, y_test)
+
+# Save comprehensive results
+model.save_results("experiment_name")
+model.plot_results(X_test, y_test, "experiment_name")
+```
+
+## 📁 Setup Scripts
+
+Pre-configured experiments for different algorithm combinations:
+
+### BFGS Experiments
+- `01a_setup_bfgs_ols.py` - BFGS with Ordinary Least Squares
+- `01b_setup_bfgs_ridge.py` - BFGS with Ridge regularization
+
+### L-BFGS Experiments  
+- `02a_setup_lbfgs_ols_m5.py` - L-BFGS (memory=5) with OLS
+- `02b_setup_lbfgs_ols_m10.py` - L-BFGS (memory=10) with OLS
+- `02c_setup_lbfgs_ridge_m5.py` - L-BFGS (memory=5) with Ridge
+
+### SR1 Experiments
+- `03a_setup_sr1_ols.py` - SR1 with OLS
+- `03b_setup_sr1_ridge.py` - SR1 with Ridge regularization
+
+### Benchmarking
+- `99_setup_scipy_comparison.py` - Comprehensive comparison with SciPy implementations
+
+## 🔬 Algorithm Mathematics
 
 ### BFGS Update Formula
+BFGS maintains inverse Hessian approximation $B_k^{-1}$:
 
-The BFGS method updates the inverse Hessian approximation $H_k = B_k^{-1}$ using:
+$$B_{k+1}^{-1} = (I - \\rho_k s_k y_k^T) B_k^{-1} (I - \\rho_k y_k s_k^T) + \\rho_k s_k s_k^T$$
 
-$$H_{k+1} = H_k + \frac{s_k s_k^T}{s_k^T y_k} - \frac{H_k y_k y_k^T H_k}{y_k^T H_k y_k} + \frac{u_k u_k^T}{u_k^T y_k}$$
+Where:
+- $s_k = x_{k+1} - x_k$ (parameter step)
+- $y_k = \\nabla f_{k+1} - \\nabla f_k$ (gradient change)
+- $\\rho_k = 1/(y_k^T s_k)$ (curvature measure)
 
-where $u_k = \frac{s_k}{s_k^T y_k} - \frac{H_k y_k}{y_k^T H_k y_k}$.
+### L-BFGS Two-Loop Recursion
+Computes search direction without forming full inverse Hessian:
 
-The more commonly used Sherman-Morrison-Woodbury form is:
-
-$$H_{k+1} = \left(I - \rho_k s_k y_k^T\right) H_k \left(I - \rho_k y_k s_k^T\right) + \rho_k s_k s_k^T$$
-
-where $\rho_k = \frac{1}{y_k^T s_k}$.
-
-### Convergence Properties
-
-BFGS enjoys several favorable convergence properties:
-
-1. **Superlinear convergence**: For strongly convex functions with Lipschitz continuous Hessian
-2. **Global convergence**: When combined with appropriate line search conditions
-3. **Finite termination**: On quadratic functions (like Newton's method)
-4. **Positive definiteness**: $H_k$ remains positive definite under suitable conditions
-
-## Algorithm Configurations
-
-### Standard Configuration
-
-This configuration provides robust performance across a wide range of optimization problems.
-
-**Parameters:**
-- Maximum iterations: 100
-- Convergence tolerance: $10^{-6}$
-- Line search: Backtracking with Armijo condition
-- Initial Hessian: Identity matrix
-
-**Characteristics:**
-- Balances convergence speed with numerical stability
-- Suitable for well-conditioned problems
-- Requires moderate memory storage ($O(n^2)$)
-- Robust to poor initial guesses
-
-### Fast Configuration
-
-This configuration prioritizes rapid convergence for well-behaved problems.
-
-**Parameters:**
-- Maximum iterations: 50
-- Convergence tolerance: $10^{-5}$
-- Line search: Backtracking
-- Initial Hessian: Scaled identity based on first gradient
-
-**Characteristics:**
-- Emphasizes speed over robustness
-- Better initial Hessian approximation through scaling
-- May struggle with ill-conditioned problems
-- Suitable for prototyping and well-understood problems
-
-### Robust Configuration
-
-This configuration emphasizes stability and reliability for challenging optimization landscapes.
-
-**Parameters:**
-- Maximum iterations: 200
-- Convergence tolerance: $10^{-8}$
-- Line search: Strong Wolfe conditions
-- Initial Hessian: Diagonal scaling
-- Restart frequency: Every 50 iterations
-
-**Characteristics:**
-- High precision convergence
-- Robust line search conditions ensure global convergence
-- Periodic restarts prevent accumulation of approximation errors
-- Suitable for ill-conditioned or noisy problems
-
-## Line Search Theory
-
-### Importance of Line Search
-
-Unlike Newton's method, BFGS typically requires careful step size selection because the search direction may not be optimal. Line search ensures global convergence and numerical stability.
-
-### Armijo Condition
-
-The Armijo condition ensures sufficient decrease in the objective function:
-
-$$f(x_k + \alpha_k d_k) \leq f(x_k) + c_1 \alpha_k \nabla f(x_k)^T d_k$$
-
-where:
-- $d_k = -H_k \nabla f(x_k)$ is the search direction
-- $c_1 \in (0, 1)$ is a small constant (typically $10^{-4}$)
-
-### Wolfe Conditions
-
-The strong Wolfe conditions combine sufficient decrease with curvature conditions:
-
-1. **Armijo condition**: $f(x_k + \alpha_k d_k) \leq f(x_k) + c_1 \alpha_k \nabla f(x_k)^T d_k$
-2. **Curvature condition**: $|\nabla f(x_k + \alpha_k d_k)^T d_k| \leq c_2 |\nabla f(x_k)^T d_k|$
-
-where $0 < c_1 < c_2 < 1$ (typically $c_1 = 10^{-4}$, $c_2 = 0.9$).
-
-## Implementation Guidelines
-
-### Core BFGS Implementation
-
-```python
-def bfgs_optimization(objective, gradient, x0, max_iter=100, tol=1e-6):
-    """BFGS optimization algorithm."""
-    n = len(x0)
-    x = x0.copy()
-    H = np.eye(n)  # Initial inverse Hessian approximation
-    
-    grad = gradient(x)
-    costs = [objective(x)]
-    
-    for iteration in range(max_iter):
-        # Check convergence
-        if np.linalg.norm(grad) < tol:
-            print(f"Converged after {iteration} iterations")
-            break
-        
-        # Compute search direction
-        direction = -H @ grad
-        
-        # Line search
-        alpha = backtracking_line_search(objective, gradient, x, direction)
-        
-        # Update position
-        x_new = x + alpha * direction
-        grad_new = gradient(x_new)
-        
-        # BFGS update
-        s = x_new - x
-        y = grad_new - grad
-        
-        # Check curvature condition
-        if y.T @ s > 1e-8:
-            H = bfgs_update(H, s, y)
-        
-        # Prepare for next iteration
-        x = x_new
-        grad = grad_new
-        costs.append(objective(x))
-    
-    return x, costs
-
-def bfgs_update(H, s, y):
-    """BFGS inverse Hessian update."""
-    rho = 1.0 / (y.T @ s)
-    I = np.eye(len(s))
-    
-    # Sherman-Morrison-Woodbury formula
-    H_new = (I - rho * np.outer(s, y)) @ H @ (I - rho * np.outer(y, s)) + rho * np.outer(s, s)
-    
-    return H_new
+**Backward Loop:**
+```
+for i = m-1 down to 0:
+    α_i = ρ_i · (s_i^T · q)
+    q = q - α_i · y_i
+end
 ```
 
-### Line Search Implementation
-
-```python
-def backtracking_line_search(objective, gradient, x, direction, 
-                           alpha_init=1.0, c1=1e-4, rho=0.5, max_iter=50):
-    """Backtracking line search with Armijo condition."""
-    alpha = alpha_init
-    fx = objective(x)
-    grad_x = gradient(x)
-    armijo_threshold = c1 * grad_x.T @ direction
-    
-    for _ in range(max_iter):
-        x_new = x + alpha * direction
-        fx_new = objective(x_new)
-        
-        # Check Armijo condition
-        if fx_new <= fx + alpha * armijo_threshold:
-            return alpha
-        
-        alpha *= rho
-    
-    # Return small step if line search fails
-    return alpha
+**Forward Loop:**
+```
+for i = 0 to m-1:
+    β_i = ρ_i · (y_i^T · r)
+    r = r + (α_i - β_i) · s_i
+end
 ```
 
-### Numerical Stability Enhancements
+### SR1 Update Formula
+Symmetric rank-1 updates:
 
-```python
-def robust_bfgs_update(H, s, y, damping=True):
-    """BFGS update with numerical stability enhancements."""
-    
-    # Check curvature condition
-    sy = y.T @ s
-    if sy <= 1e-8:
-        if damping:
-            # Damped BFGS update
-            theta = 0.8
-            y_damped = theta * y + (1 - theta) * H @ s
-            sy = y_damped.T @ s
-            y = y_damped
-        else:
-            # Skip update
-            return H
-    
-    rho = 1.0 / sy
-    I = np.eye(len(s))
-    
-    # Compute update
-    A = I - rho * np.outer(s, y)
-    H_new = A @ H @ A.T + rho * np.outer(s, s)
-    
-    # Ensure positive definiteness
-    eigenvals = np.linalg.eigvals(H_new)
-    if np.min(eigenvals) <= 0:
-        print("Warning: Non-positive definite Hessian approximation")
-        # Add regularization
-        H_new += 1e-8 * np.eye(len(s))
-    
-    return H_new
+$$B_{k+1}^{-1} = B_k^{-1} + \\frac{(s_k - B_k^{-1} y_k)(s_k - B_k^{-1} y_k)^T}{(s_k - B_k^{-1} y_k)^T y_k}$$
+
+**Skip Condition** (for numerical stability):
+$$|(s_k - B_k^{-1} y_k)^T y_k| < \\epsilon \\|s_k - B_k^{-1} y_k\\| \\|y_k\\|$$
+
+## ⚙️ Parameters Guide
+
+### Core Parameters
+| Parameter | Description | Default | Range |
+|-----------|-------------|---------|-------|
+| `ham_loss` | Loss function | 'ols' | 'ols', 'ridge', 'lasso' |
+| `method` | Algorithm | 'bfgs' | 'bfgs', 'lbfgs', 'sr1' |
+| `so_lan_thu` | Max iterations | 10000 | 100-50000 |
+| `diem_dung` | Convergence tolerance | 1e-5 | 1e-8 to 1e-3 |
+| `regularization` | L1/L2 penalty | 0.01 | 0.001-0.1 |
+
+### Line Search Parameters
+| Parameter | Description | Default | Typical Range |
+|-----------|-------------|---------|---------------|
+| `armijo_c1` | Armijo constant | 1e-4 | 1e-6 to 1e-2 |
+| `wolfe_c2` | Wolfe curvature | 0.9 | 0.1 to 0.99 |
+| `backtrack_rho` | Step reduction | 0.8 | 0.1 to 0.9 |
+| `max_line_search_iter` | Max line search | 50 | 10-100 |
+
+### Method-Specific Parameters
+| Method | Parameter | Description | Default | Recommended |
+|--------|-----------|-------------|---------|-------------|
+| L-BFGS | `memory_size` | History vectors | 10 | 5-20 |
+| SR1 | `sr1_skip_threshold` | Skip condition | 1e-8 | 1e-10 to 1e-6 |
+| All | `damping` | Numerical stability | 1e-8 | 1e-12 to 1e-6 |
+
+## 📊 Results Analysis
+
+Each experiment generates comprehensive analysis:
+
+### Output Files
+- **`results.json`**: Complete algorithm metrics and parameters
+- **`training_history.csv`**: Iteration-by-iteration progress data
+- **`convergence_analysis.png`**: Loss/gradient convergence visualization
+- **`predictions_vs_actual.png`**: Model prediction quality assessment
+- **`optimization_trajectory.png`**: Parameter space optimization path
+
+### Key Performance Metrics
+
+#### Convergence Metrics
+- **Final gradient norm**: Measure of optimization convergence
+- **Loss reduction ratio**: Initial loss / final loss
+- **Iterations to convergence**: Efficiency measure
+- **Convergence rate**: Linear vs superlinear classification
+
+#### Computational Metrics
+- **Training time**: Wall-clock optimization time
+- **Function evaluations**: Total objective function calls
+- **Line search efficiency**: Average line search iterations
+- **Memory usage**: For L-BFGS memory utilization
+
+#### Algorithm-Specific Metrics
+- **BFGS**: Condition number evolution
+- **L-BFGS**: Memory usage vs allocated memory
+- **SR1**: Skip rate and numerical stability
+
+## 🎯 Algorithm Selection Guide
+
+### Problem Size Recommendations
+
+| Problem Size | Features (n) | Recommended Method | Memory Size (L-BFGS) |
+|--------------|--------------|--------------------|-----------------------|
+| Small | < 100 | BFGS | - |
+| Medium | 100-1000 | BFGS or L-BFGS | 10-20 |
+| Large | 1000-10000 | L-BFGS | 5-10 |
+| Very Large | > 10000 | L-BFGS | 3-7 |
+
+### Use Case Guidelines
+
+**Choose BFGS when:**
+- ✅ Fast convergence is critical
+- ✅ Problem size is manageable (n < 1000)
+- ✅ Memory is not a constraint
+- ✅ High accuracy is required
+
+**Choose L-BFGS when:**
+- ✅ Problem is large-scale (n > 1000)
+- ✅ Memory is limited
+- ✅ Good balance of speed/memory needed
+- ✅ Most general-purpose applications
+
+**Choose SR1 when:**
+- ✅ Hessian may be indefinite
+- ✅ Non-convex optimization
+- ✅ Experimental/research applications
+- ✅ Diagonal dominance in problem structure
+
+## 🔄 Parameter Tuning Guidelines
+
+### L-BFGS Memory Size
+- **m=3-5**: Very memory constrained, may need more iterations
+- **m=10**: Balanced choice (recommended default)
+- **m=15-20**: Better Hessian approximation, more memory
+- **m>20**: Diminishing returns, approaching full BFGS
+
+### SR1 Skip Threshold
+- **1e-10**: Very conservative, fewer risky updates
+- **1e-8**: Standard choice (recommended)
+- **1e-6**: More aggressive, higher update rate
+- **1e-4**: Risk numerical instability
+
+### Convergence Tolerance
+- **1e-3**: Fast termination, lower accuracy
+- **1e-5**: Balanced accuracy (recommended)
+- **1e-7**: High accuracy applications
+- **1e-9**: Research-grade precision
+
+## 🏆 Performance Benchmarking
+
+### Running Comparisons
+```bash
+# Compare all methods against SciPy
+python 99_setup_scipy_comparison.py
+
+# Run individual experiments
+python 01a_setup_bfgs_ols.py
+python 02b_setup_lbfgs_ols_m10.py  
+python 03a_setup_sr1_ols.py
 ```
 
-## Theoretical Analysis
+### Typical Performance Characteristics
 
-### Convergence Rate
+| Algorithm | Iterations | Convergence Rate | Memory | Function Evals |
+|-----------|------------|------------------|--------|----------------|
+| BFGS | 5-25 | Superlinear | O(n²) | 10-50 |
+| L-BFGS | 10-100 | Near-superlinear | O(mn) | 20-200 |
+| SR1 | 10-200 | Linear-superlinear | O(n²) | 20-400 |
 
-For strongly convex functions with Lipschitz continuous Hessian, BFGS achieves superlinear convergence:
+### Convergence Comparison
+```
+BFGS:    ████████████████████████████ Fastest
+L-BFGS:  ██████████████████████ Fast  
+SR1:     ████████████ Variable
+```
 
-$$\lim_{k \to \infty} \frac{\|x_{k+1} - x^*\|}{\|x_k - x^*\|} = 0$$
-
-This rate is faster than linear but slower than the quadratic rate of Newton's method.
-
-### Memory Requirements
-
-BFGS requires $O(n^2)$ memory to store the inverse Hessian approximation, which can be prohibitive for large-scale problems. This limitation motivates limited-memory variants like L-BFGS.
-
-### Positive Definiteness
-
-Under appropriate conditions (particularly the curvature condition $y_k^T s_k > 0$), the BFGS update preserves positive definiteness of the Hessian approximation, ensuring descent directions.
-
-## Troubleshooting Guide
+## 🔍 Debugging and Troubleshooting
 
 ### Common Issues and Solutions
 
-| Problem | Symptoms | Recommended Solution |
-|---------|----------|----------------------|
-| Slow initial convergence | High cost for first 10-20 iterations | Normal behavior; wait for Hessian buildup |
-| Line search failures | Very small step sizes | Check gradient accuracy; increase damping |
-| Memory limitations | Out of memory errors | Switch to L-BFGS for large problems |
-| Poor final accuracy | Stagnation before tolerance | Check problem conditioning |
-| Non-descent directions | Increasing objective values | Verify curvature condition; add regularization |
+**Slow Convergence:**
+- Check gradient computation accuracy
+- Reduce convergence tolerance temporarily
+- Try different line search parameters
+- Verify problem scaling
 
-### Diagnostic Procedures
+**Memory Issues (BFGS):**
+- Switch to L-BFGS with small memory size
+- Reduce dataset size for testing
+- Check for memory leaks in gradient computation
 
-```python
-def diagnose_bfgs(H, grad, iteration, costs):
-    """Comprehensive diagnostics for BFGS optimization."""
-    
-    # Check Hessian approximation quality
-    cond_H = np.linalg.cond(H)
-    eigenvals = np.linalg.eigvals(H)
-    min_eigval = np.min(eigenvals)
-    
-    print(f"Iteration {iteration}:")
-    print(f"  Condition number of H: {cond_H:.2e}")
-    print(f"  Minimum eigenvalue: {min_eigval:.2e}")
-    print(f"  Gradient norm: {np.linalg.norm(grad):.6f}")
-    
-    # Convergence analysis
-    if len(costs) > 1:
-        improvement = (costs[-2] - costs[-1]) / abs(costs[-2])
-        print(f"  Relative improvement: {improvement:.2e}")
-    
-    # Warning checks
-    if cond_H > 1e12:
-        print("  WARNING: Ill-conditioned Hessian approximation")
-    if min_eigval <= 0:
-        print("  WARNING: Non-positive definite Hessian")
-    
-    return {
-        'condition_number': cond_H,
-        'min_eigenvalue': min_eigval,
-        'gradient_norm': np.linalg.norm(grad)
-    }
-```
+**Numerical Instability (SR1):**
+- Increase skip threshold (`sr1_skip_threshold`)
+- Check condition number evolution
+- Verify problem conditioning
 
-### Performance Optimization
+**Line Search Failures:**
+- Reduce initial step size
+- Adjust Wolfe parameters (`armijo_c1`, `wolfe_c2`)
+- Increase `max_line_search_iter`
 
-```python
-def optimize_bfgs_parameters(problem_size, conditioning):
-    """Suggest BFGS parameters based on problem characteristics."""
-    
-    if problem_size < 100:
-        config = {
-            'method': 'standard_bfgs',
-            'line_search': 'strong_wolfe',
-            'max_iter': 100
-        }
-    elif problem_size < 1000:
-        config = {
-            'method': 'bfgs_with_restart',
-            'restart_frequency': 50,
-            'line_search': 'backtracking',
-            'max_iter': 200
-        }
-    else:
-        config = {
-            'method': 'l_bfgs',
-            'memory_limit': 10,
-            'line_search': 'backtracking',
-            'max_iter': 500
-        }
-    
-    # Adjust for conditioning
-    if conditioning == 'poor':
-        config['tolerance'] = 1e-4
-        config['damping'] = True
-    elif conditioning == 'good':
-        config['tolerance'] = 1e-8
-        config['damping'] = False
-    
-    return config
-```
+### Diagnostic Tools
 
-## Advanced Variants
+Monitor these metrics during training:
+- Gradient norm trajectory
+- Condition number evolution (BFGS/SR1)
+- Step size history
+- Line search iterations per step
+- Skip rate (SR1)
 
-### Limited Memory BFGS (L-BFGS)
+## 📚 References and Theory
 
-For large-scale problems, L-BFGS maintains only a limited history of updates:
+### Essential Papers
+1. **BFGS**: Broyden, C.G. (1970). *The convergence of a class of double-rank minimization algorithms*
+2. **L-BFGS**: Liu, D.C. & Nocedal, J. (1989). *On the limited memory BFGS method for large scale optimization*
+3. **SR1**: Conn, A.R., Gould, N.I. & Toint, P.L. (2000). *Trust Region Methods*
+
+### Recommended Textbooks
+- Nocedal, J. & Wright, S.J. (2006). *Numerical Optimization* (2nd ed.) - **The definitive reference**
+- Boyd, S. & Vandenberghe, L. (2004). *Convex Optimization* - **Theoretical foundations**
+- Dennis, J.E. & Schnabel, R.B. (1996). *Numerical Methods for Unconstrained Optimization*
+
+### Online Resources
+- [Optimization Online](http://www.optimization-online.org/) - Latest research
+- [NEOS Guide](https://neos-guide.org/optimization-tree) - Algorithm selection guide
+- [SciPy Optimize](https://docs.scipy.org/doc/scipy/reference/optimize.html) - Reference implementation
+
+## 🚦 Advanced Usage
+
+### Custom Loss Functions
+Extend the framework by adding custom loss functions to `optimization_utils.py`:
 
 ```python
-class LBFGSOptimizer:
-    def __init__(self, memory_size=10):
-        self.m = memory_size
-        self.s_history = []
-        self.y_history = []
-        self.rho_history = []
-    
-    def update_history(self, s, y):
-        """Update limited memory with new (s, y) pair."""
-        rho = 1.0 / (y.T @ s)
-        
-        if len(self.s_history) >= self.m:
-            # Remove oldest entries
-            self.s_history.pop(0)
-            self.y_history.pop(0)
-            self.rho_history.pop(0)
-        
-        # Add new entries
-        self.s_history.append(s)
-        self.y_history.append(y)
-        self.rho_history.append(rho)
-    
-    def compute_direction(self, grad):
-        """Compute search direction using two-loop recursion."""
-        q = grad.copy()
-        alpha = np.zeros(len(self.s_history))
-        
-        # First loop (backward)
-        for i in reversed(range(len(self.s_history))):
-            alpha[i] = self.rho_history[i] * self.s_history[i].T @ q
-            q -= alpha[i] * self.y_history[i]
-        
-        # Apply initial Hessian approximation
-        if len(self.s_history) > 0:
-            gamma = (self.s_history[-1].T @ self.y_history[-1]) / (self.y_history[-1].T @ self.y_history[-1])
-            z = gamma * q
-        else:
-            z = q
-        
-        # Second loop (forward)
-        for i in range(len(self.s_history)):
-            beta = self.rho_history[i] * self.y_history[i].T @ z
-            z += (alpha[i] - beta) * self.s_history[i]
-        
-        return -z
+# Add to tinh_gia_tri_ham_loss and tinh_gradient_ham_loss
+if ham_loss == 'custom':
+    # Implement your custom loss and gradient
+    pass
 ```
 
-### Trust Region BFGS
-
-Combines BFGS with trust region methodology for enhanced robustness:
-
+### Monitoring Training
 ```python
-def trust_region_bfgs(objective, gradient, hessian_approx, x, radius):
-    """Trust region step with BFGS Hessian approximation."""
-    grad = gradient(x)
-    H = hessian_approx
-    
-    # Solve trust region subproblem: min_p 1/2 p^T H p + grad^T p, ||p|| <= radius
-    try:
-        # Try Cholesky decomposition
-        L = np.linalg.cholesky(H)
-        p_newton = -np.linalg.solve(H, grad)
-        
-        if np.linalg.norm(p_newton) <= radius:
-            return p_newton
-        else:
-            # Solve constrained problem
-            return solve_trust_region_constraint(H, grad, radius)
-    except np.linalg.LinAlgError:
-        # Fallback to steepest descent
-        return -radius * grad / np.linalg.norm(grad)
+model = QuasiNewtonModel(
+    method='lbfgs',
+    convergence_check_freq=1  # Check convergence every iteration
+)
+
+results = model.fit(X_train, y_train)
+
+# Access detailed training history
+print(f"Loss history: {results['loss_history']}")
+print(f"Gradient norms: {results['gradient_norms']}")
+print(f"Step sizes: {results['step_sizes']}")
 ```
 
-## Applications and Use Cases
+### Batch Processing
+```python
+# Process multiple configurations
+configs = [
+    {'method': 'bfgs', 'ham_loss': 'ols'},
+    {'method': 'lbfgs', 'memory_size': 5, 'ham_loss': 'ridge'},
+    {'method': 'sr1', 'sr1_skip_threshold': 1e-6, 'ham_loss': 'ols'}
+]
 
-### Machine Learning
+results = []
+for config in configs:
+    model = QuasiNewtonModel(**config)
+    result = model.fit(X_train, y_train)
+    results.append(result)
+```
 
-BFGS is particularly effective for:
-- Logistic regression with moderate feature counts
-- Neural network training (small to medium networks)
-- Maximum likelihood estimation
-- Support vector machine training
+---
 
-### Scientific Computing
-
-Common applications include:
-- Parameter estimation in physical models
-- Inverse problems and data assimilation
-- Engineering design optimization
-- Statistical model fitting
-
-### When to Use BFGS
-
-Choose BFGS when:
-- Problem dimension is moderate (< 10,000 variables)
-- Gradients are available and accurate
-- Function evaluations are expensive
-- Superlinear convergence is desired
-- Memory usage of $O(n^2)$ is acceptable
-
-## References and Further Reading
-
-### Foundational Literature
-1. Broyden, C. G. (1970). The convergence of a class of double-rank minimization algorithms. *Journal of the Institute of Mathematics and its Applications*, 6(1), 76-90.
-2. Fletcher, R. (1970). A new approach to variable metric algorithms. *The Computer Journal*, 13(3), 317-322.
-3. Goldfarb, D. (1970). A family of variable-metric methods derived by variational means. *Mathematics of Computation*, 24(109), 23-26.
-4. Shanno, D. F. (1970). Conditioning of quasi-Newton methods for function minimization. *Mathematics of Computation*, 24(111), 647-656.
-
-### Advanced Topics
-- Nocedal, J., & Wright, S. (2006). *Numerical Optimization*. Springer.
-- Dennis Jr, J. E., & Moré, J. J. (1977). Quasi-Newton methods, motivation and theory. *SIAM Review*, 19(1), 46-89.
-- Liu, D. C., & Nocedal, J. (1989). On the limited memory BFGS method for large scale optimization. *Mathematical Programming*, 45(1-3), 503-528.
-
-## Summary
-
-The BFGS quasi-Newton method provides an effective balance between the rapid convergence of Newton's method and the computational efficiency of gradient descent. By iteratively building an approximation to the inverse Hessian using only gradient information, BFGS achieves superlinear convergence while avoiding expensive Hessian computations. The method's robustness, combined with strong theoretical foundations and practical line search strategies, makes it a cornerstone algorithm for medium-scale optimization problems across diverse applications in machine learning, scientific computing, and engineering.
+**🎉 Ready to optimize? Start with `01a_setup_bfgs_ols.py` for a quick introduction, or dive into `99_setup_scipy_comparison.py` for comprehensive benchmarking!**

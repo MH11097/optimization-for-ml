@@ -1,0 +1,2 @@
+iteration,loss,gradient_norm,step_size,line_search_iterations
+0,0.011924579973549463,4.415907274601993e-11,1.0,0

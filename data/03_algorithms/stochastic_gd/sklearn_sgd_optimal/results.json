@@ -1,0 +1,25 @@
+{
+  "algorithm": "Sklearn SGD",
+  "loss_function": "squared_error",
+  "regularization": "l2",
+  "regularization_strength": 0.01,
+  "learning_rate_schedule": "optimal",
+  "initial_learning_rate": 0.01,
+  "max_iterations": 1000,
+  "converged": true,
+  "final_iterations": 6,
+  "training_time_seconds": 0.35271120071411133,
+  "final_loss": 1.9094689846020192e+21,
+  "metrics_log_scale": {
+    "mse": 5.7788010628949e+20,
+    "r2": -1.6662547439606002e+21,
+    "mae": 491016340.7116586
+  },
+  "metrics_original_scale": {
+    "mse": 33224508704.77772,
+    "rmse": 182275.9136714934,
+    "mae": 143565.99175863483,
+    "r2": -138.48592901747446,
+    "mape": 756.0055304604407
+  }
+}

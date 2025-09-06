@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Setup script for BFGS Quasi-Newton Method - Ridge Regression
-- Regularization: 0.01 (Ridge)
+Setup script for BFGS Quasi-Newton Method - Ridge
+- Regularization: 0.01 (Ridge penalty)
 - Max Iterations: 100
 - Tolerance: 1e-6
 - Armijo c1: 1e-4
@@ -28,7 +28,7 @@ def get_experiment_name():
     return Path(filename).stem
 
 def main():
-    """Chạy BFGS Quasi-Newton Method cho Ridge Regression"""
+    """Chạy BFGS Quasi-Newton Method cho Ridge"""
     print("QUASI-NEWTON METHOD - BFGS RIDGE SETUP")
     
     # Load data
@@ -37,7 +37,8 @@ def main():
     # Khởi tạo model với Ridge regularization
     model = QuasiNewtonModel(
         ham_loss='ridge',
-        regularization=0.01,
+        method='bfgs',
+        regularization=0.01,  # Ridge penalty parameter
         diem_dung=1e-5,
         armijo_c1=1e-4,
         wolfe_c2=0.9,
@@ -59,7 +60,8 @@ def main():
     # Tạo biểu đồ
     model.plot_results(X_test, y_test, ten_file)
     
-    print(f"\nTraining and visualization completed!")
+    print(f"\nBFGS Ridge training completed!")
+    print(f"Regularization: {model.regularization}")
     print(f"Results saved to: {results_dir.absolute()}")
     
     return model, results, metrics

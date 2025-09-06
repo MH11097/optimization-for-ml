@@ -148,18 +148,18 @@ def run_scipy_newton_optimization(X_train, y_train, loss_type='ols', regularizat
         print(f"   Bias (last weight): {final_weights[-1]:.6f}")
         
         return {
-            'weights': final_weights,
-            'final_loss': final_loss,
-            'training_time': training_time,
-            'converged': converged,
-            'iterations': iterations,
-            'final_gradient_norm': final_gradient_norm,
+            'weights': final_weights.tolist(),
+            'final_loss': float(final_loss),
+            'training_time': float(training_time),
+            'converged': bool(converged),
+            'iterations': int(iterations),
+            'final_gradient_norm': float(final_gradient_norm),
             'algorithm': f'SciPy_Newton_CG_{loss_type.upper()}',
             'loss_type': loss_type,
-            'regularization': regularization,
-            'message': result.message,
-            'initial_loss': initial_loss,
-            'initial_gradient_norm': initial_gradient_norm
+            'regularization': float(regularization),
+            'message': str(result.message),
+            'initial_loss': float(initial_loss),
+            'initial_gradient_norm': float(initial_gradient_norm)
         }
     
     except Exception as e:
@@ -169,18 +169,18 @@ def run_scipy_newton_optimization(X_train, y_train, loss_type='ols', regularizat
         
         # Return fallback result
         return {
-            'weights': initial_weights,
-            'final_loss': initial_loss,
-            'training_time': training_time,
+            'weights': initial_weights.tolist(),
+            'final_loss': float(initial_loss),
+            'training_time': float(training_time),
             'converged': False,
             'iterations': 0,
-            'final_gradient_norm': initial_gradient_norm,
+            'final_gradient_norm': float(initial_gradient_norm),
             'algorithm': f'SciPy_Newton_CG_{loss_type.upper()}',
             'loss_type': loss_type,
-            'regularization': regularization,
+            'regularization': float(regularization),
             'message': f"Optimization failed: {e}",
-            'initial_loss': initial_loss,
-            'initial_gradient_norm': initial_gradient_norm,
+            'initial_loss': float(initial_loss),
+            'initial_gradient_norm': float(initial_gradient_norm),
             'error': str(e)
         }
 

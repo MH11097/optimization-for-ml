@@ -45,7 +45,7 @@ class QuasiNewtonModel:
     def __init__(self, ham_loss='ols', so_lan_thu=10000, diem_dung=1e-5, 
                  regularization=0.01, armijo_c1=1e-4, wolfe_c2=0.9,
                  backtrack_rho=0.8, max_line_search_iter=50, damping=1e-8, convergence_check_freq=10,
-                 method='bfgs', memory_size=10):
+                 method='bfgs', memory_size=10, sr1_skip_threshold=1e-8):
         self.ham_loss = ham_loss.lower()
         self.so_lan_thu = so_lan_thu
         self.diem_dung = diem_dung
@@ -56,8 +56,19 @@ class QuasiNewtonModel:
         self.backtrack_rho = backtrack_rho
         self.max_line_search_iter = max_line_search_iter
         self.damping = damping
-        self.method = method.lower()  # 'bfgs', 'lbfgs'
+        self.method = method.lower()  # 'bfgs', 'lbfgs', 'sr1'
         self.memory_size = memory_size  # For L-BFGS
+        self.sr1_skip_threshold = sr1_skip_threshold  # For SR1 stability
+        
+        # Validate method
+        if self.method not in ['bfgs', 'lbfgs', 'sr1']:
+            raise ValueError(f"Unsupported method: {method}. Use 'bfgs', 'lbfgs', or 'sr1'")
+        
+        # L-BFGS specific storage
+        self.s_vectors = []  # Step vectors s_k = x_{k+1} - x_k
+        self.y_vectors = []  # Gradient diff vectors y_k = g_{k+1} - g_k
+        self.rho_values = []  # 1 / (y_k^T s_k)
+        self.alpha_values = []  # For two-loop recursion
         
         # Validate supported loss function
         if self.ham_loss not in ['ols', 'ridge', 'lasso']:
@@ -69,13 +80,14 @@ class QuasiNewtonModel:
         
         # Khởi tạo các thuộc tính lưu kết quả
         self.weights = None  # Bây giờ bao gồm bias ở cuối
-        self.H_inv = None  # Inverse Hessian approximation
+        self.H_inv = None  # Inverse Hessian approximation (BFGS/SR1 only)
         self.loss_history = []
         self.gradient_norms = []
         self.weights_history = []
         self.step_sizes = []
         self.line_search_iterations = []
         self.condition_numbers = []
+        self.skipped_updates = []  # For SR1 tracking
         self.training_time = 0
         self.converged = False
         self.final_iteration = 0
@@ -161,6 +173,140 @@ class QuasiNewtonModel:
         H_inv_new = np.dot(A, np.dot(H_inv, B)) + rho * np.outer(s, s)
         
         return H_inv_new
+    
+    def _lbfgs_two_loop_recursion(self, gradient):
+        """
+        L-BFGS two-loop recursion để tính search direction
+        
+        Returns:
+            direction: Search direction -H_k * gradient
+        """
+        if not self.s_vectors:
+            # Nếu chưa có history, sử dụng steepest descent
+            return -gradient
+        
+        q = gradient.copy()
+        
+        # First loop (backward)
+        m = min(len(self.s_vectors), self.memory_size)
+        self.alpha_values = []
+        
+        for i in range(m-1, -1, -1):
+            alpha_i = self.rho_values[i] * np.dot(self.s_vectors[i], q)
+            self.alpha_values.insert(0, alpha_i)  # Insert at beginning
+            q = q - alpha_i * self.y_vectors[i]
+        
+        # Initial Hessian approximation H_0^{-1}
+        # Sử dụng scaling factor từ Nocedal & Wright
+        if self.s_vectors and self.y_vectors:
+            gamma_k = (np.dot(self.s_vectors[-1], self.y_vectors[-1]) / 
+                      np.dot(self.y_vectors[-1], self.y_vectors[-1]))
+            r = gamma_k * q
+        else:
+            r = q
+        
+        # Second loop (forward)
+        for i in range(m):
+            beta_i = self.rho_values[i] * np.dot(self.y_vectors[i], r)
+            r = r + (self.alpha_values[i] - beta_i) * self.s_vectors[i]
+        
+        return -r  # Search direction
+    
+    def _update_lbfgs_memory(self, s, y):
+        """
+        Cập nhật L-BFGS memory với vectors s và y mới
+        """
+        sy = np.dot(s, y)
+        
+        # Kiểm tra curvature condition
+        if sy < self.damping:
+            print(f"   Warning: L-BFGS curvature condition violated (sy = {sy:.2e}), skipping update")
+            return
+        
+        rho = 1.0 / sy
+        
+        # Thêm vectors mới
+        self.s_vectors.append(s)
+        self.y_vectors.append(y)
+        self.rho_values.append(rho)
+        
+        # Giới hạn memory size
+        if len(self.s_vectors) > self.memory_size:
+            self.s_vectors.pop(0)
+            self.y_vectors.pop(0)
+            self.rho_values.pop(0)
+    
+    def _cap_nhat_sr1(self, H_inv, s, y):
+        """
+        Cập nhật inverse Hessian approximation theo SR1 formula
+        
+        SR1 Update: H_{k+1}^{-1} = H_k^{-1} + ((s - H_k^{-1}y)(s - H_k^{-1}y)^T) / ((s - H_k^{-1}y)^T y)
+        """
+        Hy = np.dot(H_inv, y)
+        v = s - Hy  # s - H_k^{-1} * y
+        vTy = np.dot(v, y)
+        
+        # SR1 skip condition để tránh numerical instability
+        if abs(vTy) < self.sr1_skip_threshold * np.linalg.norm(v) * np.linalg.norm(y):
+            print(f"   Warning: SR1 update skipped due to small denominator (vTy = {vTy:.2e})")
+            self.skipped_updates.append(True)
+            return H_inv
+        
+        self.skipped_updates.append(False)
+        
+        # SR1 update formula
+        H_inv_new = H_inv + np.outer(v, v) / vTy
+        
+        return H_inv_new
+    
+    def _get_convergence_rate(self):
+        """Get convergence rate description based on method"""
+        if self.method == 'bfgs':
+            return "superlinear"  # BFGS has superlinear convergence
+        elif self.method == 'lbfgs':
+            return "superlinear"  # L-BFGS also has superlinear convergence
+        elif self.method == 'sr1':
+            return "linear_to_superlinear"  # SR1 can be linear or superlinear
+        return "unknown"
+    
+    def _get_algorithm_specific_info(self):
+        """Get algorithm-specific information for results"""
+        base_info = {
+            "method_type": f"quasi_newton_{self.method}",
+            "second_order_approximation": True,
+            "line_search_used": True,
+            "line_search_type": "wolfe_conditions"
+        }
+        
+        if self.method == 'bfgs':
+            base_info.update({
+                "hessian_computation": "bfgs_secant_approximation",
+                "superlinear_convergence": "BFGS provides superlinear convergence rate",
+                "memory_efficient": "inverse_hessian_approximation",
+                "positive_definite": "guaranteed_by_bfgs_updates"
+            })
+        elif self.method == 'lbfgs':
+            base_info.update({
+                "hessian_computation": "lbfgs_limited_memory",
+                "superlinear_convergence": "L-BFGS provides superlinear convergence rate",
+                "memory_efficient": f"limited_memory_size_{self.memory_size}",
+                "two_loop_recursion": "efficient_matrix_free_computation",
+                "memory_usage": len(self.s_vectors) if hasattr(self, 's_vectors') else 0
+            })
+        elif self.method == 'sr1':
+            skip_count = sum(self.skipped_updates) if self.skipped_updates else 0
+            total_updates = len(self.skipped_updates) if self.skipped_updates else 0
+            base_info.update({
+                "hessian_computation": "sr1_symmetric_rank_one",
+                "superlinear_convergence": "SR1 can provide superlinear convergence",
+                "memory_efficient": "inverse_hessian_approximation",
+                "update_stability": "skip_condition_for_numerical_stability",
+                "skipped_updates": skip_count,
+                "total_updates": total_updates,
+                "skip_rate": skip_count / total_updates if total_updates > 0 else 0
+            })
+        
+        return base_info
         
     def fit(self, X, y):
         """
@@ -169,7 +315,7 @@ class QuasiNewtonModel:
         Returns:
         - dict: Kết quả training bao gồm weights, loss_history, etc.
         """
-        print(f"🚀 Training BFGS Quasi-Newton Method - {self.ham_loss.upper()}")
+        print(f"🚀 Training {self.method.upper()} Quasi-Newton Method - {self.ham_loss.upper()}")
         print(f"   Max iterations: {self.so_lan_thu}")
         if self.ham_loss in ['ridge', 'lasso']:
             print(f"   Regularization: {self.regularization}")
@@ -179,6 +325,7 @@ class QuasiNewtonModel:
         print(f"   Input X shape: {X.shape}, y shape: {y.shape}")
         
         # Additional validation - check for shape mismatches that could cause broadcasting errors
+        print(f"   Final validation - X shape: {X.shape}, y shape: {y.shape}")
         if len(y.shape) != 1:
             raise ValueError(f"y should be 1-dimensional, got shape {y.shape}")
         if X.shape[0] != y.shape[0]:
@@ -194,9 +341,15 @@ class QuasiNewtonModel:
             if X.shape[0] > 80000:
                 print(f"   🔧 Auto-sampling to first 3200 samples for QuasiNewton stability...")
                 sample_size = min(3200, X.shape[0])
-                X = X[:sample_size]
-                y = y[:sample_size]
+                X = X[:sample_size].copy()  # Explicit copy to avoid reference issues
+                y = y[:sample_size].copy()  # Explicit copy to avoid reference issues
                 print(f"   New shape: X={X.shape}, y={y.shape}")
+                
+                # Validate shapes after sampling
+                if X.shape[0] != y.shape[0]:
+                    raise ValueError(f"Shape mismatch after sampling: X={X.shape[0]} samples, y={y.shape[0]} samples")
+                if len(y.shape) != 1:
+                    raise ValueError(f"y should be 1-dimensional after sampling, got shape {y.shape}")
             
         print(f"   Dataset size: {X.shape[0]:,} samples × {X.shape[1]} features")
         
@@ -208,10 +361,19 @@ class QuasiNewtonModel:
         # Initialize weights và inverse Hessian approximation (bao gồm bias ở cuối)
         n_features_with_bias = X_with_bias.shape[1]
         self.weights = np.random.normal(0, 0.01, n_features_with_bias)
-        self.H_inv = np.eye(n_features_with_bias)  # Initial approximation
+        
+        # Initialize algorithm-specific structures
+        if self.method in ['bfgs', 'sr1']:
+            self.H_inv = np.eye(n_features_with_bias)  # Initial approximation
+            print(f"   Initialized H_inv shape: {self.H_inv.shape}")
+        else:  # L-BFGS
+            self.s_vectors = []
+            self.y_vectors = []
+            self.rho_values = []
+            print(f"   L-BFGS memory size: {self.memory_size}")
         
         print(f"   Initialized weights shape: {self.weights.shape}")
-        print(f"   Initialized H_inv shape: {self.H_inv.shape}")
+        print(f"   Method: {self.method.upper()}")
         
         # Reset histories
         self.loss_history = []
@@ -220,6 +382,7 @@ class QuasiNewtonModel:
         self.step_sizes = []
         self.line_search_iterations = []
         self.condition_numbers = []
+        self.skipped_updates = []
         
         start_time = time.time()
         
@@ -237,6 +400,10 @@ class QuasiNewtonModel:
         for lan_thu in range(self.so_lan_thu):
             try:
                 # Tính gradient (luôn cần cho BFGS)
+                # Debug shapes on critical iterations
+                if lan_thu < 5 or lan_thu % 100 == 0:
+                    print(f"   Debug iteration {lan_thu + 1} - X_with_bias: {X_with_bias.shape}, y: {y.shape}, weights: {self.weights.shape}")
+                
                 gradient_result = self.grad_func(X_with_bias, y, self.weights)
                 
                 # Debug: check what grad_func returns and handle properly
@@ -306,9 +473,9 @@ class QuasiNewtonModel:
                     
                     if should_stop:
                         if converged:
-                            print(f"✅ BFGS Quasi-Newton converged: {reason}")
+                            print(f"✅ {self.method.upper()} Quasi-Newton converged: {reason}")
                         else:
-                            print(f"⚠️ BFGS Quasi-Newton stopped (not converged): {reason}")
+                            print(f"⚠️ {self.method.upper()} Quasi-Newton stopped (not converged): {reason}")
                         self.converged = converged
                         self.final_iteration = lan_thu + 1
                         break
@@ -318,15 +485,25 @@ class QuasiNewtonModel:
                     raise
             
             try:
-                # BFGS direction: d = -H_inv * gradient
-                direction = -np.dot(self.H_inv, gradient_curr)
+                # Compute search direction based on method
+                if self.method == 'bfgs':
+                    direction = -np.dot(self.H_inv, gradient_curr)
+                elif self.method == 'lbfgs':
+                    direction = self._lbfgs_two_loop_recursion(gradient_curr)
+                elif self.method == 'sr1':
+                    direction = -np.dot(self.H_inv, gradient_curr)
+                else:
+                    raise ValueError(f"Unknown method: {self.method}")
                 
                 if direction.shape != self.weights.shape:
                     raise ValueError(f"Direction shape {direction.shape} doesn't match weights shape {self.weights.shape}")
                 
             except Exception as e:
                 print(f"❌ Error at iteration {lan_thu + 1} computing direction: {e}")
-                print(f"   H_inv shape: {self.H_inv.shape}")
+                if self.method in ['bfgs', 'sr1']:
+                    print(f"   H_inv shape: {self.H_inv.shape}")
+                elif self.method == 'lbfgs':
+                    print(f"   L-BFGS vectors stored: {len(self.s_vectors)}")
                 print(f"   gradient_curr shape: {gradient_curr.shape}")
                 raise
             
@@ -342,18 +519,25 @@ class QuasiNewtonModel:
                 # Update weights
                 weights_new = self.weights + step_size * direction
                 
-                # BFGS update
+                # Update quasi-Newton approximation
                 s = weights_new - self.weights  # step
                 y = gradient_new - gradient_curr  # gradient change
                 
                 if s.shape != y.shape:
                     raise ValueError(f"Step s shape {s.shape} doesn't match gradient change y shape {y.shape}")
                 
-                self.H_inv = self._cap_nhat_bfgs(self.H_inv, s, y)
-                
-                # Store condition number
-                cond_num = np.linalg.cond(self.H_inv)
-                self.condition_numbers.append(cond_num)
+                if self.method == 'bfgs':
+                    self.H_inv = self._cap_nhat_bfgs(self.H_inv, s, y)
+                    cond_num = np.linalg.cond(self.H_inv)
+                    self.condition_numbers.append(cond_num)
+                elif self.method == 'lbfgs':
+                    self._update_lbfgs_memory(s, y)
+                    # For L-BFGS, condition number is not directly computed
+                    self.condition_numbers.append(np.nan)
+                elif self.method == 'sr1':
+                    self.H_inv = self._cap_nhat_sr1(self.H_inv, s, y)
+                    cond_num = np.linalg.cond(self.H_inv)
+                    self.condition_numbers.append(cond_num)
                 
                 # Update for next iteration
                 self.weights = weights_new
@@ -365,7 +549,16 @@ class QuasiNewtonModel:
             
             # Progress update
             if (lan_thu + 1) % 10 == 0 and should_check_converged:
-                print(f"   Vòng {lan_thu + 1}: Loss = {loss_value:.8f}, Gradient = {gradient_norm:.2e}, Step = {step_size:.6f}, Cond = {cond_num:.2e}")
+                if self.method == 'lbfgs':
+                    print(f"   Vòng {lan_thu + 1}: Loss = {loss_value:.8f}, Gradient = {gradient_norm:.2e}, Step = {step_size:.6f}, Memory = {len(self.s_vectors)}")
+                elif self.method == 'sr1':
+                    skipped_count = sum(self.skipped_updates)
+                    total_updates = len(self.skipped_updates)
+                    skip_rate = skipped_count / total_updates if total_updates > 0 else 0
+                    print(f"   Vòng {lan_thu + 1}: Loss = {loss_value:.8f}, Gradient = {gradient_norm:.2e}, Step = {step_size:.6f}, Skip = {skip_rate:.1%}")
+                else:  # BFGS
+                    cond_num = self.condition_numbers[-1] if self.condition_numbers else np.nan
+                    print(f"   Vòng {lan_thu + 1}: Loss = {loss_value:.8f}, Gradient = {gradient_norm:.2e}, Step = {step_size:.6f}, Cond = {cond_num:.2e}")
         
         self.training_time = time.time() - start_time
         
@@ -380,6 +573,16 @@ class QuasiNewtonModel:
         if self.step_sizes:
             print(f"Average step size: {np.mean(self.step_sizes):.6f}")
             print(f"Average line search iterations: {np.mean(self.line_search_iterations):.1f}")
+        
+        # Method-specific statistics
+        if self.method == 'lbfgs':
+            print(f"Final L-BFGS memory usage: {len(self.s_vectors)}/{self.memory_size}")
+        elif self.method == 'sr1':
+            if self.skipped_updates:
+                skipped_count = sum(self.skipped_updates)
+                total_updates = len(self.skipped_updates)
+                skip_rate = skipped_count / total_updates
+                print(f"SR1 updates skipped: {skipped_count}/{total_updates} ({skip_rate:.1%})")
         
         # Lấy kết quả tốt nhất thay vì kết quả cuối cùng
         best_results = self._get_best_results()
@@ -396,13 +599,15 @@ class QuasiNewtonModel:
         return {
             'weights': best_weights,  # Trả về best weights thay vì final
             'bias': best_weights[-1],  # Bias riêng để tương thích
-            'H_inv': self.H_inv,
+            'H_inv': self.H_inv if self.method in ['bfgs', 'sr1'] else None,
             'loss_history': self.loss_history,
             'gradient_norms': self.gradient_norms,
             'weights_history': self.weights_history,
             'step_sizes': self.step_sizes,
             'line_search_iterations': self.line_search_iterations,
             'condition_numbers': self.condition_numbers,
+            'skipped_updates': self.skipped_updates if self.method == 'sr1' else [],
+            'lbfgs_memory_usage': len(self.s_vectors) if self.method == 'lbfgs' else 0,
             'training_time': self.training_time,
             'converged': self.converged,
             'final_iteration': self.final_iteration,
@@ -443,7 +648,7 @@ class QuasiNewtonModel:
         weights_without_bias = self.weights[:-1]
         metrics = danh_gia_mo_hinh(weights_without_bias, X_test, y_test, bias_value)
         in_ket_qua_danh_gia(metrics, self.training_time, 
-                           f"BFGS Quasi-Newton - {self.ham_loss.upper()}")
+                           f"{self.method.upper()} Quasi-Newton - {self.ham_loss.upper()}")
         return metrics
     
     def save_results(self, ten_file, base_dir="data/03_algorithms/quasi_newton"):
@@ -460,7 +665,7 @@ class QuasiNewtonModel:
         # Save comprehensive results.json
         print(f"   Lưu kết quả vào {results_dir}/results.json")
         results_data = {
-            "algorithm": f"BFGS Quasi-Newton - {self.ham_loss.upper()}",
+            "algorithm": f"{self.method.upper()} Quasi-Newton - {self.ham_loss.upper()}",
             "loss_function": self.ham_loss.upper(),
             "parameters": {
                 "max_iterations": self.so_lan_thu,
@@ -494,7 +699,7 @@ class QuasiNewtonModel:
             "convergence_analysis": {
                 "iterations_to_converge": self.final_iteration,
                 "final_cost_change": float(self.loss_history[-1] - self.loss_history[-2]) if len(self.loss_history) > 1 else 0.0,
-                "convergence_rate": "superlinear",  # BFGS có superlinear convergence
+                "convergence_rate": self._get_convergence_rate(),
                 "loss_reduction_ratio": float(self.loss_history[0] / self.loss_history[-1]) if len(self.loss_history) > 0 else 1.0
             },
             "numerical_analysis": {
@@ -506,19 +711,17 @@ class QuasiNewtonModel:
                 "hessian_approximation_quality": "BFGS_secant_approximation",
                 "line_search_efficiency": "Wolfe_conditions_satisfied"
             },
-            "algorithm_specific": {
-                "method_type": "quasi_newton_bfgs",
-                "second_order_approximation": True,
-                "hessian_computation": "secant_approximation",
-                "line_search_used": True,
-                "line_search_type": "wolfe_conditions",
-                "superlinear_convergence": "BFGS provides superlinear convergence rate",
-                "memory_efficient": "inverse_hessian_approximation"
-            }
+            "algorithm_specific": self._get_algorithm_specific_info()
         }
         
         if self.ham_loss in ['ridge', 'lasso']:
             results_data["parameters"]["regularization"] = self.regularization
+        
+        # Add method-specific parameters
+        if self.method == 'lbfgs':
+            results_data["parameters"]["memory_size"] = self.memory_size
+        elif self.method == 'sr1':
+            results_data["parameters"]["sr1_skip_threshold"] = self.sr1_skip_threshold
         
         with open(results_dir / "results.json", 'w') as f:
             json.dump(results_data, f, indent=2)
@@ -600,7 +803,7 @@ class QuasiNewtonModel:
         print("   - So sánh dự đoán vs thực tế")
         y_pred_test = self.predict(X_test)
         ve_du_doan_vs_thuc_te(y_test, y_pred_test, 
-                             title=f"BFGS Quasi-Newton {self.ham_loss.upper()} - Predictions vs Actual",
+                             title=f"{self.method.upper()} Quasi-Newton {self.ham_loss.upper()} - Predictions vs Actual",
                              save_path=str(results_dir / "predictions_vs_actual.png"))
         
         # 3. Optimization trajectory (đường đồng mức)
@@ -613,7 +816,7 @@ class QuasiNewtonModel:
             loss_function=self.loss_func,
             weights_history=self.weights_history,  # Pass full history
             X=X_test_with_bias, y=y_test,
-            title=f"BFGS Quasi-Newton {self.ham_loss.upper()} - Optimization Path",
+            title=f"{self.method.upper()} Quasi-Newton {self.ham_loss.upper()} - Optimization Path",
             save_path=str(results_dir / "optimization_trajectory.png"),
             original_iterations=self.final_iteration,
             convergence_check_freq=self.convergence_check_freq,

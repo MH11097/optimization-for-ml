@@ -26,9 +26,7 @@ from utils.visualization_utils import (
 )
 
 
-from utils.model_mixins import ComplexityTrackingMixin, OptimizationResultsMixin
-
-class SGDModel(ComplexityTrackingMixin, OptimizationResultsMixin):
+class SGDModel:
     """   
     Stochastic Gradient Descent với hỗ trợ:
     - Multiple learning rate schedules
@@ -56,7 +54,9 @@ class SGDModel(ComplexityTrackingMixin, OptimizationResultsMixin):
                  # Enhanced shuffling strategies
                  shuffle_each_epoch=False, randomize_each_epoch=False,
                  # Learning rate schedule parameters
-                 decay_rate=0.95, decay_steps=100):
+                 decay_rate=0.95, decay_steps=100,
+                 # Fixed step length option
+                 use_fixed_step_length=False, step_length=0.01):
         
         self.ham_loss = ham_loss.lower()
         self.learning_rate = learning_rate
@@ -78,6 +78,14 @@ class SGDModel(ComplexityTrackingMixin, OptimizationResultsMixin):
         self.decay_rate = decay_rate
         self.decay_steps = decay_steps
         
+        # Fixed step length parameters
+        self.use_fixed_step_length = use_fixed_step_length
+        self.step_length = step_length
+        
+        # Sử dụng unified functions với format mới (bias trong X)
+        self.loss_func = lambda X, y, w: tinh_gia_tri_ham_loss(self.ham_loss, X, y, w, None, self.regularization)
+        self.grad_func = lambda X, y, w: tinh_gradient_ham_loss(self.ham_loss, X, y, w, None, self.regularization)
+        
         # Initialize attributes to store results
         self.weights = None
         self.velocity = None  # For momentum
@@ -90,12 +98,17 @@ class SGDModel(ComplexityTrackingMixin, OptimizationResultsMixin):
         self.final_epoch = 0
         self.final_cost = 0
         
-        print(f"🔧 SGD Model initialized:")
+        print(f"SGD Model initialized:")
         print(f"   Loss function: {self.ham_loss.upper()}")
-        print(f"   Learning rate: {self.learning_rate} ({self.learning_rate_schedule})")
+        if self.use_fixed_step_length:
+            print(f"   Step length: {self.step_length} (fixed step length mode)")
+        else:
+            print(f"   Learning rate: {self.learning_rate} ({self.learning_rate_schedule})")
         print(f"   Epochs: {self.so_epochs}, Batch size: {self.batch_size}")
         print(f"   Momentum: {self.momentum}")
         print(f"   Random state: {self.random_state}")
+        if self.use_fixed_step_length:
+            print(f"   Using fixed step length instead of fixed step size")
         if regularization and ham_loss in ['ridge', 'lasso']:
             print(f"   Regularization: {self.regularization}")
 
@@ -109,14 +122,17 @@ class SGDModel(ComplexityTrackingMixin, OptimizationResultsMixin):
         if not self.gradient_norms:
             raise ValueError("Không có lịch sử gradient norms để tìm kết quả tốt nhất")
         
+        if len(self.gradient_norms) != len(self.weights_history) or len(self.gradient_norms) != len(self.loss_history):
+            raise ValueError("Lịch sử gradient norms, weights và loss không cùng độ dài")
+        
         # Tìm index có gradient norm thấp nhất
         best_idx = np.argmin(self.gradient_norms)
         
         return {
             'best_weights': self.weights_history[best_idx],
-            'best_loss': self.loss_history[best_idx],
-            'best_gradient_norm': self.gradient_norms[best_idx],
-            'best_epoch': best_idx * self.convergence_check_freq
+            'best_loss': float(self.loss_history[best_idx]),
+            'best_gradient_norm': float(self.gradient_norms[best_idx]),
+            'best_epoch': int(best_idx * self.convergence_check_freq)
         }
     
     def _get_learning_rate(self, epoch):
@@ -146,88 +162,80 @@ class SGDModel(ComplexityTrackingMixin, OptimizationResultsMixin):
     
     def _tinh_gradient_sample(self, xi, yi, weights):
         """
-        Tính gradient cho 1 sample
+        Tính gradient cho 1 sample - optimized cho SGD
         
         Args:
             xi: Feature vector for sample i (đã có bias)
             yi: Target value for sample i  
             weights: Weight vector hiện tại
         """
-        # Prediction
-        pred = np.dot(xi, weights)
-        residual = pred - yi
-        
+        # Direct gradient computation for single sample (more efficient)
         if self.ham_loss == 'ols':
-            # MSE gradient: 2 * (pred - y) * x
-            gradient = 2 * residual * xi
+            # OLS: gradient = X^T * (X*w - y) / n = xi * (xi^T * w - yi)
+            prediction = np.dot(xi, weights)
+            residual = prediction - yi
+            gradient = residual * xi
         elif self.ham_loss == 'ridge':
-            # Ridge gradient: MSE + L2 regularization
-            gradient = 2 * residual * xi + 2 * self.regularization * weights
-            # Don't regularize bias (last element)
-            gradient[-1] -= 2 * self.regularization * weights[-1]
+            # Ridge: gradient = X^T * (X*w - y) / n + lambda * w
+            prediction = np.dot(xi, weights)
+            residual = prediction - yi
+            gradient = residual * xi + self.regularization * weights
+            # Don't regularize bias term (last element)
+            gradient[-1] -= self.regularization * weights[-1]  # Remove regularization from bias
         elif self.ham_loss == 'lasso':
-            # Lasso gradient: MSE + L1 regularization (simplified)
-            gradient = 2 * residual * xi + self.regularization * np.sign(weights)
-            # Don't regularize bias
-            gradient[-1] -= self.regularization * np.sign(weights[-1])
+            # Lasso: gradient = X^T * (X*w - y) / n + lambda * sign(w)
+            prediction = np.dot(xi, weights)
+            residual = prediction - yi
+            gradient = residual * xi + self.regularization * np.sign(weights)
+            # Don't regularize bias term (last element)
+            gradient[-1] -= self.regularization * np.sign(weights[-1])  # Remove regularization from bias
         else:
-            raise ValueError(f"Unsupported loss function: {self.ham_loss}")
-            
+            # Fallback to unified function for other loss functions
+            X_sample = xi.reshape(1, -1)
+            y_sample = np.array([yi])
+            gradient, _ = tinh_gradient_ham_loss(self.ham_loss, X_sample, y_sample, weights, None, self.regularization)
+        
         return gradient
     
     def _tinh_chi_phi(self, X, y, weights):
         """
-        Tính chi phí (cost) cho toàn bộ dataset
+        Tính chi phí (cost) cho toàn bộ dataset sử dụng unified function
         
         Args:
             X: Feature matrix (đã có bias)
             y: Target vector
             weights: Weight vector
         """
-        predictions = X @ weights
-        residuals = predictions - y
-        
-        if self.ham_loss == 'ols':
-            cost = np.mean(residuals ** 2)
-        elif self.ham_loss == 'ridge':
-            mse_cost = np.mean(residuals ** 2)
-            l2_penalty = self.regularization * np.sum(weights[:-1] ** 2)  # Không regularize bias
-            cost = mse_cost + l2_penalty
-        elif self.ham_loss == 'lasso':
-            mse_cost = np.mean(residuals ** 2)
-            l1_penalty = self.regularization * np.sum(np.abs(weights[:-1]))  # Không regularize bias
-            cost = mse_cost + l1_penalty
-        else:
-            raise ValueError(f"Unsupported loss function: {self.ham_loss}")
-            
-        return cost
+        return self.loss_func(X, y, weights)
     
     def _check_sgd_convergence(self, gradient_norm, cost_change, iteration, epoch_cost, loss_history):
         """
-        Kiểm tra điều kiện dừng cho SGD
+        Kiểm tra điều kiện dừng cho SGD với enhanced logic
         
         Returns:
             (should_stop, converged, reason)
         """
-        # Gradient norm convergence
-        if gradient_norm < self.diem_dung:
-            return True, True, f"Gradient norm {gradient_norm:.2e} < tolerance {self.diem_dung:.2e}"
+        # Use unified convergence check with SGD adaptations
+        # Adjust tolerance for SGD noise (more lenient)
+        sgd_tolerance = self.diem_dung * 10  # 10x more lenient for cost changes
         
-        # Cost change convergence (less strict for SGD due to noise)
-        if abs(cost_change) < self.diem_dung * 10:  # 10x more lenient for SGD
-            return True, True, f"Cost change {abs(cost_change):.2e} < tolerance {self.diem_dung * 10:.2e}"
+        should_stop, converged, reason = kiem_tra_dieu_kien_dung(
+            gradient_norm=gradient_norm,
+            cost_change=cost_change,
+            iteration=iteration,
+            tolerance=self.diem_dung,  # Keep original tolerance for gradient
+            max_iterations=self.so_epochs,
+            loss_value=epoch_cost,
+            weights=self.weights
+        )
         
-        # Max iterations reached
-        if iteration >= self.so_epochs - 1:
-            return True, False, f"Reached maximum epochs {self.so_epochs}"
-        
-        # Check for divergence (cost increasing significantly)
-        if len(loss_history) >= 5:
+        # Additional SGD-specific divergence check
+        if not should_stop and len(loss_history) >= 5:
             recent_costs = loss_history[-5:]
-            if recent_costs[-1] > recent_costs[0] * 2:  # Cost doubled in last 5 checks
-                return True, False, "Cost is increasing significantly (possible divergence)"
+            if len(recent_costs) >= 2 and recent_costs[-1] > recent_costs[0] * 2:
+                return True, False, "Cost increased significantly (possible divergence in SGD)"
         
-        return False, False, "Continuing training"
+        return should_stop, converged, reason
     
     def fit(self, X, y):
         """
@@ -236,21 +244,25 @@ class SGDModel(ComplexityTrackingMixin, OptimizationResultsMixin):
         Returns:
         - dict: Kết quả training bao gồm weights, loss_history, etc.
         """
-        print(f"🚀 Training Stochastic Gradient Descent - {self.ham_loss.upper()}")
+        print(f"Training Stochastic Gradient Descent - {self.ham_loss.upper()}")
         print(f"   Learning rate schedule: {self.learning_rate_schedule} - Base learning rate: {self.learning_rate}")
         print(f"   Epochs: {self.so_epochs}, Batch size: {self.batch_size}")
         print(f"   Random state: {self.random_state}")
         
         if self.shuffle_each_epoch:
-            print(f"   🔀 Enhanced shuffling: New random seed each epoch")
+            print(f"   Enhanced shuffling: New random seed each epoch")
         if self.randomize_each_epoch:
-            print(f"   🎲 Full randomization: Sample with replacement each epoch")
+            print(f"   Full randomization: Sample with replacement each epoch")
         
         if self.momentum > 0 or self.use_momentum:
             print(f"   Using momentum: {self.momentum}")
         
-        # Initialize complexity tracking
-        self.init_complexity_tracker(X, y)
+        # Initialize complexity tracker
+        from utils.computational_complexity import ComputationalComplexityTracker
+        self.complexity_tracker = ComputationalComplexityTracker(
+            problem_size=(X.shape[0], X.shape[1])
+        )
+        self.complexity_tracker.start_tracking()
         
         np.random.seed(self.random_state)
         
@@ -262,12 +274,12 @@ class SGDModel(ComplexityTrackingMixin, OptimizationResultsMixin):
         self.weights = np.random.normal(0, 0.01, n_features_with_bias)
         
         # Track initial memory allocation
-        self.track_memory_allocation(len(self.weights))
+        self.complexity_tracker.record_memory_allocation(len(self.weights))
         
         # Initialize velocity for momentum
         if self.momentum > 0 or self.use_momentum:
             self.velocity = np.zeros(n_features_with_bias)
-            self.track_memory_allocation(len(self.velocity))
+            self.complexity_tracker.record_memory_allocation(len(self.velocity))
         
         # Reset histories
         self.loss_history = []
@@ -328,35 +340,58 @@ class SGDModel(ComplexityTrackingMixin, OptimizationResultsMixin):
                     batch_gradient += sample_gradient
                     
                     # Track gradient computation for each sample
-                    self.track_gradient_evaluation((1, n_features_with_bias))
-                    self.track_vector_operation(n_features_with_bias, "basic")
+                    self.complexity_tracker.record_gradient_evaluation((1, n_features_with_bias))
+                    self.complexity_tracker.record_vector_operation(n_features_with_bias, "basic")
                 
                 # Average gradient over batch
                 batch_gradient /= len(X_batch)
                 epoch_gradients.append(batch_gradient)
                 
                 # Track averaging operation
-                self.track_vector_operation(n_features_with_bias, "basic")
+                self.complexity_tracker.record_vector_operation(n_features_with_bias, "basic")
                 
                 # Update weights with momentum if enabled
                 if self.momentum > 0 or self.use_momentum:
                     # Momentum update: v = β * v + ∇L
                     self.velocity = self.momentum * self.velocity + batch_gradient
-                    # Weight update: w = w - α * v
-                    self.weights -= current_lr * self.velocity
+                    
+                    if self.use_fixed_step_length:
+                        # Fixed step length with momentum: normalize velocity then scale
+                        velocity_norm = np.linalg.norm(self.velocity)
+                        if velocity_norm > 1e-10:  # Avoid division by zero
+                            unit_velocity = self.velocity / velocity_norm
+                            self.weights -= self.step_length * unit_velocity
+                        # else: velocity is zero, no update needed
+                    else:
+                        # Standard momentum: w = w - α * v
+                        self.weights -= current_lr * self.velocity
                     
                     # Track momentum operations
-                    self.track_vector_operation(n_features_with_bias, "basic")  # momentum update
-                    self.track_vector_operation(n_features_with_bias, "basic")  # weight update
+                    self.complexity_tracker.record_vector_operation(n_features_with_bias, "basic")  # momentum update
+                    self.complexity_tracker.record_vector_operation(n_features_with_bias, "basic")  # weight update
+                    if self.use_fixed_step_length:
+                        self.complexity_tracker.record_vector_operation(n_features_with_bias, "norm")  # normalization
                 else:
-                    # Standard SGD update: w = w - α * ∇L
-                    self.weights -= current_lr * batch_gradient
-                    
-                    # Track weight update
-                    self.track_vector_operation(n_features_with_bias, "basic")
+                    if self.use_fixed_step_length:
+                        # Fixed step length: normalize gradient then scale
+                        gradient_norm = np.linalg.norm(batch_gradient)
+                        if gradient_norm > 1e-10:  # Avoid division by zero
+                            unit_gradient = batch_gradient / gradient_norm
+                            self.weights -= self.step_length * unit_gradient
+                        # else: gradient is zero, no update needed
+                        
+                        # Track fixed step length operations
+                        self.complexity_tracker.record_vector_operation(n_features_with_bias, "norm")  # normalization
+                        self.complexity_tracker.record_vector_operation(n_features_with_bias, "basic")  # weight update
+                    else:
+                        # Standard SGD update: w = w - α * ∇L
+                        self.weights -= current_lr * batch_gradient
+                        
+                        # Track weight update
+                        self.complexity_tracker.record_vector_operation(n_features_with_bias, "basic")
                 
                 # Track weight copy for history
-                self.track_memory_allocation(len(self.weights))
+                self.complexity_tracker.record_memory_allocation(len(self.weights))
             
             # Chỉ tính cost và lưu history khi cần thiết  
             should_log = (
@@ -372,8 +407,8 @@ class SGDModel(ComplexityTrackingMixin, OptimizationResultsMixin):
                 gradient_norm = np.linalg.norm(epoch_gradient_avg)
                 
                 # Track cost and norm computations
-                self.track_function_evaluation(X_with_bias.shape)
-                self.track_vector_operation(len(epoch_gradient_avg), "norm")
+                self.complexity_tracker.record_function_evaluation(X_with_bias.shape)
+                self.complexity_tracker.record_vector_operation(len(epoch_gradient_avg), "norm")
                 
                 # Lưu vào history
                 self.loss_history.append(epoch_cost)
@@ -389,10 +424,14 @@ class SGDModel(ComplexityTrackingMixin, OptimizationResultsMixin):
                     gradient_norm = np.linalg.norm(epoch_gradient_avg)
                     
                     # Track additional computations
-                    self.track_function_evaluation(X_with_bias.shape)
-                    self.track_vector_operation(len(epoch_gradient_avg), "norm")
+                    self.complexity_tracker.record_function_evaluation(X_with_bias.shape)
+                    self.complexity_tracker.record_vector_operation(len(epoch_gradient_avg), "norm")
                     
-                cost_change = 0.0 if len(self.loss_history) == 0 else (self.loss_history[-1] - epoch_cost) if len(self.loss_history) == 1 else (self.loss_history[-2] - self.loss_history[-1])
+                # Calculate cost change safely
+                if len(self.loss_history) <= 1:
+                    cost_change = 0.0  # No previous cost to compare
+                else:
+                    cost_change = self.loss_history[-2] - self.loss_history[-1]  # Previous - current
                 
                 # Use SGD-specific convergence check
                 should_stop, converged, reason = self._check_sgd_convergence(
@@ -405,10 +444,10 @@ class SGDModel(ComplexityTrackingMixin, OptimizationResultsMixin):
                 
                 if should_stop:
                     if converged:
-                        print(f"✅ SGD converged: {reason}")
-                        self.mark_convergence_tracking(epoch + 1)
+                        print(f"SGD converged: {reason}")
+                        self.complexity_tracker.mark_convergence(epoch + 1)
                     else:
-                        print(f"⚠️ SGD stopped (not converged): {reason}")
+                        print(f"SGD stopped (not converged): {reason}")
                     self.converged = converged
                     self.final_epoch = epoch + 1
                     break
@@ -418,13 +457,13 @@ class SGDModel(ComplexityTrackingMixin, OptimizationResultsMixin):
                 print(f"   Epoch {epoch + 1}: Cost = {epoch_cost:.6f}, Gradient = {gradient_norm:.6f}, LR = {current_lr}")
             
             # End epoch tracking
-            self.end_iteration_tracking()
+            self.complexity_tracker.end_iteration()
         
         self.training_time = time.time() - start_time
         self.final_cost = self.loss_history[-1]
         
         if not self.converged:
-            print(f"⏹️ Đạt tối đa {self.so_epochs} epochs")
+            print(f"Reached maximum {self.so_epochs} epochs")
             self.final_epoch = self.so_epochs
             
         print(f"Thời gian training: {self.training_time:.2f}s")
@@ -433,7 +472,11 @@ class SGDModel(ComplexityTrackingMixin, OptimizationResultsMixin):
         print(f"Số weights (bao gồm bias): {len(self.weights)}")
         
         # Print complexity summary
-        self.print_complexity_summary()
+        complexity_summary = self.complexity_tracker.get_summary_stats()
+        print(f"📊 Complexity Summary:")
+        print(f"   Total operations: {complexity_summary['total_operations']:,}")
+        print(f"   Function evaluations: {complexity_summary['function_evaluations']}")
+        print(f"   Gradient evaluations: {complexity_summary['gradient_evaluations']}")
         
         # Lấy kết quả tốt nhất thay vì kết quả cuối cùng
         best_results = self._get_best_results()
@@ -450,20 +493,250 @@ class SGDModel(ComplexityTrackingMixin, OptimizationResultsMixin):
         return {
             'weights': best_weights,  # Trả về best weights thay vì final
             'bias': best_weights[-1],  # Bias riêng để tương thích
-            'velocity': getattr(self, 'velocity', None),  # Include velocity if using momentum
+            'velocity': getattr(self, 'velocity', None),  # SGD-specific: Include velocity if using momentum
             'loss_history': self.loss_history,
             'gradient_norms': self.gradient_norms,
             'weights_history': self.weights_history,
-            'learning_rates_history': self.learning_rates_history,
+            'step_sizes_history': self.learning_rates_history,  # Renamed for consistency with GD
+            'learning_rates_history': self.learning_rates_history,  # Keep SGD-specific name too
             'training_time': self.training_time,
-            'final_cost': self.final_cost,
             'converged': self.converged,
-            'final_epoch': self.final_epoch,
-            'best_epoch': best_epoch,
+            'final_iteration': self.final_epoch,  # Renamed for consistency with GD
+            'final_epoch': self.final_epoch,  # Keep SGD-specific name too
+            'best_iteration': best_epoch,  # Renamed for consistency with GD
+            'best_epoch': best_epoch,  # Keep SGD-specific name too
             'best_loss': best_loss,
             'best_gradient_norm': best_gradient_norm,
             'final_loss': self.loss_history[-1],  # Để so sánh
             'final_gradient_norm': self.gradient_norms[-1],  # Để so sánh
-            'complexity_metrics': self.get_complexity_analysis(self.final_epoch, self.converged)
+            'complexity_metrics': self.complexity_tracker.get_complexity_analysis(self.final_epoch, self.converged) if hasattr(self, 'complexity_tracker') and self.complexity_tracker else None
         }
+
+    def predict(self, X):
+        """Dự đoán với dữ liệu X 
+        
+        Trả về:
+            predictions: Dự đoán trên log scale
+            
+        Lưu ý:
+            - Model được train trên log-transformed targets
+            - Dự đoán trả về ở log scale
+            - Bias đã được tích hợp vào weights: y = Xw (với X đã có cột bias)
+            - Sử dụng np.expm1() để chuyển về giá gốc khi cần
+        """
+        if self.weights is None:
+            raise ValueError("Model chưa được huấn luyện. Hãy gọi fit() trước.")
+        
+        if X.shape[1] != len(self.weights) - 1:  # -1 for bias
+            raise ValueError(f"Số features không khớp: X có {X.shape[1]} features, model được train với {len(self.weights) - 1} features")
+        
+        # Thêm cột bias vào X cho prediction
+        X_with_bias = add_bias_column(X)
+        return du_doan(X_with_bias, self.weights, None)
+
+    def evaluate(self, X_test, y_test):
+        """Đánh giá model trên test set"""
+        if self.weights is None:
+            raise ValueError("Model chưa được huấn luyện. Hãy gọi fit() trước.")
+        
+        if X_test.shape[1] != len(self.weights) - 1:  # -1 for bias
+            raise ValueError(f"Số features không khớp: X_test có {X_test.shape[1]} features, model được train với {len(self.weights) - 1} features")
+        
+        if len(X_test) != len(y_test):
+            raise ValueError(f"X_test và y_test phải có cùng số samples: {len(X_test)} vs {len(y_test)}")
+        
+        # Sử dụng bias từ weights (phần tử cuối) để tương thích với hàm cũ
+        bias_value = self.weights[-1]
+        weights_without_bias = self.weights[:-1]
+        metrics = danh_gia_mo_hinh(weights_without_bias, X_test, y_test, bias_value)
+        in_ket_qua_danh_gia(metrics, self.training_time, 
+                           f"Stochastic Gradient Descent - {self.ham_loss.upper()}")
+        return metrics
+
+    def save_results(self, ten_file, base_dir="data/03_algorithms/stochastic_gd"):
+        """
+        Lưu kết quả model vào file
+        
+        Parameters:
+        - ten_file: Tên file/folder để lưu kết quả
+        - base_dir: Thư mục gốc để lưu
+        """
+        if self.weights is None:
+            raise ValueError("Model chưa được huấn luyện. Hãy gọi fit() trước.")
+        
+        # Setup results directory
+        results_dir = Path(base_dir) / ten_file
+        results_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Get complexity analysis
+        complexity_analysis = self.complexity_tracker.get_complexity_analysis(
+            self.final_epoch, self.converged
+        ) if hasattr(self, 'complexity_tracker') and self.complexity_tracker else None
+        
+        # Lấy kết quả tốt nhất
+        best_results = self._get_best_results()
+        best_weights = best_results['best_weights']
+        best_loss = best_results['best_loss']
+        best_gradient_norm = best_results['best_gradient_norm'] 
+        best_epoch = best_results['best_epoch']
+        
+        # Save comprehensive results.json
+        results_data = {
+            "algorithm": f"Stochastic Gradient Descent - {self.ham_loss.upper()}",
+            "loss_function": self.ham_loss.upper(),
+            "parameters": {
+                "learning_rate": self.learning_rate,
+                "max_epochs": self.so_epochs,
+                "batch_size": self.batch_size,
+                "tolerance": self.diem_dung,
+                "learning_rate_schedule": self.learning_rate_schedule,
+                "momentum": self.momentum,
+                "random_state": self.random_state,
+                "shuffle_each_epoch": self.shuffle_each_epoch,
+                "randomize_each_epoch": self.randomize_each_epoch
+            },
+            "training_results": {
+                "training_time": self.training_time,
+                "converged": self.converged,
+                "final_epoch": int(self.final_epoch),
+                "total_epochs": int(self.so_epochs),
+                "final_loss": float(self.loss_history[-1]),
+                "final_gradient_norm": float(self.gradient_norms[-1]),
+                # Thêm thông tin best results
+                "best_epoch": best_epoch,
+                "best_loss": float(best_loss),
+                "best_gradient_norm": float(best_gradient_norm),
+                "improvement_from_final": {
+                    "loss_improvement": float(self.loss_history[-1] - best_loss),
+                    "gradient_improvement": float(self.gradient_norms[-1] - best_gradient_norm),
+                    "epochs_earlier": int(self.final_epoch - best_epoch)
+                }
+            },
+            "weights_analysis": {
+                "n_features": int(len(best_weights) - 1),  # Không tính bias
+                "n_weights_total": int(len(best_weights)),  # Tính cả bias
+                "bias_value": float(best_weights[-1]),
+                "weights_without_bias": best_weights[:-1].tolist(),
+                "complete_weight_vector": best_weights.tolist(),
+                "weights_stats": {
+                    "min": float(np.min(best_weights[:-1])),  # Stats chỉ của weights, không tính bias
+                    "max": float(np.max(best_weights[:-1])),
+                    "mean": float(np.mean(best_weights[:-1])),
+                    "std": float(np.std(best_weights[:-1]))
+                }
+            },
+            "convergence_analysis": {
+                "epochs_to_converge": int(self.final_epoch),
+                "best_epoch_found": best_epoch,
+                "final_cost_change": float(self.loss_history[-1] - self.loss_history[-2]) if len(self.loss_history) > 1 else 0.0,
+                "convergence_rate": "sublinear",  # SGD có convergence rate sublinear
+                "loss_reduction_ratio": float(self.loss_history[0] / best_loss) if len(self.loss_history) > 0 else 1.0
+            },
+            "algorithm_specific": {
+                "sgd_type": "mini_batch" if self.batch_size > 1 else "pure_sgd",
+                "batch_size": self.batch_size,
+                "learning_rate_schedule": self.learning_rate_schedule,
+                "momentum_used": self.momentum > 0,
+                "momentum_value": self.momentum if self.momentum > 0 else None,
+                "shuffling_strategy": {
+                    "shuffle_each_epoch": self.shuffle_each_epoch,
+                    "randomize_each_epoch": self.randomize_each_epoch
+                },
+                "returns_best_result": True,  # Đánh dấu rằng trả về best result
+                "stochastic_variance": True  # Đặc trưng của SGD
+            }
+        }
+        
+        # Add complexity metrics if available
+        if complexity_analysis:
+            results_data["computational_complexity"] = complexity_analysis
+        
+        if self.ham_loss in ['ridge', 'lasso']:
+            results_data["parameters"]["regularization"] = self.regularization
+        
+        with open(results_dir / "results.json", 'w') as f:
+            json.dump(results_data, f, indent=2)
+        
+        # Save training history
+        training_df = pd.DataFrame({
+            'epoch': range(0, len(self.loss_history)*self.convergence_check_freq, self.convergence_check_freq),
+            'loss': self.loss_history,
+            'gradient_norm': self.gradient_norms
+        })
+        
+        # Save learning rates history for SGD
+        if hasattr(self, 'learning_rates_history') and self.learning_rates_history:
+            lr_df = pd.DataFrame({
+                'epoch': range(len(self.learning_rates_history)),
+                'learning_rate': self.learning_rates_history
+            })
+            lr_df.to_csv(results_dir / "learning_rates_history.csv", index=False)
+            
+        training_df.to_csv(results_dir / "training_history.csv", index=False)
+        
+        # Save complexity metrics separately for detailed analysis
+        if complexity_analysis:
+            with open(results_dir / "complexity_analysis.json", 'w') as f:
+                json.dump(complexity_analysis, f, indent=2)
+        
+        print(f"\n✅ Kết quả đã được lưu vào: {results_dir.absolute()}")
+        print(f"🏆 Sử dụng best results từ epoch {best_epoch} (gradient norm: {best_gradient_norm:.6f})")
+        if complexity_analysis:
+            print(f"Complexity metrics saved to: complexity_analysis.json")
+        
+        return results_dir
+
+    def plot_results(self, X_test, y_test, ten_file, base_dir="data/03_algorithms/stochastic_gd"):
+        """
+        Tạo các biểu đồ visualization
+        
+        Parameters:
+        - X_test, y_test: Dữ liệu test để vẽ predictions
+        - ten_file: Tên file/folder để lưu biểu đồ
+        - base_dir: Thư mục gốc
+        """
+        if self.weights is None:
+            raise ValueError("Model chưa được huấn luyện. Hãy gọi fit() trước.")
+        
+        results_dir = Path(base_dir) / ten_file
+        results_dir.mkdir(parents=True, exist_ok=True)
+        
+        print(f"\n📊 Tạo biểu đồ...")
+        
+        # 1. Convergence curves - now with actual epoch numbers
+        print("   - Vẽ đường hội tụ")
+        # Create epoch values based on convergence_check_freq
+        epochs = list(range(0, len(self.loss_history) * self.convergence_check_freq, self.convergence_check_freq))
+        
+        ve_duong_hoi_tu(self.loss_history, self.gradient_norms, 
+                        iterations=epochs,
+                        title=f"Stochastic Gradient Descent {self.ham_loss.upper()} - Hội tụ",
+                        save_path=str(results_dir / "convergence_analysis.png"))
+        
+        # 2. Predictions vs Actual
+        print("   - So sánh dự đoán vs thực tế")
+        y_pred_test = self.predict(X_test)
+        ve_du_doan_vs_thuc_te(y_test, y_pred_test, 
+                             title=f"Stochastic Gradient Descent {self.ham_loss.upper()} - Dự đoán vs Thực tế",
+                             save_path=str(results_dir / "predictions_vs_actual.png"))
+        
+        # 3. Optimization trajectory (đường đồng mức)
+        print("   - Vẽ đường đồng mức optimization")
+        
+        # Chuẩn bị X_test với bias cho visualization
+        X_test_with_bias = add_bias_column(X_test)
+        
+        # Create loss function compatible with visualization
+        loss_func = lambda X, y, w: tinh_gia_tri_ham_loss(self.ham_loss, X, y, w, None, self.regularization)
+        
+        ve_duong_dong_muc_optimization(
+            loss_function=loss_func,
+            weights_history=self.weights_history,  # Pass full history
+            X=X_test_with_bias, y=y_test,
+            title=f"Stochastic Gradient Descent {self.ham_loss.upper()} - Optimization Path",
+            save_path=str(results_dir / "optimization_trajectory.png"),
+            original_iterations=self.final_epoch,  # Use actual number of epochs
+            convergence_check_freq=self.convergence_check_freq,  # Pass convergence frequency
+            max_trajectory_points=50  # Limit points for SGD (can be noisy)
+        )
         

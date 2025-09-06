@@ -40,7 +40,7 @@ class NesterovGDModel:
     """
     
     def __init__(self, ham_loss='ols', learning_rate=0.01, momentum=0.9, 
-                 so_lan_thu=10000, diem_dung=1e-5, regularization=0.01, convergence_check_freq=10):
+                 so_lan_thu=10000, diem_dung=1e-5, regularization=0.01, convergence_check_freq=100):
         self.ham_loss = ham_loss.lower()
         self.learning_rate = learning_rate
         self.momentum = momentum
@@ -116,8 +116,8 @@ class NesterovGDModel:
         
         for lan_thu in range(self.so_lan_thu):
             # Nesterov's key innovation: compute gradient at the "look-ahead" position
-            # Look-ahead position: θ + β * v_t
-            look_ahead_weights = self.weights + self.momentum * self.velocity
+            # Look-ahead position: θ - β * v_t (CORRECTED FORMULA)
+            look_ahead_weights = self.weights - self.momentum * self.velocity
             
             # Tính gradient tại look-ahead position
             gradient_w, _ = self.grad_func(X_with_bias, y, look_ahead_weights)

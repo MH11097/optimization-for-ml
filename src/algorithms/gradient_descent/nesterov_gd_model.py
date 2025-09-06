@@ -116,8 +116,8 @@ class NesterovGDModel:
         
         for lan_thu in range(self.so_lan_thu):
             # Nesterov's key innovation: compute gradient at the "look-ahead" position
-            # Look-ahead position: θ - β * v_t (CORRECTED FORMULA)
-            look_ahead_weights = self.weights - self.momentum * self.velocity
+            # Look-ahead position: θ + β * v_t (CORRECTED FORMULA)
+            look_ahead_weights = self.weights + self.momentum * self.velocity
             
             # Tính gradient tại look-ahead position
             gradient_w, _ = self.grad_func(X_with_bias, y, look_ahead_weights)
@@ -126,6 +126,13 @@ class NesterovGDModel:
             if not np.all(np.isfinite(gradient_w)):
                 print(f"⚠️ Warning: Invalid gradient detected at iteration {lan_thu + 1}")
                 gradient_w = np.nan_to_num(gradient_w, nan=0.0, posinf=1e10, neginf=-1e10)
+            
+            # Gradient clipping to prevent explosion
+            gradient_norm = np.linalg.norm(gradient_w)
+            max_gradient_norm = 10.0  # Clip gradients above this value
+            if gradient_norm > max_gradient_norm:
+                gradient_w = gradient_w * (max_gradient_norm / gradient_norm)
+                print(f"📌 Gradient clipped from {gradient_norm:.2f} to {max_gradient_norm}")
             
             # Nesterov momentum update
             self.velocity = self.momentum * self.velocity + gradient_w
@@ -151,6 +158,7 @@ class NesterovGDModel:
                     print(f"⚠️ Warning: Invalid loss detected at iteration {lan_thu + 1}")
                     loss_value = np.nan_to_num(loss_value, nan=1e10, posinf=1e10, neginf=-1e10)
                 
+                # Recompute gradient norm after clipping
                 gradient_norm = np.linalg.norm(gradient_w)
                 velocity_norm = np.linalg.norm(self.velocity)
                 

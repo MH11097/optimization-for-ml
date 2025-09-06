@@ -42,7 +42,6 @@ def main():
         ham_loss='ols',
         learning_rate=0.1,
         diem_dung=1e-5,
-        so_lan_thu=10000, 
         step_size_method='linear_schedule'
     )
     

@@ -45,7 +45,7 @@ def main():
         diem_dung=1e-5,
         step_size_method='exponential_schedule',
         decay_gamma=0.95,   # 5% reduction every decay_step
-        decay_step=1000     # Decay every 2000 iterations
+        decay_step=500     # Decay every 500 iterations
     )
     
     # Huấn luyện model

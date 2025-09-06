@@ -23,8 +23,8 @@ def main():
     
     model = NesterovGDModel(
         ham_loss='ols',
-        learning_rate=0.05,
-        momentum=0.7,
+        learning_rate=0.1,
+        momentum=0.9,
         diem_dung=1e-5
     )
     

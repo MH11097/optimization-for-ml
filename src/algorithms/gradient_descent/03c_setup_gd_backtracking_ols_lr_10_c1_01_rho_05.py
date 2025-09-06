@@ -26,7 +26,7 @@ def main():
         learning_rate=1.0,  # Base learning rate cho backtracking
         diem_dung=1e-5,
         step_size_method='backtracking',
-        backtrack_c1=1e-1,  # Armijo constant (loose condition)
+        backtrack_c1=0.1,  # Armijo constant (loose condition)
         backtrack_rho=0.5   # Reduction factor (gentle backtrack)
     )
     

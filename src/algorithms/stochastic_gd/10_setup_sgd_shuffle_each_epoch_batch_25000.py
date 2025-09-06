@@ -62,11 +62,7 @@ def main():
         random_state=42,
         batch_size=1000,
         ham_loss='ols',
-        tolerance=1e-6,
-        convergence_check_freq=10,
-        learning_rate_schedule='constant',
         shuffle_each_epoch=True,  # Enhanced shuffling: new seed each epoch
-        randomize_each_epoch=False  # Standard sampling (no replacement)
     )
     
     print(f"\n🔀 Enhanced Shuffling Strategy:")

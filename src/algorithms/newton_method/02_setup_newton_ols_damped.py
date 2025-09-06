@@ -29,9 +29,7 @@ def main():
     # Khởi tạo model với tham số giống damped_newton_ols.py
     model = DampedNewtonModel(
         ham_loss='ols',
-        regularization=0.0,  # Không regularization cho OLS
         diem_dung=1e-10,
-        numerical_regularization=1e-8,  # Cho numerical stability
         armijo_c1=1e-4,
         backtrack_rho=0.8,
         max_line_search_iter=50

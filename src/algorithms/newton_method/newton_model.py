@@ -39,7 +39,7 @@ class NewtonModel:
     - convergence_check_freq: Tần suất kiểm tra hội tụ (mỗi N iterations)
     """
     
-    def __init__(self, ham_loss='ols', regularization=0.01, so_lan_thu=100000, 
+    def __init__(self, ham_loss='ols', regularization=0.01, so_lan_thu=10000, 
                  diem_dung=1e-10, numerical_regularization=1e-8, convergence_check_freq=1):
         self.ham_loss = ham_loss.lower()
         self.regularization = regularization

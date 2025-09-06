@@ -41,7 +41,7 @@ class DampedNewtonModel:
     - convergence_check_freq: Tần suất kiểm tra hội tụ (mỗi N iterations)
     """
     
-    def __init__(self, ham_loss='ols', regularization=0.01, so_lan_thu=100000, 
+    def __init__(self, ham_loss='ols', regularization=0.01, so_lan_thu=10000, 
                  diem_dung=1e-10, numerical_regularization=1e-8, 
                  armijo_c1=1e-4, backtrack_rho=0.8, max_line_search_iter=50,
                  convergence_check_freq=1):

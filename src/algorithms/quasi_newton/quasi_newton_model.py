@@ -42,7 +42,7 @@ class QuasiNewtonModel:
     - convergence_check_freq: Tần suất kiểm tra hội tụ (mỗi N iterations)
     """
     
-    def __init__(self, ham_loss='ols', so_lan_thu=100000, diem_dung=1e-5, 
+    def __init__(self, ham_loss='ols', so_lan_thu=10000, diem_dung=1e-5, 
                  regularization=0.01, armijo_c1=1e-4, wolfe_c2=0.9,
                  backtrack_rho=0.8, max_line_search_iter=50, damping=1e-8, convergence_check_freq=10,
                  method='bfgs', memory_size=10):

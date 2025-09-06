@@ -27,9 +27,7 @@ def main():
     # Khởi tạo model với tham số giống pure_newton_ols.py
     model = NewtonModel(
         ham_loss='ols',
-        regularization=0.0,  # Không regularization cho OLS
         diem_dung=1e-10,
-        numerical_regularization=1e-8  # Chỉ cho numerical stability
     )
     
     # Huấn luyện model

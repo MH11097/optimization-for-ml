@@ -40,7 +40,7 @@ class NesterovGDModel:
     """
     
     def __init__(self, ham_loss='ols', learning_rate=0.01, momentum=0.9, 
-                 so_lan_thu=100000, diem_dung=1e-5, regularization=0.01, convergence_check_freq=10):
+                 so_lan_thu=10000, diem_dung=1e-5, regularization=0.01, convergence_check_freq=10):
         self.ham_loss = ham_loss.lower()
         self.learning_rate = learning_rate
         self.momentum = momentum

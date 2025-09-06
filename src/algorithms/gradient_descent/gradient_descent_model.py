@@ -36,7 +36,7 @@ class GradientDescentModel:
     - convergence_check_freq: Tần suất kiểm tra hội tụ (mỗi N iterations)
     """
     
-    def __init__(self, ham_loss='ols', learning_rate=0.1, so_lan_thu=100000, diem_dung=1e-5, regularization=0.01, 
+    def __init__(self, ham_loss='ols', learning_rate=0.1, so_lan_thu=10000, diem_dung=1e-5, regularization=0.01, 
                  convergence_check_freq=100, step_size_method='constant', backtrack_c1=1e-4, backtrack_rho=0.8, 
                  adaptive_beta1=0.9, adaptive_beta2=0.999, adaptive_eps=1e-8, wolfe_c2=0.9, decay_gamma=0.95):
         self.ham_loss = ham_loss.lower()

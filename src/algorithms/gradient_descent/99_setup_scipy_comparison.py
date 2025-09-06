@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-SciPy CG Comparison - So sánh kết quả với scipy.optimize.minimize(method='CG')
-CG với restart=0 trở thành Steepest Descent (gần với pure Gradient Descent)
-"""
-
 import sys
 import os
 from pathlib import Path
@@ -96,7 +90,7 @@ def run_scipy_cg_optimization(X_train, y_train, loss_type='ols', regularization=
         jac=gradient_func,
         options={
             'maxiter': max_iter,
-            'gtol': 1e-6,  # Gradient tolerance
+            'gtol': 1e-5,  # Gradient tolerance
             'disp': False
         }
     )

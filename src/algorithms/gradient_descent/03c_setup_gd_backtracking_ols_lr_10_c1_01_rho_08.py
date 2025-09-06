@@ -23,11 +23,11 @@ def main():
     
     model = GradientDescentModel(
         ham_loss='ols',
-        learning_rate=0.5,  # Base learning rate cho backtracking
+        learning_rate=1.0,  # Base learning rate cho backtracking
         diem_dung=1e-5,
         step_size_method='backtracking',
-        backtrack_c1=1e-3,  # Armijo constant
-        backtrack_rho=0.8   # Reduction factor
+        backtrack_c1=1e-2,  # Armijo constant (loose condition)
+        backtrack_rho=0.8   # Reduction factor (gentle backtrack)
     )
     
     # Huấn luyện model
@@ -37,13 +37,13 @@ def main():
     metrics = model.evaluate(X_test, y_test)
     
     # Lưu kết quả với tên file tự động
-    ten_file = get_experiment_name()  # Sẽ là "setup_gd_backtracking_ols_c1_0001"
+    ten_file = get_experiment_name()  
     results_dir = model.save_results(ten_file)
     
     # Tạo biểu đồ
     model.plot_results(X_test, y_test, ten_file)
     
-    print(f"\nBacktracking Line Search training completed!")
+    print(f"\nBacktracking Line Search (c1=0.01, rho=0.8) training completed!")
     print(f"Final step size: {results['step_sizes_history'][-1]:.6f}")
     
     return model, results, metrics

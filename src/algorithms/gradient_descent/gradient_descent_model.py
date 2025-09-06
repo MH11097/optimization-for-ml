@@ -94,9 +94,9 @@ class GradientDescentModel:
         
         return {
             'best_weights': self.weights_history[best_idx],
-            'best_loss': self.loss_history[best_idx],
-            'best_gradient_norm': self.gradient_norms[best_idx],
-            'best_iteration': best_idx * self.convergence_check_freq
+            'best_loss': float(self.loss_history[best_idx]),
+            'best_gradient_norm': float(self.gradient_norms[best_idx]),
+            'best_iteration': int(best_idx * self.convergence_check_freq)
         }
     
     def _backtracking_line_search(self, X, y, weights, gradient, direction):
@@ -238,7 +238,7 @@ class GradientDescentModel:
         Returns:
         - dict: Kết quả training bao gồm weights, bias, loss_history, etc.
         """
-        print(f"🚀 Training Gradient Descent - {self.ham_loss.upper()} - ")
+        print(f"Training Gradient Descent - {self.ham_loss.upper()} - ")
         print(f"   Step size method: {self.step_size_method} - Base learning rate: {self.learning_rate} - Max iterations: {self.so_lan_thu}")
         if self.ham_loss in ['ridge', 'lasso']:
             print(f"   Regularization: {self.regularization}")
@@ -470,8 +470,8 @@ class GradientDescentModel:
             "training_results": {
                 "training_time": self.training_time,
                 "converged": self.converged,
-                "final_iteration": self.final_iteration,
-                "total_iterations": self.so_lan_thu,
+                "final_iteration": int(self.final_iteration),
+                "total_iterations": int(self.so_lan_thu),
                 "final_loss": float(self.loss_history[-1]),
                 "final_gradient_norm": float(self.gradient_norms[-1]),
                 # Thêm thông tin best results
@@ -481,12 +481,12 @@ class GradientDescentModel:
                 "improvement_from_final": {
                     "loss_improvement": float(self.loss_history[-1] - best_loss),
                     "gradient_improvement": float(self.gradient_norms[-1] - best_gradient_norm),
-                    "iterations_earlier": self.final_iteration - best_iteration
+                    "iterations_earlier": int(self.final_iteration - best_iteration)
                 }
             },
             "weights_analysis": {
-                "n_features": len(best_weights) - 1,  # Không tính bias
-                "n_weights_total": len(best_weights),  # Tính cả bias
+                "n_features": int(len(best_weights) - 1),  # Không tính bias
+                "n_weights_total": int(len(best_weights)),  # Tính cả bias
                 "bias_value": float(best_weights[-1]),
                 "weights_without_bias": best_weights[:-1].tolist(),
                 "complete_weight_vector": best_weights.tolist(),
@@ -498,7 +498,7 @@ class GradientDescentModel:
                 }
             },
             "convergence_analysis": {
-                "iterations_to_converge": self.final_iteration,
+                "iterations_to_converge": int(self.final_iteration),
                 "best_iteration_found": best_iteration,
                 "final_cost_change": float(self.loss_history[-1] - self.loss_history[-2]) if len(self.loss_history) > 1 else 0.0,
                 "convergence_rate": "linear",  # Gradient Descent có convergence rate tuyến tính

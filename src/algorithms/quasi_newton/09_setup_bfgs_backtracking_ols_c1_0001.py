@@ -36,7 +36,7 @@ def main():
     # Khởi tạo model với enhanced backtracking
     model = QuasiNewtonModel(
         ham_loss='ols',
-        diem_dung=1e-6,
+        diem_dung=1e-5,
         method='bfgs',       # Full BFGS
         armijo_c1=1e-4,      # Sufficient decrease parameter
         wolfe_c2=0.1,        # Lower curvature condition (more restrictive)

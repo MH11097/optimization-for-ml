@@ -36,7 +36,7 @@ def main():
     model = NewtonModel(
         ham_loss='ridge',
         regularization=0.01,  # Ridge penalty parameter
-        diem_dung=1e-8,
+        diem_dung=1e-10,
         numerical_regularization=0.1  # Hessian regularization: H + λI (stronger)
     )
     

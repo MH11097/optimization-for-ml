@@ -403,21 +403,24 @@ class DampedNewtonModel:
         
         print(f"\n📊 Tạo biểu đồ...")
         
-        # 1. Convergence curves with line search info
+        # 1. Convergence curves with line search info - now using actual iteration numbers
         print("   - Vẽ đường hội tụ với thông tin line search")
         import matplotlib.pyplot as plt
+        
+        # Create iteration values based on convergence_check_freq
+        iterations = list(range(0, len(self.loss_history) * self.convergence_check_freq, self.convergence_check_freq))
         
         fig, axes = plt.subplots(2, 2, figsize=(15, 10))
         
         # Loss curve
-        axes[0,0].semilogy(self.loss_history, 'b-', linewidth=2)
+        axes[0,0].semilogy(iterations, self.loss_history, 'b-', linewidth=2)
         axes[0,0].set_title('Loss Convergence')
         axes[0,0].set_xlabel('Iteration')
         axes[0,0].set_ylabel('Loss')
         axes[0,0].grid(True, alpha=0.3)
         
         # Gradient norm
-        axes[0,1].semilogy(self.gradient_norms, 'r-', linewidth=2)
+        axes[0,1].semilogy(iterations, self.gradient_norms, 'r-', linewidth=2)
         axes[0,1].set_title('Gradient Norm')
         axes[0,1].set_xlabel('Iteration')
         axes[0,1].set_ylabel('Gradient Norm')
@@ -425,7 +428,8 @@ class DampedNewtonModel:
         
         # Step sizes
         if self.step_sizes:
-            axes[1,0].plot(self.step_sizes, 'g-', linewidth=2)
+            step_iterations = iterations[:len(self.step_sizes)]
+            axes[1,0].plot(step_iterations, self.step_sizes, 'g-', linewidth=2)
             axes[1,0].set_title('Step Sizes (α)')
             axes[1,0].set_xlabel('Iteration')
             axes[1,0].set_ylabel('Step Size')
@@ -433,10 +437,11 @@ class DampedNewtonModel:
         
         # Line search iterations
         if self.line_search_iterations:
-            axes[1,1].bar(range(len(self.line_search_iterations)), self.line_search_iterations, 
-                         alpha=0.7, color='orange')
+            line_search_iterations_aligned = iterations[:len(self.line_search_iterations)]
+            axes[1,1].bar(line_search_iterations_aligned, self.line_search_iterations, 
+                         alpha=0.7, color='orange', width=self.convergence_check_freq*0.8)
             axes[1,1].set_title('Line Search Iterations')
-            axes[1,1].set_xlabel('Newton Iteration')
+            axes[1,1].set_xlabel('Iteration')
             axes[1,1].set_ylabel('Backtrack Iterations')
             axes[1,1].grid(True, alpha=0.3)
         

@@ -23,7 +23,7 @@ def main():
     
     model = GradientDescentModel(
         ham_loss='ridge',
-        learning_rate=0.1,  # Base learning rate cho backtracking
+        learning_rate=0.5,  # Base learning rate cho backtracking
         diem_dung=1e-5,
         regularization=0.01,  # Ridge regularization parameter
         step_size_method='backtracking',

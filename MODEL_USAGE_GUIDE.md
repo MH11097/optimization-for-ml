@@ -45,7 +45,7 @@ model = GradientDescentModel(
     ham_loss='ols',           # 'ols', 'ridge', 'lasso'
     learning_rate=0.01,
     so_lan_thu=10000,
-    diem_dung=1e-6,
+    diem_dung=1e-5,
     regularization=0.01       # cho Ridge/Lasso
 )
 
@@ -85,7 +85,7 @@ from src.algorithms.newton_method.damped_newton_model import DampedNewtonModel
 model = DampedNewtonModel(
     ham_loss='ols',
     so_lan_thu=10000,
-    diem_dung=1e-8,
+    diem_dung=1e-10,
     armijo_c1=1e-4,
     backtrack_rho=0.8
 )

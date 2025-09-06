@@ -134,7 +134,7 @@ def create_unstable_gradient_descent_example():
         ham_loss='ols', 
         learning_rate=1e10,  # Extremely high learning rate to force divergence
         so_lan_thu=20,
-        diem_dung=1e-6,
+        diem_dung=1e-5,
         convergence_check_freq=1  # Check every iteration
     )
     

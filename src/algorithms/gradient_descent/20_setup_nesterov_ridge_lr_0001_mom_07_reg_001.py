@@ -25,7 +25,7 @@ def main():
         ham_loss='ridge',
         learning_rate=0.001,
         momentum=0.7,
-        diem_dung=1e-6,
+        diem_dung=1e-5,
         regularization=0.01
     )
     

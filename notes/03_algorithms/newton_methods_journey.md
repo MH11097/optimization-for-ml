@@ -1,35 +1,17 @@
-# Báo Cáo Nghiên Cứu: Phương Pháp Newton và Quasi-Newton
-
-*Đánh giá hiệu suất tối ưu hóa bậc hai trên bài toán hồi quy quy mô lớn với phân tích độ phức tạp tính toán và ổn định số học*
+# Newton và Quasi-Newton
 
 ---
 
-## Tóm Tắt Nghiên Cứu
+## Cơ sở lý thuyết
 
-Nghiên cứu đánh giá phương pháp Newton trên dataset 2.79M samples với 62 features. Kết quả xác nhận **paradox cốt lõi của phương pháp bậc hai**: tốc độ hội tụ tuyệt vời nhưng numerical stability thảm họa. **5/7 setups thành công**, nhưng condition number lên đến 954 triệu là cảnh báo đỏ.
+Các phương pháp tối ưu hóa bậc hai sử dụng cả gradient và ma trận Hessian để đạt được tốc độ hội tụ vượt trội so với phương pháp bậc nhất.
 
-**Phát hiện chính từ dữ liệu thực tế:**
-- **Pure Newton OLS:** 3 iterations, condition number 954M - Fast but numerically disastrous
-- **Newton Ridge:** 7 iterations, condition number 955 - Regularization giảm condition number 1 triệu lần
-- **Damped Newton:** 3-6 iterations, line search đảm bảo stability
-- **2 failures:** Regularized setups with wrong parameters không hội tụ
-- **Production reality:** Chiểu dùng được với Ridge regularization
+**Quy tắc cập nhật Newton:** wₖ₊₁ = wₖ - H⁻¹∇f(wₖ)
 
----
-
-## Nền Tảng Toán Học của Phương Pháp Bậc Hai
-
-Các phương pháp tối ưu hóa bậc hai sử dụng cả thông tin gradient và curvature (ma trận Hessian) để đạt được tốc độ hội tụ vượt trội so với phương pháp bậc nhất.
-
-**Quy Tắc Cập Nhật Newton:** θₖ₊₁ = θₖ - H⁻¹∇f(θₖ)
-
-**Thành Phần Chính:**
-- H: Ma trận Hessian (∇²f(θₖ))
+- H: Ma trận Hessian (∇²f(wₖ))
 - H⁻¹: Nghịch đảo Hessian (hướng Newton)
 - Hội tụ bậc hai gần nghiệm
 - Hướng và độ lớn bước tối ưu
-
-**Lý Thuyết Hội Tụ:**
 - Hội tụ bậc hai: ||εₖ₊₁|| ≤ C||εₖ||² gần nghiệm
 - Yêu cầu Hessian positive definite
 - Tính chất hội tụ cục bộ (yêu cầu khởi tạo tốt)
@@ -39,38 +21,33 @@ Các phương pháp tối ưu hóa bậc hai sử dụng cả thông tin gradien
 
 ## I. PHƯƠNG PHÁP NEWTON
 
-### Framework Toán Học
+**Ordinary Least Squares (OLS):**
 
-**Cho Ordinary Least Squares (OLS):**
-- Mục tiêu: f(θ) = ||Xθ - y||²
-- Gradient: ∇f(θ) = 2X^T(Xθ - y)
-- Hessian: H = ∇²f(θ) = 2X^TX (hằng số)
-- Bước Newton: θₖ₊₁ = θₖ - (X^TX)⁻¹X^T(Xθₖ - y)
+- Mục tiêu: f(w) = ||Xw - y||²
+- Gradient: ∇f(w) = 2X^T(Xw - y)
+- Hessian: H = ∇²f(w) = 2X^TX (hằng số)
+- Bước Newton: wₖ₊₁ = wₖ - (X^TX)⁻¹X^T(Xwₖ - y)
 
-**Cho Ridge Regression:**
-- Mục tiêu: f(θ) = ||Xθ - y||² + λ||θ||²
-- Gradient: ∇f(θ) = 2X^T(Xθ - y) + 2λθ
+**Ridge:**
+
+- Mục tiêu: f(w) = ||Xw - y||² + λ||w||²
+- Gradient: ∇f(w) = 2X^T(Xw - y) + 2λw
 - Hessian: H = 2X^TX + 2λI
 - Conditioning được cải thiện thông qua regularization
 
-### A. Phương Pháp Newton Thuần Túy
+### A. Phương pháp Newton
 
-#### 1. Phương Pháp Newton Tiêu Chuẩn
+#### 1. Phương pháp Newton thuần
 
-**Setup 01: Pure Newton OLS - QUADRATIC CONVERGENCE BUT NUMERICAL DISASTER**
+**Setup 01: Pure Newton OLS**
+
 - Cấu hình: `01_setup_newton_ols_pure`
-- **Kết quả ấn tượng:** 3 vòng lặp hội tụ hoàn hảo
-- **Final loss:** 0.01192, gradient norm: 4.4e-11 (machine precision)
-- **Condition number:** 954,721,433 - Số kinh hoàng
-- **Thực tế:** Nhanh nhất nhưng numerical suicide
-
-**Phân Tích Toán Học:**
-- Hội tụ bậc hai chính xác được chứng minh
-- Giảm lỗi: mỗi vòng lặp giảm lỗi theo bậc hai
-- Yêu cầu tính toán: Tính toán và nghịch đảo Hessian mỗi vòng lặp
-- Độ phức tạp bộ nhớ: O(n²) để lưu trữ Hessian
+- **Kết quả:** hội tụ sau 3 vòng lặp
+- **Final loss:** 0.01192, gradient norm: 4.4e-11
+- **Condition number:** 954,721,433
 
 **Setup 03: Newton Ridge Pure - REGULARIZATION MIRACLE**
+
 - Cấu hình: `03_setup_newton_ridge_pure`
 - **Kết quả cải thiện đáng kể:** 7 vòng lặp (chậm hơn nhưng ổn định)
 - **Condition number kỳ diệu:** 955.6 - Giảm từ 954M xuống 955!
@@ -78,6 +55,7 @@ Các phương pháp tối ưu hóa bậc hai sử dụng cả thông tin gradien
 - **Thực tế:** Slower convergence nhưng actually usable trong production
 
 **Phân Tích Newton Thuần Túy:**
+
 - Tốc độ hội tụ nhanh nhất có thể
 - Yêu cầu bài toán well-conditioned
 - Chi phí tính toán cấm đoán cho bài toán lớn
@@ -88,12 +66,14 @@ Các phương pháp tối ưu hóa bậc hai sử dụng cả thông tin gradien
 #### 2. Newton với Line Search
 
 **Nền Tảng Toán Học:**
-- Hướng Newton: pₖ = -H⁻¹∇f(θₖ)
-- Line search cho kích thước bước: θₖ₊₁ = θₖ + αₖpₖ
-- Điều kiện Armijo: f(θₖ + αpₖ) ≤ f(θₖ) + c₁α∇f(θₖ)^Tpₖ
+
+- Hướng Newton: pₖ = -H⁻¹∇f(wₖ)
+- Line search cho kích thước bước: wₖ₊₁ = wₖ + αₖpₖ
+- Điều kiện Armijo: f(wₖ + αpₖ) ≤ f(wₖ) + c₁α∇f(wₖ)^Tpₖ
 - Đảm bảo hội tụ toàn cục
 
 **Setup 02: Damped Newton cho OLS**
+
 - Cấu hình: `02_setup_newton_ols_damped.py`
 - Hội tụ: 4 vòng lặp
 - Tính năng: Tính chất hội tụ toàn cục
@@ -101,6 +81,7 @@ Các phương pháp tối ưu hóa bậc hai sử dụng cả thông tin gradien
 - Kích thước bước: Biến thiên, được xác định bởi line search
 
 **Setup 04: Damped Newton cho Ridge**
+
 - Cấu hình: `04_setup_newton_ridge_damped.py`
 - Hội tụ: 3 vòng lặp
 - Kết hợp: Ridge conditioning + hội tụ toàn cục
@@ -108,6 +89,7 @@ Các phương pháp tối ưu hóa bậc hai sử dụng cả thông tin gradien
 - Xuất sắc số học: Ổn định và hội tụ tốt nhất
 
 **Setup 06: Newton với Backtracking**
+
 - Cấu hình: `06_setup_newton_backtracking_ols_c1_0001.py`
 - Line search tăng cường với backtracking
 - Tham số Armijo c₁ = 1e-4
@@ -115,6 +97,7 @@ Các phương pháp tối ưu hóa bậc hai sử dụng cả thông tin gradien
 - Hội tụ: 4 vòng lặp với tiến bộ được đảm bảo
 
 **Ưu Điểm Damped Newton:**
+
 - Giữ lại hội tụ bậc hai gần nghiệm
 - Hội tụ toàn cục từ khởi tạo tùy ý
 - Lựa chọn kích thước bước tự động
@@ -125,6 +108,7 @@ Các phương pháp tối ưu hóa bậc hai sử dụng cả thông tin gradien
 #### 3. Newton Cải Tiến cho Ổn Định Số Học
 
 **Setup 05: Regularization Hessian**
+
 - Cấu hình: `05_setup_newton_regularized_ols_lambda_001.py`
 - Hessian cải tiến: H_reg = H + λI với λ = 0.001
 - Mục đích: Đảm bảo positive definiteness
@@ -132,6 +116,7 @@ Các phương pháp tối ưu hóa bậc hai sử dụng cả thông tin gradien
 - Ổn định số học: Ngăn vấn đề ma trận singular
 
 **Setup 07: Regularization Kép**
+
 - Cấu hình: `07_setup_newton_regularized_ridge_lambda_01_reg_001.py`
 - Regularization kết hợp: Mục tiêu Ridge + cải tiến Hessian
 - Ổn định tăng cường: Cả lợi ích tối ưu và tổng quát hóa
@@ -139,6 +124,7 @@ Các phương pháp tối ưu hóa bậc hai sử dụng cả thông tin gradien
 - Tham số: λ_hessian = 0.01, λ_ridge = 0.001
 
 **Lợi Ích Regularized Newton:**
+
 - Đảm bảo Hessian positive definite
 - Tăng cường ổn định số học
 - Ngăn vấn đề ill-conditioning
@@ -156,8 +142,9 @@ Phương pháp Quasi-Newton xấp xỉ ma trận Hessian để có được lợ
 Bₖ₊₁sₖ = yₖ
 
 Trong đó:
-- sₖ = θₖ₊₁ - θₖ (vector bước)
-- yₖ = ∇f(θₖ₊₁) - ∇f(θₖ) (sự thay đổi gradient)
+
+- sₖ = wₖ₊₁ - wₖ (vector bước)
+- yₖ = ∇f(wₖ₊₁) - ∇f(wₖ) (sự thay đổi gradient)
 - Bₖ₊₁ ≈ H (xấp xỉ Hessian)
 
 **Hiểu Biết Chính:** Nếu hàm là bậc hai cục bộ, thì Bsₖ = yₖ phải đúng. Mối quan hệ này cho phép xây dựng xấp xỉ Hessian từ quan sát gradient.
@@ -172,23 +159,27 @@ Công thức cập nhật BFGS cho xấp xỉ Hessian Bₖ₊₁:
 Bₖ₊₁ = Bₖ + (yₖyₖ^T)/(yₖ^Tsₖ) - (Bₖsₖsₖ^TBₖ)/(sₖ^TBₖsₖ)
 
 **Tính Chất:**
+
 - Duy trì positive definiteness nếu B₀ ban đầu positive definite
 - Tốc độ hội tụ siêu tuyến tính
 - Yêu cầu lưu trữ O(n²) cho ma trận đầy đủ
 
 **Setup 10: BFGS cho OLS**
+
 - Cấu hình: `10_setup_bfgs_ols.py`
 - Hội tụ: Siêu tuyến tính (giữa tuyến tính và bậc hai)
 - Yêu cầu bộ nhớ: O(n²) cho xấp xỉ Hessian đầy đủ
 - Hiệu suất: Cân bằng xuất sắc của tốc độ và chi phí tính toán
 
 **Setup 11: BFGS cho Ridge Regression**
+
 - Cấu hình: `11_setup_bfgs_ridge.py`
 - Lợi ích kết hợp: Xấp xỉ BFGS + ổn định regularization
 - Conditioning tăng cường thông qua Ridge regularization
 - Tính chất hội tụ bền vững
 
 **Setup 09: BFGS với Line Search**
+
 - Cấu hình: `09_setup_bfgs_backtracking_ols_c1_0001.py`
 - Hướng BFGS với Armijo line search
 - Đảm bảo hội tụ toàn cục
@@ -196,6 +187,7 @@ Bₖ₊₁ = Bₖ + (yₖyₖ^T)/(yₖ^Tsₖ) - (Bₖsₖsₖ^TBₖ)/(sₖ^TBₖ
 - Tham số Armijo c₁ = 1e-4
 
 **Phân Tích BFGS:**
+
 - Tiêu chuẩn vàng trong các phương pháp Quasi-Newton
 - Tốc độ hội tụ xuất sắc mà không cần tính toán Hessian đầy đủ
 - Phù hợp cho bài toán quy mô trung bình (n < 10.000)
@@ -209,23 +201,27 @@ Bₖ₊₁ = Bₖ + (yₖyₖ^T)/(yₖ^Tsₖ) - (Bₖsₖsₖ^TBₖ)/(sₖ^TBₖ
 Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m cặp {sᵢ, yᵢ} gần đây và tính toán ngầm các tích Hv.
 
 **Giảm Bộ Nhớ:**
+
 - BFGS đầy đủ: Lưu trữ O(n²)
 - L-BFGS: Lưu trữ O(mn) với m << n
 - Giá trị m thông thường: 3-20
 
 **Setup 12: Triển Khai L-BFGS Cơ Bản**
+
 - Cấu hình: `12_setup_lbfgs_ols_basic.py`
 - Tham số bộ nhớ: m = 5 (mặc định)
 - Phù hợp cho tối ưu quy mô lớn
 - Trade-off: Hiệu quả bộ nhớ vs tốc độ hội tụ
 
 **Setup 13: L-BFGS với Bộ Nhớ Tăng**
+
 - Cấu hình: `13_setup_lbfgs_ols_m_10.py`
 - Tham số bộ nhớ: m = 10
 - Xấp xỉ Hessian tốt hơn với nhiều lịch sử hơn
 - Cải thiện hội tụ với chi phí bộ nhớ khiêm tốn
 
 **Setup 14: L-BFGS với Ridge Regularization**
+
 - Cấu hình: `14_setup_lbfgs_ridge_m_5_reg_001.py`
 - Tham số bộ nhớ: m = 5
 - Tham số regularization: λ = 0.001
@@ -233,6 +229,7 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 - Tiết kiệm bộ nhớ với conditioning được cải thiện
 
 **Ưu Điểm L-BFGS:**
+
 - Có thể mở rộng cho bài toán lớn (n > 100.000)
 - Duy trì hội tụ siêu tuyến tính với bộ nhớ đủ
 - Nền tảng cho nhiều optimizer machine learning
@@ -241,18 +238,21 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 ### C. Phân Tích Hiệu Suất Quasi-Newton
 
 **Phân Cấp Tốc Độ Hội Tụ:**
+
 1. Newton: Hội tụ bậc hai O(error²)
 2. BFGS: Hội tụ siêu tuyến tính
 3. L-BFGS: Siêu tuyến tính (phụ thuộc bộ nhớ m)
 4. Gradient Descent: Hội tụ tuyến tính O(error)
 
 **Yêu Cầu Bộ Nhớ:**
+
 1. Newton: Lưu trữ O(n²) Hessian + nghịch đảo O(n³)
 2. BFGS: Lưu trữ O(n²) + cập nhật O(n²)
 3. L-BFGS: Lưu trữ O(mn) + cập nhật O(mn)
 4. Gradient Descent: Lưu trữ tham số O(n)
 
 **Độ Phức Tạp Tính Toán Mỗi Vòng Lặp:**
+
 1. Newton: O(n³) cho nghịch đảo Hessian
 2. BFGS: O(n²) cho cập nhật ma trận
 3. L-BFGS: O(mn) cho two-loop recursion
@@ -267,28 +267,19 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 #### A. Xếp Hạng Newton Methods - SỰ THẮt THỰC TẾ
 
 **THÀNH CÔNG (5/8 setups):**
+
 1. **Setup 01: Pure Newton OLS** - 3 iterations, condition 954M - Fastest but numerically suicidal
 2. **Setup 02: Damped Newton OLS** - 3 iterations, condition 954M - Same speed, line search stability
 3. **Setup 06: Newton Backtracking** - 3 iterations, condition 954M - Line search variant
 4. **Setup 04: Damped Newton Ridge** - 6 iterations, condition 955 - **BEST PRODUCTION CHOICE**
 5. **Setup 03: Newton Ridge Pure** - 7 iterations, condition 955 - Regularization magic
 
-**THẤT BẠI (3/8 setups):**
-6. **Setup 05: Regularized Newton OLS** - 100 iterations, NO CONVERGENCE - Wrong regularization approach
-7. **Setup 07: Regularized Newton Ridge** - 100 iterations, NO CONVERGENCE - Over-regularized
-8. **Setup 08: Scipy Comparison** - Performance comparison with reference implementations
+**THẤT BẠI (3/8 setups):** 6. **Setup 05: Regularized Newton OLS** - 100 iterations, NO CONVERGENCE - Wrong regularization approach 7. **Setup 07: Regularized Newton Ridge** - 100 iterations, NO CONVERGENCE - Over-regularized 8. **Setup 08: Scipy Comparison** - Performance comparison with reference implementations
 
-**QUASI-NEWTON SETUPS (09-16):**
-9. **Setup 09: BFGS Backtracking** - Line search enhanced BFGS
-10. **Setup 10: BFGS OLS** - Standard BFGS for ordinary least squares
-11. **Setup 11: BFGS Ridge** - BFGS with Ridge regularization
-12. **Setup 12: L-BFGS Basic** - Memory-limited BFGS implementation
-13. **Setup 13: L-BFGS Enhanced** - L-BFGS with increased memory parameter
-14. **Setup 14: L-BFGS Ridge** - L-BFGS with Ridge regularization
-15. **Setup 15: Scipy BFGS** - Reference BFGS comparison
-16. **Setup 16: Scipy L-BFGS** - Reference L-BFGS comparison
+**QUASI-NEWTON SETUPS (09-16):** 9. **Setup 09: BFGS Backtracking** - Line search enhanced BFGS 10. **Setup 10: BFGS OLS** - Standard BFGS for ordinary least squares 11. **Setup 11: BFGS Ridge** - BFGS with Ridge regularization 12. **Setup 12: L-BFGS Basic** - Memory-limited BFGS implementation 13. **Setup 13: L-BFGS Enhanced** - L-BFGS with increased memory parameter 14. **Setup 14: L-BFGS Ridge** - L-BFGS with Ridge regularization 15. **Setup 15: Scipy BFGS** - Reference BFGS comparison 16. **Setup 16: Scipy L-BFGS** - Reference L-BFGS comparison
 
 **Kết Luận Thực Tế:**
+
 - **Speed:** Tất cả thành công đều nhanh (3-7 iterations)
 - **Stability:** Ridge regularization là game changer (954M → 955 condition number)
 - **Production:** Chỉ dùng Damped Newton + Ridge, avoid pure Newton với OLS
@@ -299,16 +290,19 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 #### Cân Nhắc Kích Thước Bài Toán:
 
 **Bài Toán Nhỏ (n < 1.000):**
+
 - Sử dụng phương pháp Newton thuần túy cho hội tụ tối ưu
 - Chi phí tính toán Hessian có thể quản lý được
 - Hội tụ bậc hai cung cấp lợi ích đáng kể
 
 **Bài Toán Trung Bình (1.000 < n < 10.000):**
+
 - Phương pháp BFGS cung cấp cân bằng tốt nhất
 - Damped Newton cho bài toán well-conditioned
 - Xem xét regularization cho ổn định
 
 **Bài Toán Lớn (n > 10.000):**
+
 - L-BFGS là lựa chọn chính
 - Tăng tham số bộ nhớ m nếu tài nguyên cho phép
 - Xem xét phương pháp bậc nhất cho bài toán rất lớn
@@ -316,11 +310,13 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 #### Cân Nhắc Conditioning:
 
 **Bài Toán Well-Conditioned:**
+
 - Phương pháp Newton thuần túy xuất sắc
 - Hội tụ nhanh với regularization tối thiểu
 - Line search cung cấp độ bền vững
 
 **Bài Toán Ill-Conditioned:**
+
 - Luôn sử dụng regularization
 - Ridge regularization cải thiện Hessian conditioning
 - Phương pháp damped cung cấp ổn định tốt hơn
@@ -328,10 +324,12 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 #### Ràng Buộc Tài Nguyên:
 
 **Bộ Nhớ Hạn Chế:**
+
 - L-BFGS với tham số bộ nhớ nhỏ
 - Phương pháp dựa gradient cho ràng buộc cực đoan
 
 **Tính Toán Hạn Chế:**
+
 - Tránh phương pháp Newton thuần túy
 - BFGS cung cấp hiệu quả tốt
 - Xem xét cách tiếp cận hybrid
@@ -345,11 +343,13 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 #### Lý Thuyết Hội Tụ Phương Pháp Newton
 
 **Hội Tụ Cục Bộ:**
+
 - Yêu cầu điểm bắt đầu gần nghiệm
 - Tốc độ hội tụ bậc hai: ||εₖ₊₁|| ≤ C||εₖ||²
 - Hằng số hội tụ C phụ thuộc tính chất hàm
 
 **Hội Tụ Toàn Cục với Line Search:**
+
 - Phương pháp Damped Newton hội tụ toàn cục
 - Kích thước bước α được chọn để thỏa mãn điều kiện Armijo
 - Duy trì hội tụ bậc hai gần nghiệm
@@ -357,11 +357,13 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 #### Lý Thuyết Hội Tụ Quasi-Newton
 
 **Tính Chất Hội Tụ BFGS:**
+
 - Hội tụ siêu tuyến tính trên hàm lồi
 - Tốc độ nhanh hơn bất kỳ phương pháp tuyến tính nào
 - Duy trì positive definiteness của xấp xỉ
 
 **Hội Tụ L-BFGS:**
+
 - Tốc độ hội tụ phụ thuộc tham số bộ nhớ m
 - m lớn hơn → xấp xỉ tốt hơn → hội tụ nhanh hơn
 - Trade-off giữa bộ nhớ và tốc độ hội tụ
@@ -371,11 +373,13 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 #### Tính Chất Xấp Xỉ BFGS
 
 **Positive Definiteness:**
+
 - BFGS duy trì positive definiteness
 - Đảm bảo hướng descent
 - Quan trọng cho thành công tối ưu
 
 **Tính Chất Phổ:**
+
 - Các giá trị riêng BFGS tập trung quanh giá trị riêng Hessian
 - Conditioning tốt hơn phương pháp gradient
 - Cải thiện hội tụ trong bài toán ill-conditioned
@@ -383,11 +387,13 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 #### Tác Động Bộ Nhớ trong L-BFGS
 
 **Chất Lượng Xấp Xỉ:**
+
 - Nhiều cặp bộ nhớ hơn → xấp xỉ Hessian tốt hơn
 - Lợi ích giảm dần vượt quá m = 10-20
 - Kích thước bộ nhớ tối ưu phụ thuộc bài toán
 
 **Hiệu Quả Lưu Trữ:**
+
 - Two-loop recursion tính Hv mà không lưu trữ ma trận
 - Công thức toán học trang nhã
 - Nền tảng cho tối ưu có thể mở rộng
@@ -401,11 +407,13 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 #### Vấn Đề Conditioning Hessian
 
 **Hessian Ill-Conditioned:**
+
 - Số điều kiện lớn κ = λₘₐₓ/λₘᵢₙ
 - Bất ổn định số học trong nghịch đảo ma trận
 - Khuếch đại lỗi làm tròn
 
 **Giải Pháp Regularization:**
+
 - Ridge regularization: H + λI
 - Cải thiện số điều kiện: (λₘₐₓ + λ)/(λₘᵢₙ + λ)
 - Cung cấp ổn định số học
@@ -413,11 +421,13 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 #### Cân Nhắc Triển Khai
 
 **Phân Tích Ma Trận:**
+
 - Sử dụng phân tích Cholesky cho Hessian positive definite
 - Phân tích LU cho ma trận tổng quát
 - SVD cho ổn định số học tối đa
 
 **Độ Chính Xác Số Học:**
+
 - Khuyến nghị floating point độ chính xác kép
 - Theo dõi số điều kiện
 - Sử dụng regularization khi số điều kiện > 1e12
@@ -427,12 +437,14 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 #### Armijo Line Search
 
 **Thuật Toán:**
+
 1. Bắt đầu với α = 1 (bước Newton)
 2. Kiểm tra điều kiện Armijo
 3. Giảm α theo hệ số (thường 0.5) nếu điều kiện thất bại
 4. Lặp lại cho đến khi điều kiện thỏa mãn
 
 **Tham Số:**
+
 - c₁ = 1e-4 (tham số giảm đủ)
 - Hệ số backtracking = 0.5
 - Số bước backtracking tối đa = 50
@@ -440,6 +452,7 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 #### Điều Kiện Wolfe
 
 **Điều Kiện Wolfe Mạnh:**
+
 1. Điều kiện Armijo (giảm đủ)
 2. Điều kiện curvature (curvature đủ)
 3. Đảm bảo kích thước bước tốt cho phương pháp quasi-Newton
@@ -453,11 +466,13 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 #### Cân Nhắc Tính Toán
 
 **Quản Lý Bộ Nhớ:**
+
 - Tiền phân bổ ma trận cho hiệu quả
 - Sử dụng phép toán tại chỗ khi có thể
 - Xem xét định dạng ma trận thưa cho bài toán có cấu trúc
 
 **Thư Viện Số Học:**
+
 - Sử dụng routines BLAS/LAPACK tối ưu
 - Tận dụng gia tốc GPU cho phép toán ma trận
 - Xem xét thư viện đại số tuyến tính chuyên dụng
@@ -465,16 +480,19 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 #### Lựa Chọn Hyperparameter
 
 **Tham Số Regularization:**
+
 - Bắt đầu với λ = 1e-3 cho ridge regularization
 - Điều chỉnh dựa trên conditioning bài toán
 - Sử dụng cross-validation cho lựa chọn tối ưu
 
 **Tham Số Line Search:**
+
 - c₁ = 1e-4 cho điều kiện Armijo
 - c₂ = 0.9 cho điều kiện curvature Wolfe
 - Hệ số backtracking = 0.5
 
 **Bộ Nhớ L-BFGS:**
+
 - Bắt đầu với m = 5-10
 - Tăng cho hội tụ tốt hơn nếu bộ nhớ cho phép
 - Điều chỉnh cụ thể bài toán có thể có lợi
@@ -484,11 +502,13 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 #### Theo Dõi Hội Tụ
 
 **Metrics Chính:**
-- Norm gradient: ||∇f(θₖ)|| < tolerance
-- Giảm giá trị hàm: Δf = f(θₖ) - f(θₖ₊₁)
-- Thay đổi tham số: ||θₖ₊₁ - θₖ||
+
+- Norm gradient: ||∇f(wₖ)|| < tolerance
+- Giảm giá trị hàm: Δf = f(wₖ) - f(wₖ₊₁)
+- Thay đổi tham số: ||wₖ₊₁ - wₖ||
 
 **Dấu Hiệu Cảnh Báo:**
+
 - Giá trị hàm dao động
 - Norm gradient tăng
 - Số vòng lặp line search quá mức
@@ -496,11 +516,13 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 #### Vấn Đề Thường Gặp và Giải Pháp
 
 **Vấn Đề Số Học:**
+
 - Hessian singular → Thêm regularization
 - Conditioning kém → Tăng tham số regularization
 - Hội tụ chậm → Kiểm tra khởi tạo và scaling
 
 **Vấn Đề Triển Khai:**
+
 - Tính gradient không đúng → Xác minh với finite differences
 - Memory leaks trong L-BFGS → Quản lý array đúng cách
 - Hội tụ đình trệ → Điều chỉnh tolerance và vòng lặp tối đa
@@ -512,11 +534,13 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 ### Phương Pháp Trust Region
 
 **Thay Thế cho Line Search:**
+
 - Định nghĩa bán kính trust region Δₖ
-- Giải bài toán con: min{θₖ + p: ||p|| ≤ Δₖ} ½p^THₖp + ∇fₖ^Tp
+- Giải bài toán con: min{wₖ + p: ||p|| ≤ Δₖ} ½p^THₖp + ∇fₖ^Tp
 - Điều chỉnh bán kính dựa trên thỏa thuận giữa model và hàm
 
 **Ưu Điểm:**
+
 - Tính chất hội tụ toàn cục tốt hơn
 - Xử lý tự nhiên curvature âm
 - Bền vững với xấp xỉ Hessian kém
@@ -524,6 +548,7 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 ### Phương Pháp Natural Gradient
 
 **Góc Nhìn Information Geometry:**
+
 - Sử dụng metric Riemannian cho không gian tham số
 - Natural gradient: ∇̃f = F⁻¹∇f với F là Fisher information
 - Bất biến với reparameterization tham số
@@ -531,7 +556,8 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 ### Phương Pháp Preconditioned
 
 **Framework Tổng Quát:**
-- Cải tiến gradient: θₖ₊₁ = θₖ - αP∇f(θₖ)
+
+- Cải tiến gradient: wₖ₊₁ = wₖ - αP∇f(wₖ)
 - Preconditioner P xấp xỉ H⁻¹
 - BFGS có thể xem như adaptive preconditioning
 
@@ -542,12 +568,14 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 ### Dataset và Phương Pháp
 
 **Thiết Lập Bài Toán:**
+
 - Dự đoán giá xe với 2.79M mẫu
 - 45 đặc trưng được thiết kế sau tiền xử lý
 - Target log-transformed để xử lý skewness
 - Chia train/test: 2.23M/0.56M mẫu
 
 **Metrics Đánh Giá:**
+
 - Vòng lặp để hội tụ (gradient norm < 1e-6)
 - Thời gian wall-clock mỗi vòng lặp
 - MSE cuối trên test set
@@ -556,11 +584,13 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 ### Phân Tích Thống Kê
 
 **Kiểm Tra Độ Bền Vững:**
+
 - Nhiều khởi tạo ngẫu nhiên
 - Hiệu suất nhất quán qua các lần chạy
 - Mẫu hội tụ ổn định
 
 **Phân Tích So Sánh:**
+
 - So sánh trực tiếp các phương pháp
 - Phân tích trade-off: tốc độ vs độ chính xác vs bộ nhớ
 - Đặc điểm hiệu suất cụ thể bài toán
@@ -572,6 +602,7 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 ### Phát Hiện Chính
 
 #### Phân Cấp Hiệu Suất:
+
 1. **Phương Pháp Newton:** Hội tụ nhanh nhất, chi phí tính toán cao nhất
 2. **Phương Pháp BFGS:** Cân bằng xuất sắc cho bài toán quy mô trung bình
 3. **Phương Pháp L-BFGS:** Lựa chọn tốt nhất cho tối ưu quy mô lớn
@@ -604,11 +635,13 @@ Tài Nguyên:
 ### Hiểu Biết Lý Thuyết
 
 **Ưu Việt Bậc Hai:**
+
 - Thông tin curvature cải thiện tối ưu một cách căn bản
 - Hội tụ bậc hai có tính chuyển đổi cho bài toán phù hợp
 - Phương pháp quasi-Newton làm cho phương pháp bậc hai thực tế
 
 **Chất Lượng Xấp Xỉ:**
+
 - BFGS cung cấp xấp xỉ Hessian xuất sắc
 - L-BFGS duy trì lợi ích với hiệu quả bộ nhớ
 - Trade-off giữa chất lượng xấp xỉ và chi phí tính toán
@@ -616,17 +649,20 @@ Tài Nguyên:
 ### Hướng Nghiên Cứu Tương Lai
 
 #### Tiến Bộ Thuật Toán:
+
 1. **Stochastic Quasi-Newton:** Mở rộng sang môi trường mini-batch
 2. **Bậc Hai Phân Tán:** Phương pháp Newton và quasi-Newton song song
 3. **Bộ Nhớ Thích Ứng:** Phân bổ bộ nhớ động trong L-BFGS
 4. **Phương Pháp Hybrid:** Kết hợp kỹ thuật bậc nhất và bậc hai
 
 #### Tiến Bộ Tính Toán:
+
 1. **Gia Tốc GPU:** Tối ưu phép toán ma trận cho phần cứng song song
 2. **Nghịch Đảo Xấp Xỉ:** Kỹ thuật nghịch đảo Hessian xấp xỉ nhanh
 3. **Xấp Xỉ Có Cấu Trúc:** Khai thác cấu trúc bài toán trong xấp xỉ Hessian
 
 #### Lĩnh Vực Ứng Dụng:
+
 1. **Deep Learning:** Phương pháp bậc hai cho training neural network
 2. **Tối Ưu Online:** Xấp xỉ Hessian thích ứng trong môi trường streaming
 3. **Tối Ưu Có Ràng Buộc:** Mở rộng sequential quadratic programming
@@ -644,11 +680,12 @@ Những phương pháp này tạo nền tảng để hiểu tối ưu hiện đ�
 
 ## X. KẾT LUẬN CHO HỘI ĐỒNG
 
-### Tóm Tắt Executive 
+### Tóm Tắt Executive
 
 Nghiên cứu Newton methods đã tiết lộ **paradox cốt lõi của tối ưu hóa bậc hai**: phương pháp nhanh nhất lại có những hạn chế thực tế nghiêm trọng nhất.
 
 **📊 Performance Summary:**
+
 - **Pure Newton:** 3 iterations (lý thuyết hoàn hảo) nhưng condition number 954M (thảm họa thực tế)
 - **Damped Newton + Ridge:** 6 iterations (thực tế tối ưu) với condition number ~1000 (production-ready)
 - **Cost reality:** O(n³) vs O(n) có nghĩa chỉ practical cho n < 10,000
@@ -656,11 +693,13 @@ Nghiên cứu Newton methods đã tiết lộ **paradox cốt lõi của tối �
 ### Practical Decision Framework
 
 **✅ Production Recommendations:**
+
 1. **Setup 23 (Damped Newton + Ridge)** - Lựa chọn tốt nhất cho medium-scale problems
-2. **Always use regularization** - Ridge λ ≥ 0.001 cải thiện conditioning dramatically  
+2. **Always use regularization** - Ridge λ ≥ 0.001 cải thiện conditioning dramatically
 3. **Line search essential** - Pure Newton chỉ work trong academic setting
 
 **⛔ Never Use in Production:**
+
 - Pure Newton OLS (condition number 954M)
 - Any Newton method without regularization
 - Second-order methods cho n > 10,000 (cost prohibitive)
@@ -668,6 +707,7 @@ Nghiên cứu Newton methods đã tiết lộ **paradox cốt lõi của tối �
 ### Key Insights for Future Work
 
 **Trade-off Fundamental:**
+
 ```
 Convergence Speed vs Computational Cost vs Numerical Stability
   Newton (3 iter)     vs    O(n³) cost    vs  954M condition number
@@ -677,6 +717,7 @@ Damped Newton (6 iter) vs   O(n³) cost    vs  ~1000 condition number  ← SWEET
 
 **Scientific Value:**
 Research này chứng minh tầm quan trọng của:
+
 - Computational complexity analysis trong practical optimization
 - Numerical conditioning như primary concern, không phải convergence speed
 - Regularization như universal solution cho stability issues

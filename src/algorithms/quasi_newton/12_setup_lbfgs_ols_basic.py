@@ -36,7 +36,7 @@ def main():
     # Khởi tạo model
     model = QuasiNewtonModel(
         ham_loss='ols',
-        diem_dung=1e-6,
+        diem_dung=1e-5,
         armijo_c1=1e-4,
         wolfe_c2=0.9,
         backtrack_rho=0.8,

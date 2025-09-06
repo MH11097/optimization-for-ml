@@ -68,47 +68,74 @@ def tao_color_palette(n_colors: int) -> List[str]:
 # 2. BIỂU ĐỒ TRAINING CURVES
 # ==============================================================================
 
-def ve_duong_hoi_tu(cost_history: List[float], gradient_norms: List[float] = None,
-                   title: str = "Quá trình Hội tụ", save_path: str = None):
+def ve_duong_hoi_tu(loss_history: List[float], gradient_norms: List[float] = None,
+                   iterations: List[int] = None, title: str = "Quá trình Hội tụ", save_path: str = None):
     """
-    Vẽ biểu đồ quá trình hội tụ (cost và gradient norm)
+    Vẽ biểu đồ quá trình hội tụ (loss và gradient norm) với 4 charts: 2 linear + 2 log
     
     Tham số:
-        cost_history: lịch sử cost qua các iterations
+        loss_history: lịch sử loss qua các iterations
         gradient_norms: lịch sử gradient norm (optional)
+        iterations: lịch sử iteration numbers (optional, mặc định sử dụng indices)
         title: tiêu đề biểu đồ
         save_path: đường dẫn lưu file (optional)
     """
-    if gradient_norms:
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+    # Use actual iteration numbers if provided, otherwise use indices
+    if iterations is None:
+        x_values = list(range(len(loss_history)))
+        x_label = 'Iteration (Index)'
     else:
-        fig, ax1 = plt.subplots(1, 1, figsize=(10, 6))
+        x_values = iterations[:len(loss_history)]  # Ensure same length
+        x_label = 'Iteration'
     
-    # Vẽ cost history
-    ax1.plot(cost_history, 'b-', linewidth=2, marker='o', markersize=4)
-    ax1.set_xlabel('Iteration')
-    ax1.set_ylabel('Cost Function')
-    ax1.set_title('Quá trình Giảm Cost')
+    # Always create 4 charts: Linear Loss, Linear Gradient, Log Loss, Log Gradient
+    if gradient_norms:
+        fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+        ax1, ax2, ax3, ax4 = axes[0,0], axes[0,1], axes[1,0], axes[1,1]
+    else:
+        # If no gradient norms, create 2 charts: Linear Loss and Log Loss
+        fig, (ax1, ax3) = plt.subplots(2, 1, figsize=(12, 10))
+        ax2 = ax4 = None
+    
+    # 1. Linear Loss chart
+    ax1.plot(x_values, loss_history, 'b-', linewidth=2, marker='o', markersize=4)
+    ax1.set_xlabel(x_label)
+    ax1.set_ylabel('Loss Function Value')
+    ax1.set_title('Loss Convergence (Linear Scale)')
     ax1.grid(True, alpha=0.3)
     
-    # Log scale nếu cần
-    if len(cost_history) > 1 and cost_history[0] / cost_history[-1] > 100:
-        ax1.set_yscale('log')
-    
-    # Vẽ gradient norm nếu có
-    if gradient_norms:
-        ax2.plot(gradient_norms, 'r-', linewidth=2, marker='s', markersize=4)
-        ax2.set_xlabel('Iteration')
+    # 2. Linear Gradient Norm chart (if available)
+    if gradient_norms and ax2:
+        grad_x_values = iterations[:len(gradient_norms)] if iterations else list(range(len(gradient_norms)))
+        ax2.plot(grad_x_values, gradient_norms, 'r-', linewidth=2, marker='s', markersize=4)
+        ax2.set_xlabel(x_label)
         ax2.set_ylabel('||Gradient||')
-        ax2.set_title('Chuẩn Gradient')
-        ax2.set_yscale('log')
+        ax2.set_title('Gradient Norm (Linear Scale)')
         ax2.grid(True, alpha=0.3)
+    
+    # 3. Log Loss chart 
+    ax3.semilogy(x_values, loss_history, 'b-', linewidth=2, marker='o', markersize=4)
+    ax3.set_xlabel(x_label)
+    ax3.set_ylabel('Loss Function Value (log scale)')
+    ax3.set_title('Loss Convergence (Log Scale)')
+    ax3.grid(True, alpha=0.3)
+    
+    # 4. Log Gradient Norm chart (if available)
+    if gradient_norms and ax4:
+        grad_x_values = iterations[:len(gradient_norms)] if iterations else list(range(len(gradient_norms)))
+        ax4.semilogy(grad_x_values, gradient_norms, 'r-', linewidth=2, marker='s', markersize=4)
+        ax4.set_xlabel(x_label)
+        ax4.set_ylabel('||Gradient|| (log scale)')
+        ax4.set_title('Gradient Norm (Log Scale)')
+        ax4.grid(True, alpha=0.3)
     
     plt.suptitle(title, fontsize=16, fontweight='bold')
     plt.tight_layout()
     
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    
+    # Chart saved to file only, no display
     
     # Chart saved to file only, no display
 
@@ -967,61 +994,99 @@ def tao_bang_so_sanh_markdown(results_data: List[Dict[str, Any]], save_path: str
 def ve_duong_hoi_tu_so_sanh(convergence_data: Dict[str, Dict], save_path: str,
                            title: str = "So sánh Quá trình Hội tụ các Algorithms"):
     """
-    Vẽ biểu đồ so sánh convergence curves của nhiều algorithms
+    Vẽ biểu đồ so sánh convergence curves của nhiều algorithms với 4 charts
     
     Tham số:
-        convergence_data: dictionary {algorithm_name: {cost_history: [...], gradient_norms: [...]}}
+        convergence_data: dictionary {algorithm_name: {loss_history: [...], gradient_norms: [...], iterations: [...]}}
         save_path: đường dẫn lưu file PNG
         title: tiêu đề biểu đồ
     """
     if not convergence_data:
-        print("Không có dữ liệu convergence để vẽ")
+        print("No data to plot")
         return
     
-    print(f"Vẽ convergence comparison: {save_path}")
+    # Plotting...
     
     # Kiểm tra xem có gradient norms không
     has_gradient_data = any(data.get('gradient_norms') for data in convergence_data.values())
     
+    # Always create 4 charts: Linear Loss, Linear Gradient, Log Loss, Log Gradient
     if has_gradient_data:
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+        fig, axes = plt.subplots(2, 2, figsize=(18, 12))
+        ax1, ax2, ax3, ax4 = axes[0,0], axes[0,1], axes[1,0], axes[1,1]
     else:
-        fig, ax1 = plt.subplots(1, 1, figsize=(12, 6))
+        # If no gradient data, create 2 charts: Linear Loss and Log Loss
+        fig, (ax1, ax3) = plt.subplots(2, 1, figsize=(15, 10))
+        ax2 = ax4 = None
     
     colors = tao_color_palette(len(convergence_data))
     
-    # Plot cost histories
+    # Plot loss histories - data is already validated, no need for additional checks
     for i, (name, data) in enumerate(convergence_data.items()):
-        cost_history = data.get('cost_history', [])
-        if cost_history:
-            ax1.plot(cost_history, color=colors[i], linewidth=2, 
+        loss_history = data.get('loss_history', [])
+        iterations = data.get('iterations', None)
+        
+        if loss_history:
+            # Use actual iterations if available, otherwise use indices
+            if iterations and len(iterations) >= len(loss_history):
+                x_values = [int(iter_val) for iter_val in iterations[:len(loss_history)]]
+            else:
+                x_values = list(range(len(loss_history)))
+            
+            # 1. Linear Loss chart
+            ax1.plot(x_values, loss_history, color=colors[i], linewidth=2, 
                     marker='o', markersize=3, label=name[:20], alpha=0.8)
+            
+            # 3. Log Loss chart
+            ax3.semilogy(x_values, loss_history, color=colors[i], linewidth=2, 
+                        marker='o', markersize=3, label=name[:20], alpha=0.8)
     
+    # Configure Loss charts
     ax1.set_xlabel('Iteration')
-    ax1.set_ylabel('Cost Function Value')
-    ax1.set_title('Loss Convergence Comparison')
+    ax1.set_ylabel('Loss Function Value')
+    ax1.set_title('Loss Convergence Comparison (Linear Scale)')
     ax1.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=9)
     ax1.grid(True, alpha=0.3)
     
-    # Log scale nếu cần
-    all_costs = [cost for data in convergence_data.values() for cost in data.get('cost_history', [])]
-    if all_costs and max(all_costs) / min([c for c in all_costs if c > 0] or [1]) > 100:
-        ax1.set_yscale('log')
+    ax3.set_xlabel('Iteration')
+    ax3.set_ylabel('Loss Function Value (log scale)')
+    ax3.set_title('Loss Convergence Comparison (Log Scale)')
+    ax3.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=9)
+    ax3.grid(True, alpha=0.3)
     
-    # Plot gradient norms nếu có
-    if has_gradient_data:
+    # Plot gradient norms if available - data is already validated
+    if has_gradient_data and ax2 and ax4:
         for i, (name, data) in enumerate(convergence_data.items()):
             gradient_norms = data.get('gradient_norms')
+            iterations = data.get('iterations', None)
+            
             if gradient_norms:
-                ax2.plot(gradient_norms, color=colors[i], linewidth=2,
+                # Use actual iterations if available, otherwise use indices
+                if iterations and len(iterations) >= len(gradient_norms):
+                    x_values = [int(iter_val) for iter_val in iterations[:len(gradient_norms)]]
+                else:
+                    x_values = list(range(len(gradient_norms)))
+                
+                # 2. Linear Gradient chart
+                ax2.plot(x_values, gradient_norms, color=colors[i], linewidth=2,
                         marker='s', markersize=3, label=name[:20], alpha=0.8)
+                
+                # 4. Log Gradient chart
+                ax4.semilogy(x_values, gradient_norms, color=colors[i], linewidth=2,
+                            marker='s', markersize=3, label=name[:20], alpha=0.8)
         
+        # Configure Gradient charts
         ax2.set_xlabel('Iteration')
-        ax2.set_ylabel('Gradient Norm')
-        ax2.set_title('Gradient Norm Convergence')
-        ax2.set_yscale('log')
+        ax2.set_ylabel('||Gradient||')
+        ax2.set_title('Gradient Norm Comparison (Linear Scale)')
         ax2.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=9)
         ax2.grid(True, alpha=0.3)
+        
+        ax4.set_xlabel('Iteration')
+        ax4.set_ylabel('||Gradient|| (log scale)')
+        ax4.set_title('Gradient Norm Comparison (Log Scale)')
+        ax4.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=9)
+        ax4.grid(True, alpha=0.3)
     
     plt.suptitle(title, fontsize=14, fontweight='bold')
     plt.tight_layout()
@@ -1029,7 +1094,7 @@ def ve_duong_hoi_tu_so_sanh(convergence_data: Dict[str, Dict], save_path: str,
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         plt.close()
-        print(f"   Convergence comparison đã lưu: {save_path}")
+        # Saved
     else:
         # Chart saved to file only, no display
         pass

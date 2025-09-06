@@ -51,7 +51,7 @@ class SGDModel(ComplexityTrackingMixin, OptimizationResultsMixin):
     """
     
     def __init__(self, ham_loss='ols', learning_rate=0.01, so_epochs=100, batch_size=32, 
-                 diem_dung=1e-6, regularization=0.01, learning_rate_schedule='constant',
+                 diem_dung=1e-5, regularization=0.01, learning_rate_schedule='constant',
                  momentum=0.0, convergence_check_freq=10, random_state=42,
                  # Enhanced shuffling strategies
                  shuffle_each_epoch=False, randomize_each_epoch=False,

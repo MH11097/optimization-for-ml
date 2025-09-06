@@ -28,7 +28,7 @@ def main():
         ham_loss='ols',
         learning_rate=0.01,
         momentum=0.9,
-        diem_dung=1e-6
+        diem_dung=1e-5
     )
     
     # Huấn luyện model

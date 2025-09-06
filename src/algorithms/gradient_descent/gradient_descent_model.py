@@ -577,9 +577,13 @@ class GradientDescentModel:
         
         print(f"\n📊 Tạo biểu đồ...")
         
-        # 1. Convergence curves
+        # 1. Convergence curves - now with actual iteration numbers
         print("   - Vẽ đường hội tụ")
+        # Create iteration values based on convergence_check_freq
+        iterations = list(range(0, len(self.loss_history) * self.convergence_check_freq, self.convergence_check_freq))
+        
         ve_duong_hoi_tu(self.loss_history, self.gradient_norms, 
+                        iterations=iterations,
                         title=f"Gradient Descent {self.ham_loss.upper()} - Hội tụ",
                         save_path=str(results_dir / "convergence_analysis.png"))
         

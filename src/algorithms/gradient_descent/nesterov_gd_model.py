@@ -40,7 +40,7 @@ class NesterovGDModel:
     """
     
     def __init__(self, ham_loss='ols', learning_rate=0.01, momentum=0.9, 
-                 so_lan_thu=100000, diem_dung=1e-6, regularization=0.01, convergence_check_freq=10):
+                 so_lan_thu=100000, diem_dung=1e-5, regularization=0.01, convergence_check_freq=10):
         self.ham_loss = ham_loss.lower()
         self.learning_rate = learning_rate
         self.momentum = momentum
@@ -389,28 +389,31 @@ class NesterovGDModel:
         
         print(f"\n📊 Tạo biểu đồ...")
         
-        # 1. Convergence curves với velocity
+        # 1. Convergence curves với velocity - now using actual iteration numbers
         print("   - Vẽ đường hội tụ")
         import matplotlib.pyplot as plt
+        
+        # Create iteration values based on convergence_check_freq
+        iterations = list(range(0, len(self.loss_history) * self.convergence_check_freq, self.convergence_check_freq))
         
         fig, axes = plt.subplots(2, 2, figsize=(15, 10))
         
         # Loss curve
-        axes[0,0].semilogy(self.loss_history, 'b-', linewidth=2)
+        axes[0,0].semilogy(iterations, self.loss_history, 'b-', linewidth=2)
         axes[0,0].set_title('Loss Convergence')
         axes[0,0].set_xlabel('Iteration')
         axes[0,0].set_ylabel('Loss')
         axes[0,0].grid(True, alpha=0.3)
         
         # Gradient norm
-        axes[0,1].semilogy(self.gradient_norms, 'r-', linewidth=2)
+        axes[0,1].semilogy(iterations, self.gradient_norms, 'r-', linewidth=2)
         axes[0,1].set_title('Gradient Norm')
         axes[0,1].set_xlabel('Iteration')
         axes[0,1].set_ylabel('Gradient Norm')
         axes[0,1].grid(True, alpha=0.3)
         
         # Velocity norm
-        axes[1,0].plot(self.velocity_norms, 'g-', linewidth=2)
+        axes[1,0].plot(iterations, self.velocity_norms, 'g-', linewidth=2)
         axes[1,0].set_title('Velocity Norm')
         axes[1,0].set_xlabel('Iteration')
         axes[1,0].set_ylabel('Velocity Norm')
@@ -418,8 +421,8 @@ class NesterovGDModel:
         
         # Combined plot
         ax2 = axes[1,1].twinx()
-        axes[1,1].semilogy(self.loss_history, 'b-', linewidth=2, label='Loss')
-        ax2.plot(self.velocity_norms, 'g-', linewidth=2, label='Velocity Norm')
+        axes[1,1].semilogy(iterations, self.loss_history, 'b-', linewidth=2, label='Loss')
+        ax2.plot(iterations, self.velocity_norms, 'g-', linewidth=2, label='Velocity Norm')
         axes[1,1].set_xlabel('Iteration')
         axes[1,1].set_ylabel('Loss', color='b')
         ax2.set_ylabel('Velocity Norm', color='g')

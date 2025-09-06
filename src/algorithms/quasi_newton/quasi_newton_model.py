@@ -42,7 +42,7 @@ class QuasiNewtonModel:
     - convergence_check_freq: Tần suất kiểm tra hội tụ (mỗi N iterations)
     """
     
-    def __init__(self, ham_loss='ols', so_lan_thu=100000, diem_dung=1e-6, 
+    def __init__(self, ham_loss='ols', so_lan_thu=100000, diem_dung=1e-5, 
                  regularization=0.01, armijo_c1=1e-4, wolfe_c2=0.9,
                  backtrack_rho=0.8, max_line_search_iter=50, damping=1e-8, convergence_check_freq=10,
                  method='bfgs', memory_size=10):
@@ -551,21 +551,24 @@ class QuasiNewtonModel:
         
         print(f"\n📊 Tạo biểu đồ...")
         
-        # 1. Convergence curves với condition number
+        # 1. Convergence curves với condition number - now using actual iteration numbers
         print("   - Vẽ đường hội tụ")
         import matplotlib.pyplot as plt
+        
+        # Create iteration values based on convergence_check_freq
+        iterations = list(range(0, len(self.loss_history) * self.convergence_check_freq, self.convergence_check_freq))
         
         fig, axes = plt.subplots(2, 2, figsize=(15, 10))
         
         # Loss curve
-        axes[0,0].semilogy(self.loss_history, 'b-', linewidth=2)
+        axes[0,0].semilogy(iterations, self.loss_history, 'b-', linewidth=2)
         axes[0,0].set_title('Loss Convergence')
         axes[0,0].set_xlabel('Iteration')
         axes[0,0].set_ylabel('Loss')
         axes[0,0].grid(True, alpha=0.3)
         
         # Gradient norm
-        axes[0,1].semilogy(self.gradient_norms, 'r-', linewidth=2)
+        axes[0,1].semilogy(iterations, self.gradient_norms, 'r-', linewidth=2)
         axes[0,1].set_title('Gradient Norm')
         axes[0,1].set_xlabel('Iteration')
         axes[0,1].set_ylabel('Gradient Norm')
@@ -573,7 +576,8 @@ class QuasiNewtonModel:
         
         # Condition number
         if self.condition_numbers:
-            axes[1,0].semilogy(self.condition_numbers, 'g-', linewidth=2)
+            cond_iterations = iterations[:len(self.condition_numbers)]
+            axes[1,0].semilogy(cond_iterations, self.condition_numbers, 'g-', linewidth=2)
             axes[1,0].set_title('Condition Number of H_inv')
             axes[1,0].set_xlabel('Iteration')
             axes[1,0].set_ylabel('Condition Number')
@@ -581,7 +585,8 @@ class QuasiNewtonModel:
         
         # Step sizes
         if self.step_sizes:
-            axes[1,1].plot(self.step_sizes, 'm-', linewidth=2)
+            step_iterations = iterations[:len(self.step_sizes)]
+            axes[1,1].plot(step_iterations, self.step_sizes, 'm-', linewidth=2)
             axes[1,1].set_title('Step Sizes')
             axes[1,1].set_xlabel('Iteration')
             axes[1,1].set_ylabel('Step Size')

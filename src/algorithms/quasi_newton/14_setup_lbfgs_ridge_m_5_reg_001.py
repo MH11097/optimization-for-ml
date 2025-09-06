@@ -38,7 +38,7 @@ def main():
     model = QuasiNewtonModel(
         ham_loss='ridge',
         regularization=0.01, # Ridge penalty parameter
-        diem_dung=1e-6,
+        diem_dung=1e-5,
         method='lbfgs',      # L-BFGS method
         memory_size=5,       # Smaller memory for efficiency
         armijo_c1=1e-4,

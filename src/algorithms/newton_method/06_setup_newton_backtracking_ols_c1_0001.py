@@ -37,7 +37,7 @@ def main():
     model = DampedNewtonModel(
         ham_loss='ols',
         regularization=0.0,  # Không regularization cho OLS
-        diem_dung=1e-8,
+        diem_dung=1e-10,
         numerical_regularization=1e-8,  # Minimal cho numerical stability
         armijo_c1=1e-4,      # Armijo constant
         backtrack_rho=0.8,   # Backtrack reduction factor

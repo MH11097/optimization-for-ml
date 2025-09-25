@@ -7,7 +7,6 @@
 ```bash
 # Cài đặt dependencies
 pip install -r requirements.txt
-
 # Chạy từng bước
 python src/01_eda.py
 python src/02_preprocessing.py
@@ -28,7 +27,6 @@ data/                           # Dữ liệu theo workflow số
 │   ├── ridge_regression/
 │   └── stochastic_gd/
 └── 04_comparison/             # So sánh cuối cùng
-
 src/                           # Code theo workflow số
 ├── 01_eda.py                 # Phân tích dữ liệu
 ├── 02_preprocessing.py       # Xử lý dữ liệu
@@ -40,7 +38,6 @@ src/                           # Code theo workflow số
 │   ├── advanced_methods/     # Các phương pháp nâng cao
 │   └── algorithm_comparator.py  # Tool so sánh tổng hợp
 └── utils/                    # Tiện ích chung
-
 notes/                         # Tài liệu phân tích chi tiết
 ├── 00_raw/                   # Quyết định chọn dataset
 │   └── dataset_decisions.md  # Lý do chọn dataset, chiến lược
@@ -111,7 +108,6 @@ python src/02_preprocessing.py
 # Chạy từng thuật toán
 python src/algorithms/gradient_descent/standard_setup.py
 python src/algorithms/newton_method/standard_setup.py
-
 # Hoặc chạy nhiều setup gradient descent
 python src/algorithms/gradient_descent/fast_setup.py
 python src/algorithms/gradient_descent/precise_setup.py
@@ -122,16 +118,12 @@ python src/algorithms/gradient_descent/precise_setup.py
 ```bash
 # Xem các kết quả có sẵn
 python src/algorithms/algorithm_comparator.py --list
-
 # So sánh 2 thuật toán cụ thể
 python src/algorithms/algorithm_comparator.py compare gradient_descent/standard newton_method/standard
-
 # So sánh tất cả setup của gradient descent
 python src/algorithms/algorithm_comparator.py analyze gradient_descent
-
 # Chế độ interactive
 python src/algorithms/algorithm_comparator.py --interactive
-
 # Tạo báo cáo toàn diện
 python src/algorithms/algorithm_comparator.py report --all
 ```
@@ -139,24 +131,23 @@ python src/algorithms/algorithm_comparator.py report --all
 ## Tài Liệu Phân Tích Chi Tiết
 
 ### Cấu Trúc Notes
-Thư mục `notes/` chứa các tài liệu phân tích chi tiết cho từng bước trong quy trình:
 
+Thư mục `notes/` chứa các tài liệu phân tích chi tiết cho từng bước trong quy trình:
 **notes/00_raw/dataset_decisions.md**
+
 - Lý do chọn dataset xe cũ CarGurus (3M records)
 - Phân tích ưu nhược điểm của dataset
 - Chiến lược lựa chọn 34 cột từ 66 cột gốc
 - Quyết định kỹ thuật về storage và loading
 - Kỳ vọng kết quả và metrics đánh giá
-
-**notes/01_eda/analysis_insights.md**
+  **notes/01_eda/analysis_insights.md**
 - Phân tích phân phối giá (lệch phải, cần log transform)
 - Phân cấp thương hiệu (luxury vs mass market vs budget)
 - Mẫu khấu hao phi tuyến theo tuổi xe
 - Tác động số km đã đi và hiệu quả nhiên liệu
 - Ma trận tương quan và multicollinearity
 - Insights cho algorithm selection
-
-**notes/02_preprocessing/transformation_explanations.md**
+  **notes/02_preprocessing/transformation_explanations.md**
 - Giải thích chi tiết 45 đặc trưng cuối cùng
 - Lý do từng biến đổi (age, age_squared, mileage_per_year, etc.)
 - Kỹ thuật target encoding cho categorical variables
@@ -165,13 +156,12 @@ Thư mục `notes/` chứa các tài liệu phân tích chi tiết cho từng b�
 - Tác động đến thuật toán tối ưu
 
 ### Sử Dụng Tài Liệu
+
 ```bash
 # Đọc quyết định dataset trước khi bắt đầu
 cat notes/00_raw/dataset_decisions.md
-
-# Hiểu insights từ EDA trước khi preprocessing  
+# Hiểu insights từ EDA trước khi preprocessing
 cat notes/01_eda/analysis_insights.md
-
 # Nắm logic biến đổi dữ liệu
 cat notes/02_preprocessing/transformation_explanations.md
 ```
@@ -262,11 +252,11 @@ Tập dữ liệu này chứa thông tin về **3 triệu xe ô tô cũ** tại 
 **Chi tiết đầy đủ**: Xem `notes/02_preprocessing/transformation_explanations.md`
 
 ### Thống Kê Cuối Cùng
+
 ```
 Từ: 3,000,040 bản ghi × 66 cột (dữ liệu gốc)
 Thành: 2,788,084 bản ghi × 45 đặc trưng (đã xử lý)
-
-Train set: 2,230,467 mẫu × 45 features  
+Train set: 2,230,467 mẫu × 45 features
 Test set: 557,617 mẫu × 45 features
 Target: log-transformed price (chuẩn hóa phân phối)
 ```
@@ -274,22 +264,24 @@ Target: log-transformed price (chuẩn hóa phân phối)
 ### 45 Đặc Trưng Cuối Cùng
 
 **Nhóm 1: Gốc được giữ (25 đặc trưng)**
+
 ```
-body_type, city_fuel_economy, daysonmarket, engine_displacement, 
-engine_type, exterior_color, fuel_tank_volume, fuel_type, 
-highway_fuel_economy, horsepower, interior_color, is_new, 
-listing_color, make_name, maximum_seating, mileage, model_name, 
-owner_count, power, seller_rating, torque, transmission, 
+body_type, city_fuel_economy, daysonmarket, engine_displacement,
+engine_type, exterior_color, fuel_tank_volume, fuel_type,
+highway_fuel_economy, horsepower, interior_color, is_new,
+listing_color, make_name, maximum_seating, mileage, model_name,
+owner_count, power, seller_rating, torque, transmission,
 wheel_system, wheelbase, year
 ```
 
 **Nhóm 2: Kỹ thuật cơ bản (9 đặc trưng)**
+
 ```
 age                   # Tuổi xe = 2024 - year (khấu hao chính)
 age_squared          # Bình phương tuổi (nắm bắt phi tuyến tính)
 is_classic           # Xe cổ >25 năm (giá trị sưu tập)
 mileage_per_year     # Km/năm (mức độ sử dụng)
-high_mileage         # Xe chạy nhiều >15K/năm 
+high_mileage         # Xe chạy nhiều >15K/năm
 combined_fuel_economy # Trung bình city + highway
 fuel_economy_diff    # Chênh lệch highway - city
 weeks_on_market      # Thời gian bán (tuần)
@@ -297,17 +289,19 @@ quick_sale           # Bán nhanh <30 ngày
 ```
 
 **Nhóm 3: Thông minh thương hiệu (6 đặc trưng)**
+
 ```
 is_luxury            # Thương hiệu sang (Mercedes, BMW, Audi, etc.)
 performance_category # Phân loại theo HP (economy/standard/performance/high)
 is_electric          # Xe điện
-is_hybrid            # Xe hybrid  
+is_hybrid            # Xe hybrid
 condition_score      # Điểm tình trạng tổng hợp
 age_mileage_ratio    # Tương tác tuổi × km
 price_tier           # Phân khúc giá (budget/mid/premium/luxury)
 ```
 
 **Nhóm 4: Target encoding (3 đặc trưng)**
+
 ```
 make_name_target_encoded    # Giá trung bình theo hãng (smoothed)
 model_name_target_encoded   # Giá trung bình theo mẫu xe
@@ -315,6 +309,7 @@ make_model_target_encoded   # Giá trung bình theo hãng+mẫu
 ```
 
 **Nhóm 5: Missing indicator (1 đặc trưng)**
+
 ```
 owner_count_was_missing     # Đánh dấu thiếu dữ liệu số chủ sở hữu
 ```
@@ -334,12 +329,14 @@ owner_count_was_missing     # Đánh dấu thiếu dữ liệu số chủ sở h
 ## Quy Trình Phân Tích
 
 ### Bước 0: Đọc Tài Liệu
+
 ```bash
 # Hiểu dataset và quyết định
 cat notes/00_raw/dataset_decisions.md
 ```
 
-### Bước 1: EDA - Khám Phá Dữ Liệu  
+### Bước 1: EDA - Khám Phá Dữ Liệu
+
 ```bash
 python src/01_eda.py
 # Đọc insights
@@ -347,18 +344,19 @@ cat notes/01_eda/analysis_insights.md
 ```
 
 ### Bước 2: Preprocessing - Biến Đổi Dữ Liệu
+
 ```bash
-python src/02_preprocessing.py  
+python src/02_preprocessing.py
 # Hiểu logic biến đổi
 cat notes/02_preprocessing/transformation_explanations.md
 ```
 
 ### Bước 3: Algorithms - So Sánh Tối Ưu
+
 ```bash
 # Chạy các thuật toán
 python src/algorithms/gradient_descent/standard_setup.py
 python src/algorithms/newton_method/standard_setup.py
-
 # So sánh kết quả
 python src/algorithms/algorithm_comparator.py --interactive
 ```

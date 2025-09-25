@@ -1,9 +1,7 @@
 """Configuration settings using Pydantic BaseSettings"""
-
 from pydantic_settings import BaseSettings
 from typing import Optional, Tuple
 from pathlib import Path
-
 
 class Settings(BaseSettings):
     """Application settings - reads from .env file"""
@@ -53,10 +51,8 @@ class Settings(BaseSettings):
         env_prefix = "ML_"
         case_sensitive = False
 
-
 # Global instance
 settings = Settings()
-
 # Ensure directories exist
 settings.data_dir.mkdir(exist_ok=True)
 settings.model_output_dir.mkdir(exist_ok=True)

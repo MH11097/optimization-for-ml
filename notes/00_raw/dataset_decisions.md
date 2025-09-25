@@ -13,21 +13,15 @@
 ### Những Ưu Điểm Chính
 
 1. **Quy mô phù hợp cho việc kiểm thử thuật toán tối ưu**
-
    - Với hơn 3 triệu bản ghi, dataset này đủ lớn để đánh giá hiệu suất của các thuật toán
-
 2. **Tính ứng dụng thương mại cao**
-
    - Đây là bài toán định giá thực tế, có thể áp dụng trực tiếp trong kinh doanh
    - Các chỉ số đánh giá rõ ràng: MAE, MAPE có ý nghĩa kinh doanh trực tiếp
-
 3. **Đa dạng về loại đặc trưng**
-
    - Kết hợp cả dữ liệu phân loại (thương hiệu, mẫu xe) và số liệu (giá, số km đã đi)
    - Thông số kỹ thuật (công suất, mức tiêu thụ nhiên liệu)
    - Tín hiệu thị trường (số ngày rao bán, đánh giá người bán)
    - Chỉ số tình trạng xe (tai nạn, hư hỏng)
-
 4. **Cấu trúc dữ liệu có hệ thống**
    - Schema nhất quán từ một nguồn duy nhất (CarGurus)
    - Mẫu dữ liệu bị thiếu hợp lý và có thể dự đoán được

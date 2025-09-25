@@ -1,0 +1,223 @@
+{% extends "base.html" %} {% block title %}Optimization Algorithm Visualizer{%
+endblock %} {% block content %}
+<div class="row">
+  <!-- Control Panel -->
+  <div class="col-lg-3 col-md-4">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0">
+          <i class="fas fa-cogs me-2"></i>
+          Controls
+        </h5>
+      </div>
+      <div class="card-body">
+        <!-- Algorithm Selection -->
+        <div class="mb-3">
+          <label for="algorithmSelect" class="form-label">Algorithm</label>
+          <select class="form-select" id="algorithmSelect">
+            <option value="">Select Algorithm...</option>
+          </select>
+        </div>
+        <!-- Parameter Group Selection -->
+        <div class="mb-3" id="parameterGroupContainer" style="display: none">
+          <label for="parameterGroupSelect" class="form-label"
+            >Parameter Group</label
+          >
+          <select class="form-select" id="parameterGroupSelect">
+            <option value="">Select Group...</option>
+          </select>
+        </div>
+        <!-- Parameter Sliders -->
+        <div id="parametersContainer" style="display: none">
+          <h6 class="mb-3">Parameters</h6>
+          <div id="slidersContainer"></div>
+        </div>
+        <!-- Setup Info -->
+        <div id="setupInfo" class="mt-3" style="display: none">
+          <h6>Current Setup</h6>
+          <div id="setupDetails" class="small text-muted"></div>
+        </div>
+        <!-- Comparison Mode -->
+        <div class="mt-4">
+          <div class="form-check">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="comparisonMode"
+            />
+            <label class="form-check-label" for="comparisonMode">
+              Comparison Mode
+            </label>
+          </div>
+        </div>
+        <!-- Selected Setups for Comparison -->
+        <div id="comparisonSetups" class="mt-3" style="display: none">
+          <h6>Selected Setups</h6>
+          <div id="selectedSetupsList" class="small"></div>
+          <button
+            class="btn btn-sm btn-outline-primary mt-2"
+            id="addCurrentSetup"
+          >
+            Add Current Setup
+          </button>
+          <button
+            class="btn btn-sm btn-outline-danger mt-2"
+            id="clearComparison"
+          >
+            Clear All
+          </button>
+        </div>
+      </div>
+    </div>
+    <!-- Setup Statistics -->
+    <div class="card mt-3" id="statsCard" style="display: none">
+      <div class="card-header">
+        <h6 class="card-title mb-0">
+          <i class="fas fa-chart-bar me-2"></i>
+          Statistics
+        </h6>
+      </div>
+      <div class="card-body">
+        <div id="statsContent"></div>
+      </div>
+    </div>
+  </div>
+  <!-- Visualization Area -->
+  <div class="col-lg-9 col-md-8">
+    <!-- Chart Controls -->
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-md-6">
+            <h5 class="mb-0">Visualization</h5>
+          </div>
+          <div class="col-md-6">
+            <div class="btn-group" role="group" id="chartTypeButtons">
+              <input
+                type="radio"
+                class="btn-check"
+                name="chartType"
+                id="chart2D"
+                value="2d"
+                checked
+              />
+              <label class="btn btn-outline-primary" for="chart2D"
+                >2D Charts</label
+              >
+
+              <input
+                type="radio"
+                class="btn-check"
+                name="chartType"
+                id="chart3D"
+                value="3d"
+              />
+              <label class="btn btn-outline-primary" for="chart3D"
+                >3D Charts</label
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 2D Charts -->
+    <div id="charts2D">
+      <div class="row">
+        <div class="col-lg-6 mb-3">
+          <div class="card">
+            <div class="card-header">
+              <h6 class="mb-0">Loss Convergence</h6>
+            </div>
+            <div class="card-body">
+              <div id="lossChart" style="height: 400px"></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6 mb-3">
+          <div class="card">
+            <div class="card-header">
+              <h6 class="mb-0">Gradient Norm</h6>
+            </div>
+            <div class="card-body">
+              <div id="gradientChart" style="height: 400px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-12 mb-3">
+          <div class="card">
+            <div class="card-header">
+              <h6 class="mb-0">Performance Comparison</h6>
+            </div>
+            <div class="card-body">
+              <div id="comparisonChart" style="height: 500px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 3D Charts -->
+    <div id="charts3D" style="display: none">
+      <div class="row">
+        <div class="col-lg-6 mb-3">
+          <div class="card">
+            <div class="card-header">
+              <h6 class="mb-0">Parameter Space</h6>
+            </div>
+            <div class="card-body">
+              <div id="parameterSpace3D" style="height: 500px"></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6 mb-3">
+          <div class="card">
+            <div class="card-header">
+              <h6 class="mb-0">Convergence Surface</h6>
+            </div>
+            <div class="card-body">
+              <div id="convergenceSurface3D" style="height: 500px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" class="text-center py-5" style="display: none">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-2">Loading visualization data...</p>
+    </div>
+    <!-- Error Message -->
+    <div
+      id="errorMessage"
+      class="alert alert-danger"
+      style="display: none"
+      role="alert"
+    >
+      <h6>Error</h6>
+      <p id="errorText"></p>
+    </div>
+    <!-- No Data Message -->
+    <div id="noDataMessage" class="text-center py-5" style="display: none">
+      <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+      <h5 class="text-muted">No Data Available</h5>
+      <p class="text-muted">
+        Select an algorithm and parameters to view visualizations.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  // Initialize the application when page loads
+  document.addEventListener("DOMContentLoaded", function () {
+    if (typeof VisualizationApp !== "undefined") {
+      const app = new VisualizationApp();
+      app.init();
+    }
+  });
+</script>
+{% endblock %}

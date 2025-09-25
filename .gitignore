@@ -21,7 +21,6 @@ share/python-wheels/
 .installed.cfg
 *.egg
 PIPFILE.lock
-
 # Virtual environments
 .venv
 .wvenv
@@ -31,47 +30,38 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-
 # Jupyter Notebook
 .ipynb_checkpoints
-
 # Large data files only - CSV files are too big for git
 data/00_raw/*.csv
 data/02_processed/*.csv
-
 # Heavy model files only  
 *.npy
 *.pkl
 data/02_processed/*.pkl
-
 # Keep directory structure
 !data/00_raw/.gitkeep
 !data/01_eda/.gitkeep
 !data/02_processed/.gitkeep
 !data/03_algorithms/.gitkeep
 !data/04_comparison/.gitkeep
-
 # Libraries model files
 *.joblib
 *.model
 *.weights
-
 # Logs only
 *.log
 logs/
-
 # Backup files from consolidation
 *_old.py
 *_backup.py
 *_original.py
-
 # AI Assistant Files  
 .claude/
 .serena/
@@ -81,7 +71,6 @@ CLAUDE.md
 .ai/
 *.claude
 *.serena
-
 # OS
 .DS_Store
 .DS_Store?
@@ -90,12 +79,10 @@ CLAUDE.md
 .Trashes
 ehthumbs.db
 Thumbs.db
-
 # Temporary files
 *.tmp
 *.temp
 .cache/
-
 
 # Dev files
 toan_test*

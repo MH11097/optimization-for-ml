@@ -5,7 +5,6 @@ Optimized version with selective column loading
 Input: data/00_raw/used_cars_data.csv
 Output: data/01_eda/ (plots, reports, statistics)
 """
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -15,7 +14,6 @@ import json
 import warnings
 from src.utils.data_loader import load_data_chunked
 warnings.filterwarnings('ignore')
-
 # ==================== CONFIGURATION ====================
 # Define columns to use from the beginning to avoid loading all data
 ESSENTIAL_COLUMNS = [
@@ -48,16 +46,13 @@ ESSENTIAL_COLUMNS = [
     # Additional features
     'torque', 'power', 'major_options', 'listing_color'
 ]
-
 # Columns known to have >50% missing values (from initial analysis)
 HIGH_MISSING_COLUMNS = [
     'bed', 'bed_height', 'bed_length', 'cabin', 
     'combine_fuel_economy', 'is_certified', 'is_cpo', 
     'is_oemcpo', 'vehicle_damage_category'
 ]
-
 # ==================== HELPER FUNCTIONS ====================
-
 def setup_environment():
     """Setup plotting style and output directory"""
     # Set plotting style
@@ -69,7 +64,6 @@ def setup_environment():
     output_dir.mkdir(parents=True, exist_ok=True)
     
     return output_dir
-
 def load_data_optimized(file_path, use_columns=None, sample_size=None, chunk_size=10000):
     """
     Load data with chunked processing for memory efficiency
@@ -96,11 +90,8 @@ def load_data_optimized(file_path, use_columns=None, sample_size=None, chunk_siz
     )
     
     return df
-
 # optimize_dtypes_eda function removed - now using optimize_dataframe_dtypes from utils
-
 # ==================== ANALYSIS FUNCTIONS ====================
-
 def basic_info_analysis(df, output_dir):
     """Perform basic data information analysis"""
     print("\n" + "="*60)
@@ -148,7 +139,6 @@ def basic_info_analysis(df, output_dir):
         json.dump(info, f, indent=2, default=str)
     
     return info
-
 def missing_values_analysis(df, output_dir):
     """Analyze missing values in detail"""
     print("\n" + "="*60)
@@ -217,7 +207,6 @@ def missing_values_analysis(df, output_dir):
     missing_df.to_csv(output_dir / "missing_values_report.csv", index=False)
     
     return missing_df
-
 def target_variable_analysis(df, output_dir, target='price'):
     """Analyze the target variable (price)"""
     print("\n" + "="*60)
@@ -318,7 +307,6 @@ def target_variable_analysis(df, output_dir, target='price'):
         json.dump(stats, f, indent=2)
     
     return stats
-
 def numeric_features_analysis(df, output_dir):
     """Analyze numeric features"""
     print("\n" + "="*60)
@@ -373,7 +361,6 @@ def numeric_features_analysis(df, output_dir):
     numeric_stats.to_csv(output_dir / "numeric_features_stats.csv")
     
     return numeric_stats
-
 def categorical_features_analysis(df, output_dir):
     """Analyze categorical features"""
     print("\n" + "="*60)
@@ -444,7 +431,6 @@ def categorical_features_analysis(df, output_dir):
     cat_df.to_csv(output_dir / "categorical_features_analysis.csv", index=False)
     
     return cat_df
-
 def correlation_analysis(df, output_dir):
     """Perform correlation analysis"""
     print("\n" + "="*60)
@@ -498,7 +484,6 @@ def correlation_analysis(df, output_dir):
         pd.DataFrame(high_corr_pairs).to_csv(output_dir / "high_correlation_pairs.csv", index=False)
     
     return corr_matrix
-
 def data_quality_report(df, output_dir):
     """Generate comprehensive data quality report"""
     print("\n" + "="*60)
@@ -580,7 +565,6 @@ def data_quality_report(df, output_dir):
         json.dump(report, f, indent=2, default=str)
     
     return report
-
 def generate_eda_summary(all_results, output_dir):
     """Generate final EDA summary and recommendations"""
     print("\n" + "="*60)
@@ -675,9 +659,7 @@ def generate_eda_summary(all_results, output_dir):
     print("🚀 Next step: Run preprocessing pipeline")
     
     return summary
-
 # ==================== MAIN PIPELINE ====================
-
 def main():
     """Main EDA pipeline with optimized data loading"""
     print("="*60)
@@ -718,6 +700,5 @@ def main():
     summary = generate_eda_summary(all_results, output_dir)
     
     return df, all_results, summary
-
 if __name__ == "__main__":
     df, results, summary = main()

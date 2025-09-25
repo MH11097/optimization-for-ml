@@ -2,7 +2,6 @@
 Step 2.1: Data Sampling cho test optimization algorithms
 Tạo stratified sample để giữ đặc trưng dataset
 """
-
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -10,10 +9,8 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from utils.data_process_utils import tai_du_lieu_chunked
-
 # Khai báo số dòng sample trực tiếp
 SAMPLE_SIZE = 100000
-
 
 def create_stratified_samples():
     """Tạo random sample từ processed data (đã scale)"""
@@ -62,7 +59,6 @@ def create_stratified_samples():
     print(f"\n✅ Train sample: {X_train_sample.shape}")
     print(f"✅ Test sample: {X_test_sample.shape}")
     print(f"📁 Files saved in {output_dir}")
-
 if __name__ == "__main__":
     create_stratified_samples()
     print("\n🎯 Stratified sampling completed!")

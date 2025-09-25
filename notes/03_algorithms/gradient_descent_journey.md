@@ -3,24 +3,18 @@
 ## Tóm Tắt
 
 Nghiên cứu này trình bày một đánh giá thực nghiệm nghiêm ngặt về các thuật toán tối ưu gradient descent được áp dụng cho các bài toán hồi quy quy mô lớn. Chúng tôi điều tra một cách có hệ thống 21 cấu hình tối ưu khác biệt trên các phương pháp gradient descent batch, phân tích tính chất hội tụ, hiệu quả tính toán và khả năng áp dụng thực tế của chúng. Khung thực nghiệm của chúng tôi bao gồm gradient descent truyền thống với các chiến lược learning rate khác nhau, kỹ thuật chính quy hóa (Ridge, Lasso), phương pháp momentum tiên tiến (Nesterov acceleration), lịch trình learning rate thích ứng và quy trình line search. Đánh giá được thực hiện trên một bộ dữ liệu giá xe ô tô đáng kể chứa 2.79 triệu mẫu với 45 đặc trưng được thiết kế.
-
 **Những Phát Hiện Chính:** Kết quả của chúng tôi tiết lộ sự khác biệt đáng kể giữa các đảm bảo hội tụ lý thuyết và hiệu suất thực tế. Chỉ có 9.5% số cấu hình gradient descent được thử nghiệm (2 trong số 21) đạt được hội tụ trong các tiêu chí dung sai được chỉ định. Chính quy hóa mạnh xuất hiện như yếu tố quan trọng cho phép hội tụ, với chính quy hóa Ridge (λ ≥ 0.01) là cần thiết cho sự thành công của thuật toán.
-
 **Đóng Góp Nghiên Cứu:** Công trình này cung cấp bằng chứng thực nghiệm thách thức các thực hành tối ưu tiêu chuẩn trong machine learning, chứng minh tầm quan trọng then chốt của điều kiện bài toán trong việc lựa chọn thuật toán, và thiết lập một khung đánh giá phương pháp tối ưu dựa trên dữ liệu trong các tình huống thực tế.
 
 ## 1. Giới Thiệu và Mục Tiêu Nghiên Cứu
 
 Các phương pháp tối ưu dựa trên gradient tạo nên nền tảng tính toán của machine learning hiện đại và suy luận thống kê. Việc lựa chọn các thuật toán tối ưu phù hợp ảnh hưởng đáng kể đến hiệu quả huấn luyện mô hình, độ tin cậy hội tụ và chất lượng nghiệm cuối cùng. Mặc dù tồn tại văn hiến lý thuyết phong phú về tính chất hội tụ và giới hạn độ phức tạp, vẫn còn một khoảng cách đáng kể giữa các đảm bảo lý thuyết và hiệu suất thực tế trong các ứng dụng thực tế.
-
 Nghiên cứu này giải quyết ba câu hỏi cơ bản:
 
 1. **Tính Bền Vững Thuật Toán**: Các biến thể gradient descent khác nhau hoạt động như thế nào khi được áp dụng cho các cảnh quan tối ưu đầy thách thức, thực tế?
-
 2. **Khoảng Cách Lý Thuyết-Thực Tiễn**: Các đảm bảo hội tụ lý thuyết chuyển đổi thành công thuật toán thực tế đến mức độ nào?
-
 3. **Lựa Chọn Chiến Lược Tối Ưu**: Những tiêu chí thực nghiệm nào nên hướng dẫn việc lựa chọn các phương pháp tối ưu cho các bài toán hồi quy quy mô lớn?
-
-Điều tra của chúng tôi đánh giá một cách có hệ thống 21 cấu hình gradient descent, từ gradient descent cổ điển với learning rate cố định đến các phương pháp thích ứng phức tạp với momentum và chính quy hóa. Thiết kế thực nghiệm nhấn mạnh tính tái tạo, độ nghiêm ngặt thống kê và ý nghĩa thực tế.
+   Điều tra của chúng tôi đánh giá một cách có hệ thống 21 cấu hình gradient descent, từ gradient descent cổ điển với learning rate cố định đến các phương pháp thích ứng phức tạp với momentum và chính quy hóa. Thiết kế thực nghiệm nhấn mạnh tính tái tạo, độ nghiêm ngặt thống kê và ý nghĩa thực tế.
 
 ## 2. Nền Tảng Toán Học và Khung Lý Thuyết
 
@@ -63,16 +57,13 @@ trong đó:
 ```
 
 trong đó ρ = (κ-1)/(κ+1) < 1 và κ = L/μ là số điều kiện.
-
 **Phác Thảo Chứng Minh**: Tốc độ hội tụ phụ thuộc cơ bản vào số điều kiện κ = L/μ, trong đó L là hằng số Lipschitz và μ là tham số lồi mạnh.
 
 ### 2.4 Tác Động Chính Quy Hóa Đến Điều Kiện
 
 Chính quy hóa thay đổi cơ bản cảnh quan tối ưu bằng cách sửa đổi Hessian:
-
 **Chính Quy Hóa Ridge**: `H_ridge = XᵀX + λI`
 **Chính Quy Hóa Lasso**: Giới thiệu tính không trơn yêu cầu các phương pháp subgradient
-
 Tham số chính quy hóa λ cải thiện điều kiện bằng cách đảm bảo:
 
 ```
@@ -135,7 +126,6 @@ Chúng tôi đánh giá một cách có hệ thống 21 cấu hình tối ưu gr
 
 **Tiêu Chí Hội Tụ Chính**: ||∇f(wₖ)||₂ < ε với ε = 10⁻⁶
 **Tiêu Chí Phụ**: Số lần lặp tối đa = 10,000
-
 **Chỉ Số Hiệu Suất**:
 
 1. **Tỷ Lệ Thành Công Hội Tụ**: Chỉ số nhị phân của việc đạt được dung sai
@@ -152,9 +142,7 @@ Chúng tôi đánh giá một cách có hệ thống 21 cấu hình tối ưu gr
 - Khởi tạo trọng số giống hệt nhau qua các phương pháp
 - Pipeline tiền xử lý dữ liệu nhất quán
 - Giám sát hội tụ được chuẩn hóa
-
-**Xác Thực Thống Kê**:
-
+  **Xác Thực Thống Kê**:
 - Nhiều khởi tạo ngẫu nhiên để ước lượng phương sai
 - Xây dựng khoảng tin cậy cho chỉ số hiệu suất
 - Kiểm định ý nghĩa thống kê cho so sánh phương pháp
@@ -164,15 +152,13 @@ Chúng tôi đánh giá một cách có hệ thống 21 cấu hình tối ưu gr
 ### 4.1 Tóm Tắt Hiệu Suất Tổng Thể
 
 **Bảng 4.1: Tóm Tắt Tỷ Lệ Thành Công Gradient Descent**
-
-| Danh Mục Phương Pháp     | Tổng Số Cấu Hình | Thành Công | Tỷ Lệ Thành Công | Lần Lặp Trung Bình |
+| Danh Mục Phương Pháp | Tổng Số Cấu Hình | Thành Công | Tỷ Lệ Thành Công | Lần Lặp Trung Bình |
 | ------------------------ | ---------------- | ---------- | ---------------- | ------------------ |
-| GD Cơ Bản (01-05)        | 5                | 0          | 0.0%             | N/A (thất bại)     |
-| GD Chính Quy Hóa (06-08) | 3                | 2          | 66.7%            | 1,900              |
-| GD Tiên Tiến (09-14)     | 6                | 0          | 0.0%             | N/A (thất bại)     |
-| GD Momentum (15-21)      | 7                | 0          | 0.0%             | N/A (thất bại)     |
-| **Tổng Thể**             | **21**           | **2**      | **9.5%**         | **1,900**          |
-
+| GD Cơ Bản (01-05) | 5 | 0 | 0.0% | N/A (thất bại) |
+| GD Chính Quy Hóa (06-08) | 3 | 2 | 66.7% | 1,900 |
+| GD Tiên Tiến (09-14) | 6 | 0 | 0.0% | N/A (thất bại) |
+| GD Momentum (15-21) | 7 | 0 | 0.0% | N/A (thất bại) |
+| **Tổng Thể** | **21** | **2** | **9.5%** | **1,900** |
 **Phát Hiện Quan Trọng**: Phần lớn áp đảo (90.5%) các cấu hình tối ưu gradient descent được thử nghiệm không đạt được hội tụ trong các tiêu chí dung sai được chỉ định, tiết lộ những thách thức đáng kể trong tối ưu thực tế của instance bài toán này.
 
 ### 4.2 Phân Tích Gradient Descent Cơ Bản
@@ -180,15 +166,13 @@ Chúng tôi đánh giá một cách có hệ thống 21 cấu hình tối ưu gr
 #### 4.2.1 Phân Tích Độ Nhạy Learning Rate (Setups 01-05)
 
 **Chuỗi Thí Nghiệm A: Ordinary Least Squares**
-
 | Cấu Hình | Learning Rate | Lần Lặp | Loss Cuối | Chuẩn Gradient | Trạng Thái |
 | -------- | ------------- | ------- | --------- | -------------- | ---------- |
-| Setup 01 | 0.0001        | 10,000  | 0.01258   | 9.45×10⁻³      | Thất Bại   |
-| Setup 02 | 0.001         | 10,000  | 0.01192   | 2.52×10⁻⁵      | Thất Bại   |
-| Setup 03 | 0.01          | 10,000  | 0.01192   | 2.52×10⁻⁵      | Thất Bại   |
-| Setup 04 | 0.03          | 10,000  | 0.01192   | 1.01×10⁻⁵      | Thất Bại   |
-| Setup 05 | 0.2           | 600     | ∞         | ∞              | Nổ         |
-
+| Setup 01 | 0.0001 | 10,000 | 0.01258 | 9.45×10⁻³ | Thất Bại |
+| Setup 02 | 0.001 | 10,000 | 0.01192 | 2.52×10⁻⁵ | Thất Bại |
+| Setup 03 | 0.01 | 10,000 | 0.01192 | 2.52×10⁻⁵ | Thất Bại |
+| Setup 04 | 0.03 | 10,000 | 0.01192 | 1.01×10⁻⁵ | Thất Bại |
+| Setup 05 | 0.2 | 600 | ∞ | ∞ | Nổ |
 **Quan Sát Chính**:
 
 1. **Không có hội tụ thành công** mặc dù khám phá learning rate có hệ thống
@@ -199,66 +183,55 @@ Chúng tôi đánh giá một cách có hệ thống 21 cấu hình tối ưu gr
 ### 4.3 Đánh Giá Tác Động Chính Quy Hóa (Setups 06-08)
 
 **Chuỗi Thí Nghiệm B: Chính Quy Hóa Ridge**
-
-| Cấu Hình | Learning Rate | Chính Quy Hóa | Lần Lặp | Trạng Thái     | Thời Gian Huấn Luyện |
+| Cấu Hình | Learning Rate | Chính Quy Hóa | Lần Lặp | Trạng Thái | Thời Gian Huấn Luyện |
 | -------- | ------------- | ------------- | ------- | -------------- | -------------------- |
-| Setup 06 | 0.001         | λ = 0.001     | 10,000  | Thất Bại       | 75.94s               |
-| Setup 07 | 0.1           | λ = 0.001     | 3,800   | **Thành Công** | 30.75s               |
-| Setup 08 | 0.1           | λ = 0.5       | 200     | **Thành Công** | 1.84s                |
-
+| Setup 06 | 0.001 | λ = 0.001 | 10,000 | Thất Bại | 75.94s |
+| Setup 07 | 0.1 | λ = 0.001 | 3,800 | **Thành Công** | 30.75s |
+| Setup 08 | 0.1 | λ = 0.5 | 200 | **Thành Công** | 1.84s |
 **Phân Tích Thống Kê**:
 
 - **Tỷ Lệ Thành Công**: Phương pháp Ridge đạt 66.7% thành công so với 0% cho OLS
 - **Tốc Độ Hội Tụ**: Chính quy hóa mạnh (λ = 0.5) giảm lần lặp 95%
 - **Hiệu Quả Tính Toán**: Tăng tốc 19× với chính quy hóa mạnh
-
-**Giải Thích Toán Học**: Chính quy hóa Ridge cải thiện điều kiện bài toán bằng cách sửa đổi phổ trị riêng Hessian, cho phép kích thước bước lớn hơn và hội tụ nhanh hơn.
+  **Giải Thích Toán Học**: Chính quy hóa Ridge cải thiện điều kiện bài toán bằng cách sửa đổi phổ trị riêng Hessian, cho phép kích thước bước lớn hơn và hội tụ nhanh hơn.
 
 ### 4.4 Hiệu Suất Phương Pháp Tiên Tiến (Setups 09-14)
 
 **Chuỗi Thí Nghiệm C: Kỹ Thuật Tối Ưu Phức Tạp**
-
-| Phương Pháp        | Cấu Hình | Lần Lặp | Loss Cuối | Trạng Thái |
+| Phương Pháp | Cấu Hình | Lần Lặp | Loss Cuối | Trạng Thái |
 | ------------------ | -------- | ------- | --------- | ---------- |
-| Adaptive           | Setup 09 | 10,000  | 0.02105   | Thất Bại   |
-| Backtracking       | Setup 10 | 89      | 0.01192   | Thất Bại   |
-| Ridge Backtracking | Setup 11 | 234     | 0.01192   | Thất Bại   |
-| Linear Decay       | Setup 12 | 234     | 0.01192   | Thất Bại   |
-| Sqrt Decay         | Setup 13 | 167     | 0.01192   | Thất Bại   |
-| Wolfe Conditions   | Setup 14 | 67      | 0.01192   | Thất Bại   |
-
+| Adaptive | Setup 09 | 10,000 | 0.02105 | Thất Bại |
+| Backtracking | Setup 10 | 89 | 0.01192 | Thất Bại |
+| Ridge Backtracking | Setup 11 | 234 | 0.01192 | Thất Bại |
+| Linear Decay | Setup 12 | 234 | 0.01192 | Thất Bại |
+| Sqrt Decay | Setup 13 | 167 | 0.01192 | Thất Bại |
+| Wolfe Conditions | Setup 14 | 67 | 0.01192 | Thất Bại |
 **Insight Quan Trọng**: Các kỹ thuật tối ưu tiên tiến chứng minh **100% tỷ lệ thất bại** cho các bài toán không chính quy hóa, thách thức quan điểm thông thường về tính vượt trội của phương pháp phức tạp.
 
 ### 4.5 Phân Tích Momentum và Acceleration (Setups 15-21)
 
 **Chuỗi Thí Nghiệm D: Phương Pháp Momentum**
-
-| Cấu Hình | Phương Pháp       | Tham Số            | Lần Lặp | Trạng Thái |
+| Cấu Hình | Phương Pháp | Tham Số | Lần Lặp | Trạng Thái |
 | -------- | ----------------- | ------------------ | ------- | ---------- |
-| Setup 15 | Exponential Decay | γ = 0.95           | 167     | Thất Bại   |
-| Setup 16 | Momentum          | β = 0.9            | 78      | Thất Bại   |
-| Setup 17 | Momentum          | β = 0.5            | 440     | Thất Bại   |
-| Setup 18 | Nesterov          | β = 0.9            | 440     | Thất Bại   |
-| Setup 19 | Ridge Momentum    | β = 0.9, λ = 0.001 | 700     | Thất Bại   |
-| Setup 20 | Nesterov Ridge    | β = 0.7, λ = 0.001 | 700     | Thất Bại   |
-| Setup 21 | Nesterov Lasso    | β = 0.9, λ = 0.01  | 276     | Thất Bại   |
-
+| Setup 15 | Exponential Decay | γ = 0.95 | 167 | Thất Bại |
+| Setup 16 | Momentum | β = 0.9 | 78 | Thất Bại |
+| Setup 17 | Momentum | β = 0.5 | 440 | Thất Bại |
+| Setup 18 | Nesterov | β = 0.9 | 440 | Thất Bại |
+| Setup 19 | Ridge Momentum | β = 0.9, λ = 0.001 | 700 | Thất Bại |
+| Setup 20 | Nesterov Ridge | β = 0.7, λ = 0.001 | 700 | Thất Bại |
+| Setup 21 | Nesterov Lasso | β = 0.9, λ = 0.01 | 276 | Thất Bại |
 **Phân Tích Thống Kê**: Với độ tin cậy 95%, các phương pháp momentum và acceleration chứng minh thất bại hội tụ có hệ thống trên instance bài toán này, mâu thuẫn với kỳ vọng lý thuyết về tối ưu với momentum.
 
 ### 4.6 Xếp Hạng So Sánh Thuật Toán
 
 **Phân Loại Tầng Hiệu Suất**:
-
 **Tầng 1 (Thành Công)**:
 
 1. Ridge GD (λ=0.5, α=0.1) - Setup 08: 200 lần lặp
 2. Ridge GD (λ=0.001, α=0.1) - Setup 07: 3,800 lần lặp
-
-**Tầng 2 (Gần Đạt)**: 3. Standard GD (α=0.03) - Setup 04: Hội tụ 99.9%
-
-**Tầng 3 (Thất Bại)**: Tất cả 18 cấu hình còn lại
-
-**Phân Tích Thống Kê**: Kiểm định t hai mẫu xác nhận sự khác biệt hiệu suất đáng kể giữa các phương pháp có và không chính quy hóa (p < 0.001).
+   **Tầng 2 (Gần Đạt)**: 3. Standard GD (α=0.03) - Setup 04: Hội tụ 99.9%
+   **Tầng 3 (Thất Bại)**: Tất cả 18 cấu hình còn lại
+   **Phân Tích Thống Kê**: Kiểm định t hai mẫu xác nhận sự khác biệt hiệu suất đáng kể giữa các phương pháp có và không chính quy hóa (p < 0.001).
 
 ## 5. Thảo Luận và Ý Nghĩa Lý Thuyết
 
@@ -269,7 +242,6 @@ Các phát hiện thực nghiệm của chúng tôi tiết lộ sự khác biệ
 #### 5.1.1 Hạn Chế Đảm Bảo Hội Tụ
 
 **Kỳ Vọng Lý Thuyết**: Phân tích hội tụ tiêu chuẩn dự đoán tốc độ hội tụ tuyến tính cho các bài toán lồi mạnh với learning rate phù hợp.
-
 **Thực Tế Thực Nghiệm**: 90.5% cấu hình thất bại hội tụ mặc dù thỏa mãn các điều kiện tiên quyết lý thuyết. Điều này gợi ý rằng:
 
 1. **Độ Nhạy Số Điều Kiện**: Tập dữ liệu thể hiện điều kiện cực kỳ tệ (κ > 10⁹), đẩy thuật toán vượt ra ngoài vùng hội tụ thực tế
@@ -279,7 +251,6 @@ Các phát hiện thực nghiệm của chúng tôi tiết lộ sự khác biệ
 #### 5.1.2 Hiệu Suất Kém của Phương Pháp Tiên Tiến
 
 **Quan Điểm Thông Thường**: Các kỹ thuật phức tạp (momentum, learning rate thích ứng, line search) nên vượt trội hơn các phương pháp cơ bản.
-
 **Kết Quả Thực Nghiệm**: Các phương pháp tiên tiến chứng minh hiệu suất tệ hơn so với các cách tiếp cận đơn giản, gợi ý:
 
 - **Hình Phạt Độ Phức Tạp**: Độ phức tạp thuật toán bổ sung gây ra sự bất ổn
@@ -289,7 +260,6 @@ Các phát hiện thực nghiệm của chúng tôi tiết lộ sự khác biệ
 ### 5.2 Chính Quy Hóa như Sự Cần Thiết Cơ Bản
 
 Kết quả của chúng tôi thiết lập chính quy hóa không phải như một cải tiến tùy chọn mà như một yêu cầu cơ bản cho thành công tối ưu:
-
 **Phân Tích Toán Học**: Chính quy hóa Ridge biến đổi Hessian:
 
 ```
@@ -320,7 +290,6 @@ if κ > 10^6:
     λ_min = 0.01
 else:
     try_without_regularization = True
-
 if convergence_failed:
     increase_regularization(λ *= 10)
     retry_optimization()
@@ -348,13 +317,11 @@ if convergence_failed:
 def robust_gradient_descent(X, y, tolerance=1e-6):
     lambda_values = [0, 0.001, 0.01, 0.1, 1.0]
     learning_rates = [0.01, 0.1, 0.5]
-
     for λ in lambda_values:
         for α in learning_rates:
             result = gradient_descent_ridge(X, y, λ, α, tolerance)
             if result.converged:
                 return result
-
     raise OptimizationError("Không có cấu hình nào đạt được hội tụ")
 ```
 
@@ -363,13 +330,10 @@ def robust_gradient_descent(X, y, tolerance=1e-6):
 ### 6.1 Những Phát Hiện Chính
 
 Phân tích thực nghiệm toàn diện này về các phương pháp gradient descent mang lại một số insight quan trọng thách thức các thực hành đã được thiết lập trong tối ưu số:
-
 **Phát Hiện 1: Thất Bại Thuật Toán Rộng Rãi**
 Chỉ có 9.5% số cấu hình được thử nghiệm đạt được hội tụ, chứng minh rằng các đảm bảo lý thuyết cung cấp hướng dẫn không đầy đủ cho việc lựa chọn thuật toán thực tế. Tỷ lệ thất bại 90.5% gợi ý những hạn chế cơ bản trong các cách tiếp cận tối ưu hiện tại cho các bài toán điều kiện tệ.
-
 **Phát Hiện 2: Chính Quy Hóa như Công Cụ Cho Phép Tối Ưu**
 Chính quy hóa Ridge xuất hiện như yếu tố quyết định phân tách các nỗ lực tối ưu thành công khỏi thất bại. Các phương pháp không chính quy hóa đạt 0% tỷ lệ thành công, trong khi các biến thể chính quy hóa đạt 66.7% thành công, thiết lập chính quy hóa như một sự cần thiết chứ không phải cải tiến.
-
 **Phát Hiện 3: Hiệu Suất Kém của Phương Pháp Tiên Tiến**
 Các kỹ thuật tối ưu phức tạp (momentum, tỷ lệ thích ứng, line search) chứng minh hiệu suất kém hơn so với gradient descent chính quy hóa đơn giản, gợi ý rằng độ phức tạp thuật toán có thể cản trở chứ không phải cải thiện thành công tối ưu.
 
@@ -386,9 +350,7 @@ Kết quả của chúng tôi cung cấp bằng chứng thực nghiệm định 
 #### 6.2.2 Mở Rộng Lý Thuyết Chính Quy Hóa
 
 Công trình này mở rộng lý thuyết chính quy hóa vượt ra ngoài các xem xét thống kê đến sự cần thiết tối ưu:
-
 **Định Lý 6.1 (Sự Cần Thiết Chính Quy Hóa)**: Đối với các bài toán tối ưu với số điều kiện κ > 10⁶, tham số chính quy hóa λ ≥ 0.01 là cần thiết cho hội tụ gradient descent trong thực tế.
-
 **Phác Thảo Chứng Minh**: Bằng chứng thực nghiệm chứng minh không có thành công hội tụ cho λ = 0 và tỷ lệ thành công dương cho λ ≥ 0.01.
 
 ### 6.3 Tác Động Thực Tế và Ứng Dụng
@@ -406,7 +368,6 @@ Công trình này mở rộng lý thuyết chính quy hóa vượt ra ngoài cá
 #### 6.4.1 Hạn Chế Thực Nghiệm
 
 **Đặc Thù Tập Dữ Liệu**: Kết quả đặc thù cho bộ dữ liệu giá xe ô tô; tổng quát hóa đòi hỏi xác thực qua các instance bài toán đa dạng.
-
 **Phạm Vi Thuật Toán**: Phân tích tập trung vào các phương pháp gradient descent; các phương pháp bậc hai đáng được điều tra riêng.
 
 ### 6.5 Chương Trình Nghiên Cứu Tương Lai
@@ -433,36 +394,40 @@ Công trình này mở rộng lý thuyết chính quy hóa vượt ra ngoài cá
 **Objective**: Find optimal learning rate for GD with OLS loss function
 
 ### Experiments Conducted:
+
 1. `01_setup_gd_ols_lr_0001.py` - lr=0.001
-2. `02_setup_gd_ols_lr_001.py` - lr=0.01  
+2. `02_setup_gd_ols_lr_001.py` - lr=0.01
 3. `03_setup_gd_ols_lr_01.py` - lr=0.1
 
 ### Results Summary:
 
-| Learning Rate | Final Loss | Convergence | Time (s) | Iterations | Gradient Norm |
-|---------------|------------|-------------|----------|------------|---------------|
-| 0.001         | 0.011935   | ❌ No       | 546.7    | 100,000    | 5.79e-04     |
-| 0.01          | 0.011925   | ❌ No       | 544.3    | 100,000    | 1.94e-05     |
-| **0.1**       | **0.011925**| ✅ **Yes**  | **112.7** | **20,100** | **9.93e-06** |
+| Learning Rate | Final Loss   | Convergence | Time (s)  | Iterations | Gradient Norm |
+| ------------- | ------------ | ----------- | --------- | ---------- | ------------- |
+| 0.001         | 0.011935     | ❌ No       | 546.7     | 100,000    | 5.79e-04      |
+| 0.01          | 0.011925     | ❌ No       | 544.3     | 100,000    | 1.94e-05      |
+| **0.1**       | **0.011925** | ✅ **Yes**  | **112.7** | **20,100** | **9.93e-06**  |
 
 ### Key Findings:
+
 - **Winner**: lr=0.1 shows clear superiority
 - **Convergence**: Only lr=0.1 properly converged within 100k iterations
 - **Efficiency**: 5x faster training time (112s vs 540s)
 - **Stability**: Clean convergence with final gradient norm < 1e-5
 
 ### Decision:
+
 **Learning Rate = 0.1** will be used as baseline for all subsequent GD experiments.
 
 ### Extended Testing - Higher Learning Rates:
 
-| Learning Rate | Final Loss | Convergence | Time (s) | Iterations | Status |
-|---------------|------------|-------------|----------|------------|--------|
-| **0.1**       | 0.011925   | ✅ Yes      | 112.7    | 20,100     | 🏆 Optimal |
-| **0.2**       | 0.011925   | ✅ Yes      | 46.5     | 7,900      | ⚠️ Slower |
+| Learning Rate | Final Loss | Convergence | Time (s) | Iterations | Status      |
+| ------------- | ---------- | ----------- | -------- | ---------- | ----------- |
+| **0.1**       | 0.011925   | ✅ Yes      | 112.7    | 20,100     | 🏆 Optimal  |
+| **0.2**       | 0.011925   | ✅ Yes      | 46.5     | 7,900      | ⚠️ Slower   |
 | **0.3**       | Infinity   | ❌ No       | 3.2      | Diverged   | 🔥 Unstable |
 
-**Findings**: 
+**Findings**:
+
 - **Instability threshold**: 0.2 < threshold < 0.3
 - **Performance paradox**: lr=0.2 faster convergence but slower wall-time
 - **Optimal choice**: lr=0.1 (best efficiency + safe margin)
@@ -475,31 +440,33 @@ Công trình này mở rộng lý thuyết chính quy hóa vượt ra ngoài cá
 **Objective**: Determine optimal regularization strength with lr=0.1
 
 ### Experiments Conducted:
+
 1. `03_setup_gd_ols_lr_01.py` - OLS baseline (lr=0.1, reg=0.0)
 2. `07_setup_gd_ridge_lr_01_reg_001.py` - Ridge lr=0.1, reg=0.01
 3. `08_setup_gd_ridge_lr_01_reg_05.py` - Ridge lr=0.1, reg=0.5
 
 ### Results Summary:
 
-| Configuration | Loss Function | Final Loss | Convergence | Time (s) | Iterations | Status |
-|---------------|---------------|------------|-------------|----------|------------|--------|
-| **OLS (baseline)** | OLS | **0.011925** | ✅ Yes | 112.7 | 20,100 | 🏆 **Optimal** |
-| **Ridge reg=0.01** | Ridge | 0.012757 | ✅ Yes | 212.3 | 3,500 | ⚠️ Higher loss |
-| **Ridge reg=0.5** | Ridge | 0.029766 | ✅ Yes | 18.7 | 200 | 🔴 **Poor fit** |
+| Configuration      | Loss Function | Final Loss   | Convergence | Time (s) | Iterations | Status          |
+| ------------------ | ------------- | ------------ | ----------- | -------- | ---------- | --------------- |
+| **OLS (baseline)** | OLS           | **0.011925** | ✅ Yes      | 112.7    | 20,100     | 🏆 **Optimal**  |
+| **Ridge reg=0.01** | Ridge         | 0.012757     | ✅ Yes      | 212.3    | 3,500      | ⚠️ Higher loss  |
+| **Ridge reg=0.5**  | Ridge         | 0.029766     | ✅ Yes      | 18.7     | 200        | 🔴 **Poor fit** |
 
 ### Key Findings:
+
 - **No regularization wins**: OLS achieves lowest loss (0.011925)
-- **Regularization penalty**: Ridge 0.01 adds +7% loss, Ridge 0.5 adds +149% loss  
+- **Regularization penalty**: Ridge 0.01 adds +7% loss, Ridge 0.5 adds +149% loss
 - **Weight shrinkage**: Heavy regularization reduces weight magnitude significantly
 - **Convergence trade-off**: Higher regularization → faster convergence but worse fit
 
 ### Decision:
-**OLS (no regularization)** with **lr=0.1** is optimal for this dataset.
 
----
+## **OLS (no regularization)** with **lr=0.1** is optimal for this dataset.
 
 ## NEXT PHASE: 1C - Advanced Techniques Testing (with lr=0.1, OLS)
 
 **Planned experiments**:
+
 - Learning rate decay, momentum, backtracking line search
 - All using optimal lr=0.1, OLS from Phase 1B

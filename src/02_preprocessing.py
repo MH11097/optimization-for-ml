@@ -8,9 +8,7 @@ import joblib
 import warnings
 from utils.data_process_utils import tai_du_lieu_chunked
 warnings.filterwarnings('ignore')
-
 # ==================== CONFIGURATION ====================
-
 INPUT = Path(r"D:\used_cars_data.csv\used_cars_data.csv")  # Update this path
 OUTPUT = Path("data/02_processed")
 SELECTED_COLUMNS = [
@@ -38,7 +36,6 @@ SELECTED_COLUMNS = [
     'seller_rating', 'exterior_color', 'interior_color',
     'torque', 'power', 'listing_color'
 ]
-
 # Columns to drop (high missing or low importance)
 COLUMNS_TO_DROP = [
     'bed', 'bed_height', 'bed_length', 'cabin',
@@ -51,9 +48,7 @@ COLUMNS_TO_DROP = [
     'wheel_system_display', 'salvage', 'theft_title',
     'isCab', 'trim_name', 'major_options'
 ]
-
 # ==================== CLEANING FUNCTIONS ====================
-
 def initial_cleaning(df):
     """Perform initial data cleaning"""
     print("\n" + "="*60)
@@ -87,7 +82,6 @@ def initial_cleaning(df):
     print(f"  Final shape: {df.shape}")
     
     return df
-
 def clean_text_columns(df):
     """Clean text/string columns"""
     print("\n" + "="*60)
@@ -110,7 +104,6 @@ def clean_text_columns(df):
     print(f"  Cleaned {len(text_columns)} text columns")
     
     return df
-
 def extract_numeric_from_string(df):
     """Extract numeric values from string columns"""
     print("\n" + "="*60)
@@ -154,9 +147,7 @@ def extract_numeric_from_string(df):
         print("  Extracted torque_value and torque_rpm from torque column")
     
     return df
-
 # ==================== MISSING VALUE HANDLING ====================
-
 def handle_missing_values(df, strategy='smart'):
     """Handle missing values with multiple strategies"""
     print("\n" + "="*60)
@@ -214,9 +205,7 @@ def handle_missing_values(df, strategy='smart'):
     print(f"  Reduction: {initial_missing - final_missing:,} values handled")
     
     return df
-
 # ==================== FEATURE ENGINEERING ====================
-
 def create_basic_features(df):
     """Create basic engineered features"""
     print("\n" + "="*60)
@@ -301,7 +290,6 @@ def create_basic_features(df):
             print(f"    - {feat}")
     
     return df
-
 def create_interaction_features(df):
     """Create interaction features between important variables"""
     print("\n" + "="*60)
@@ -386,7 +374,6 @@ def create_interaction_features(df):
             print(f"    - {feat}")
     
     return df
-
 def create_target_encoding_features(df, target='price', categorical_cols=None):
     """Create target encoding for high-cardinality categorical features"""
     print("\n" + "="*60)
@@ -428,9 +415,7 @@ def create_target_encoding_features(df, target='price', categorical_cols=None):
         print(f"  Created {len(encoded_features)} target-encoded features")
     
     return df
-
 # ==================== ENCODING & SCALING ====================
-
 def encode_categorical_features(df, max_categories=50):
     """Encode categorical features"""
     print("\n" + "="*60)
@@ -481,7 +466,6 @@ def encode_categorical_features(df, max_categories=50):
     print(f"  Encoded {len(encoded_cols)} categorical features")
     
     return df
-
 def prepare_final_dataset(df, target='price', test_size=0.2, random_state=42):
     """Prepare final dataset for modeling"""
     print("\n" + "="*60)
@@ -603,7 +587,6 @@ def prepare_final_dataset(df, target='price', test_size=0.2, random_state=42):
     print(f"  y_test range: {y_test.min():.3f} - {y_test.max():.3f} (log scale)")
     
     return X_train, X_test, y_train, y_test, columns_to_keep
-
 def scale_features(X_train, X_test, method='standard'):
     print("\n" + "="*60)
     print("📏 FEATURE SCALING")
@@ -639,7 +622,6 @@ def scale_features(X_train, X_test, method='standard'):
     print(f"  ✅ Test mean: {X_test_scaled.mean().mean():.6f}, std: {X_test_scaled.std().mean():.6f}")
     
     return X_train_scaled, X_test_scaled, scaler
-
 def save_processed_data(X_train, X_test, y_train, y_test, feature_names, 
                         scaler, output_dir):
     """Save processed data and metadata with validation"""
@@ -790,7 +772,6 @@ def save_processed_data(X_train, X_test, y_train, y_test, feature_names,
     print(f"  - Inverse function: np.expm1() for predictions")
     
     return feature_info
-
 def generate_preprocessing_summary(df_initial, df_final, output_dir):
     """Generate preprocessing summary"""
     print("\n📋 GENERATING PREPROCESSING SUMMARY")
@@ -835,7 +816,6 @@ def generate_preprocessing_summary(df_initial, df_final, output_dir):
     print(f"  - Missing values eliminated: {summary['improvements']['missing_values_eliminated']:,}")
     
     return summary
-
 def main():
     """Main preprocessing pipeline"""
     print("🔧 Starting Data Preprocessing")
@@ -900,6 +880,5 @@ def main():
     print("▶️  Next step: Run algorithms for optimization")
     
     return summary
-
 if __name__ == "__main__":
     main()

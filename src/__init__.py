@@ -1,11 +1,4 @@
-"""ML Optimization Framework
-
-A modular machine learning optimization framework with separate components for:
-- EDA (Exploratory Data Analysis)
-- Preprocessing
-- Algorithms (Optimization & Regression)
-- Evaluation
-- Utilities
 """
-
-__version__ = "1.0.0"
+Source Code Package
+Contains all source code modules for the optimization framework.
+"""

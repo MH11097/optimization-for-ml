@@ -147,7 +147,7 @@ def tinh_loss_lasso_smooth(X: np.ndarray, y: np.ndarray, trong_so: np.ndarray,
     return tinh_gia_tri_ham_loss(X, y, trong_so, 'lasso', he_so_chinh_quy)
 
 def kiem_tra_dieu_kien_dung(gradient_norm: float, cost_change: float, iteration: int,
-                           tolerance: float = 1e-6, max_iterations: int = 10000,
+                           tolerance: float = 1e-6, max_iterations: int = 100000,
                            loss_value: Optional[float] = None, weights: Optional[np.ndarray] = None,
                            divergence_threshold: float = 1e+5) -> Tuple[bool, bool, str]:
     """

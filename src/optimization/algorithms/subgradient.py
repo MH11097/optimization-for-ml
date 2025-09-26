@@ -139,7 +139,7 @@ class SubgradientOptimizer(IterativeOptimizer):
                  lambda_penalty: float = 0.1,
                  regularization: float = 0.1,  # For compatibility
                  diem_dung: float = 1e-8,
-                 max_iterations: int = 10000,
+                 max_iterations: int = 100000,
                  convergence_check_freq: int = 50,
                  random_state: Optional[int] = None,
                  # Step size parameters

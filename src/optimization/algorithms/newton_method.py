@@ -36,7 +36,7 @@ class NewtonOptimizer(IterativeOptimizer):
                  loss_type: str = 'ols',
                  regularization: float = 0.01,
                  convergence_tolerance: float = 1e-3,
-                 max_iterations: int = 10000,  # Newton typically needs fewer iterations
+                 max_iterations: int = 100000,  # Newton typically needs fewer iterations
                  convergence_check_freq: int = 1,
                  random_state: Optional[int] = None,
                  

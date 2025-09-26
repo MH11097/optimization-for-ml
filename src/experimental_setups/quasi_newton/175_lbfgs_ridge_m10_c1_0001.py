@@ -41,7 +41,7 @@ def main():
         line_search_method='backtracking',
         backtrack_c1=1e-4,
         backtrack_c2=0.9,
-        convergence_tolerance=1e-6,
+        convergence_tolerance=1e-5,
         max_iterations=50000
     )
 

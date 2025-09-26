@@ -98,7 +98,7 @@ class LinearDecayStepSize(StepSizeStrategy):
     
     def __init__(self, 
                  initial_learning_rate: float = 0.01,
-                 max_iterations: int = 10000,
+                 max_iterations: int = 100000,
                  min_learning_rate: float = 0.0001):
         """
         Khởi tạo linear decay step size.

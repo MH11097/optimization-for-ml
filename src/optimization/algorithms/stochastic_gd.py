@@ -37,8 +37,8 @@ class StochasticGDOptimizer(IterativeOptimizer):
                  learning_rate: float = 0.01,
                  regularization: float = 0.01,
                  convergence_tolerance: float = 1e-3,
-                 max_iterations: int = 10000,
-                 convergence_check_freq: int = 1,
+                 max_iterations: int = 100000,
+                 convergence_check_freq: int = 100,
                  random_state: Optional[int] = None,
                  
                  # SGD-specific parameters

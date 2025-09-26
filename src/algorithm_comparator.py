@@ -123,6 +123,15 @@ class AlgorithmComparator:
         result_info['max_iterations'] = params.get('max_iterations', params.get('so_lan_thu', 0))
         result_info['tolerance'] = params.get('tolerance', params.get('diem_dung', 0))
         
+        # Detect if this is a library algorithm
+        is_library_algorithm = self._is_library_algorithm(data, exp_folder)
+        result_info['is_library_algorithm'] = is_library_algorithm
+        
+        if is_library_algorithm:
+            # Extract library-specific information
+            library_info = self._extract_library_info(data, params)
+            result_info.update(library_info)
+        
         # Algorithm-specific parameters
         result_info['momentum'] = params.get('momentum', 0)  # For momentum/nesterov GD
         result_info['step_size_method'] = params.get('step_size_method', 'constant')  # For enhanced GD
@@ -193,6 +202,107 @@ class AlgorithmComparator:
         
         return result_info
 
+    def _is_library_algorithm(self, data: Dict[Any, Any], exp_folder: Path) -> bool:
+        """
+        Detect if this is a library algorithm based on data structure and folder path.
+        
+        Args:
+            data: Experiment results data
+            exp_folder: Path to experiment folder
+            
+        Returns:
+            True if this is a library algorithm
+        """
+        # Check folder path for library patterns
+        folder_name = exp_folder.name
+        parent_folder = exp_folder.parent.name
+        
+        # Check if parent folder contains 'library_' prefix
+        if parent_folder.startswith('library_'):
+            return True
+            
+        # Check if folder name contains library pattern (4XX, 5XX, 6XX, 7XX, 8XX for libraries)
+        if folder_name.startswith(('4', '5', '6', '7', '8')) and '_library_' in folder_name:
+            return True
+            
+        # Check algorithm name for library indicators
+        algorithm_name = data.get('algorithm', '').lower()
+        library_indicators = ['sklearn', 'pytorch', 'tensorflow', 'scipy', 'jax', 'optax']
+        if any(indicator in algorithm_name for indicator in library_indicators):
+            return True
+            
+        # Check for library_info in data structure
+        if 'library_info' in data:
+            return True
+            
+        # Check algorithm_specific for library information
+        algorithm_specific = data.get('algorithm_specific', {})
+        if 'library_name' in algorithm_specific:
+            return True
+            
+        return False
+    
+    def _extract_library_info(self, data: Dict[Any, Any], params: Dict[Any, Any]) -> Dict[str, Any]:
+        """
+        Extract library-specific information from experiment data.
+        
+        Args:
+            data: Experiment results data
+            params: Parameters dictionary
+            
+        Returns:
+            Dictionary with library-specific information
+        """
+        library_info = {}
+        
+        # Extract from library_info if available
+        if 'library_info' in data:
+            lib_data = data['library_info']
+            library_info.update({
+                'library_name': lib_data.get('library_name', 'unknown'),
+                'library_algorithm': lib_data.get('algorithm_name', 'unknown'),
+                'library_params': lib_data.get('library_params', {})
+            })
+        
+        # Extract from algorithm_specific if available
+        algorithm_specific = data.get('algorithm_specific', {})
+        if 'library_name' in algorithm_specific:
+            library_info.update({
+                'library_name': algorithm_specific.get('library_name', 'unknown'),
+                'library_algorithm': algorithm_specific.get('algorithm_name', 'unknown')
+            })
+            
+        # Extract library-specific parameters from params
+        library_specific_params = {}
+        library_param_keys = [
+            'feature_scaling', 'early_stopping', 'learning_rate_schedule',
+            'solver', 'method', 'max_iter', 'max_eval', 'tolerance_grad',
+            'tolerance_change', 'history_size', 'line_search_fn', 'momentum',
+            'nesterov', 'weight_decay', 'dampening', 'batch_size'
+        ]
+        
+        for key in library_param_keys:
+            if key in params:
+                library_specific_params[key] = params[key]
+                
+        if library_specific_params:
+            library_info['library_specific_params'] = library_specific_params
+            
+        # Extract library performance metrics if available
+        training_results = data.get('training_results', {})
+        library_metrics = {}
+        
+        # Check for library-specific metrics
+        if 'function_evaluations' in training_results:
+            library_metrics['function_evaluations'] = training_results['function_evaluations']
+        if 'lbfgs_steps' in training_results:
+            library_metrics['lbfgs_steps'] = training_results['lbfgs_steps']
+            
+        if library_metrics:
+            library_info['library_metrics'] = library_metrics
+            
+        return library_info
+
     def _discover_setup_folders(self, folder_name: str, start_number: int, end_number: int) -> List[str]:
         """Auto discover setup folders in specified range"""
         discovered_paths = []
@@ -230,8 +340,8 @@ class AlgorithmComparator:
                     except ValueError:
                         continue
 
-        # Sort by folder number for consistent ordering
-        discovered_paths.sort(key=lambda x: int(''.join(filter(str.isdigit, Path(x).name))))
+        # Sort alphabetically by setup name for consistent ordering
+        discovered_paths.sort(key=lambda x: Path(x).name)
 
         print(f"Discovered {len(discovered_paths)} valid setup folders")
         return discovered_paths
@@ -272,10 +382,18 @@ class AlgorithmComparator:
         columns = [
             # Setup Info
             'setup_name', 'algorithm_name', 'loss_function', 'full_path',
+            
+            # Library Information
+            'is_library_algorithm', 'library_name', 'library_algorithm',
 
             # Parameters
             'learning_rate', 'momentum', 'step_size_method', 'regularization',
             'batch_size', 'max_iterations', 'tolerance', 'learning_rate_schedule',
+            
+            # Library-specific Parameters
+            'feature_scaling', 'early_stopping', 'solver', 'method',
+            'max_iter', 'max_eval', 'tolerance_grad', 'tolerance_change',
+            'history_size', 'line_search_fn', 'nesterov', 'weight_decay',
 
             # ML Results
             'final_loss', 'best_loss', 'final_gradient_norm', 'best_gradient_norm',
@@ -314,10 +432,12 @@ class AlgorithmComparator:
                         'convergence_efficiency', 'operations_to_convergence', 'peak_memory',
                         'memory_efficiency', 'ops_per_problem_unit', 'final_velocity_norm',
                         'condition_number', 'mse', 'rmse', 'mae', 'r2', 'adjusted_r2',
-                        'mape', 'smape'
+                        'mape', 'smape', 'max_iter', 'max_eval', 'tolerance_grad',
+                        'tolerance_change', 'history_size', 'weight_decay'
                     ] else False if col in [
                         'converged', 'has_complexity_data', 'momentum_used', 'acceleration_used',
-                        'has_ml_metrics'
+                        'has_ml_metrics', 'is_library_algorithm', 'feature_scaling', 'early_stopping',
+                        'nesterov'
                     ] else 'Unknown'
 
                     row[col] = result.get(col, default_value)
@@ -427,37 +547,50 @@ class AlgorithmComparator:
             return False
 
         try:
-            # Separate algorithms by convergence status
-            converged_setups = []
-            non_converged_setups = []
-
-            for setup_name, data in convergence_data.items():
-                # Check if this setup converged by looking up in results_data
-                setup_converged = False
-                for result in self.results_data:
-                    if result['setup_name'] == setup_name:
-                        setup_converged = result.get('converged', False)
-                        break
-
-                if setup_converged:
-                    converged_setups.append(setup_name)
-                else:
-                    non_converged_setups.append(setup_name)
-
-            # Create simple 2-color scheme
+            # Create diverse color palette for all setups without convergence separation
             colors = {}
-
-            # Blue gradient for converged algorithms (light blue to dark blue)
-            if converged_setups:
-                blue_colors = cm.Blues(np.linspace(0.4, 0.9, len(converged_setups)))
-                for i, setup in enumerate(converged_setups):
-                    colors[setup] = blue_colors[i]
-
-            # Red gradient for non-converged algorithms (light red to dark red)
-            if non_converged_setups:
-                red_colors = cm.Reds(np.linspace(0.4, 0.9, len(non_converged_setups)))
-                for i, setup in enumerate(non_converged_setups):
-                    colors[setup] = red_colors[i]
+            setup_names = list(convergence_data.keys())
+            
+            from matplotlib.colors import LinearSegmentedColormap
+            
+            # Define diverse color families for all setups
+            all_color_families = [
+                # Cool colors
+                {'name': 'blue_darkblue', 'colors': [(0.0, 'lightblue'), (1.0, 'darkblue')]},
+                {'name': 'green_darkgreen', 'colors': [(0.0, 'lightgreen'), (1.0, 'darkgreen')]},
+                {'name': 'purple_darkpurple', 'colors': [(0.0, 'mediumpurple'), (1.0, 'indigo')]},
+                {'name': 'cyan_darkcyan', 'colors': [(0.0, 'lightcyan'), (1.0, 'darkcyan')]},
+                {'name': 'teal_navy', 'colors': [(0.0, 'lightseagreen'), (1.0, 'navy')]},
+                # Warm colors
+                {'name': 'red_darkred', 'colors': [(0.0, 'lightcoral'), (1.0, 'darkred')]},
+                {'name': 'orange_darkorange', 'colors': [(0.0, 'orange'), (1.0, 'darkorange')]},
+                {'name': 'yellow_gold', 'colors': [(0.0, 'yellow'), (1.0, 'goldenrod')]},
+                {'name': 'pink_magenta', 'colors': [(0.0, 'lightpink'), (1.0, 'magenta')]},
+                {'name': 'brown_maroon', 'colors': [(0.0, 'sandybrown'), (1.0, 'maroon')]},
+            ]
+            
+            # Distribute all setups evenly among color families
+            setups_per_family = max(1, len(setup_names) // len(all_color_families))
+            
+            for family_idx, family in enumerate(all_color_families):
+                start_idx = family_idx * setups_per_family
+                if family_idx == len(all_color_families) - 1:  # Last family gets remaining setups
+                    end_idx = len(setup_names)
+                else:
+                    end_idx = min(start_idx + setups_per_family, len(setup_names))
+                
+                family_setups = setup_names[start_idx:end_idx]
+                
+                if family_setups:
+                    # Create custom colormap for this family
+                    custom_cmap = LinearSegmentedColormap.from_list(family['name'], family['colors'])
+                    if len(family_setups) == 1:
+                        gradient_colors = [custom_cmap(0.5)]  # Use middle color for single setup
+                    else:
+                        gradient_colors = custom_cmap(np.linspace(0.2, 0.8, len(family_setups)))
+                    
+                    for i, setup in enumerate(family_setups):
+                        colors[setup] = gradient_colors[i]
 
             setup_names = list(convergence_data.keys())
 
@@ -563,10 +696,112 @@ class AlgorithmComparator:
             print(f"Error creating convergence plots: {e}")
             return False
 
+    def create_library_vs_custom_comparison(self) -> bool:
+        """
+        Create comparison between library and custom algorithms.
+        
+        Returns:
+            True if comparison was created successfully
+        """
+        library_algorithms = [r for r in self.results_data if r.get('is_library_algorithm', False)]
+        custom_algorithms = [r for r in self.results_data if not r.get('is_library_algorithm', False)]
+        
+        if not library_algorithms or not custom_algorithms:
+            print(f"Cannot create library vs custom comparison: Library={len(library_algorithms)}, Custom={len(custom_algorithms)}")
+            return False
+        
+        print(f"\nCreating Library vs Custom Comparison:")
+        print(f"  Library algorithms: {len(library_algorithms)}")
+        print(f"  Custom algorithms: {len(custom_algorithms)}")
+        
+        # Create comparison report
+        comparison_file = self.output_dir / "library_vs_custom_comparison.md"
+        
+        try:
+            with open(comparison_file, 'w', encoding='utf-8') as f:
+                f.write("# Library vs Custom Algorithm Comparison\n\n")
+                f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+                
+                # Summary statistics
+                lib_converged = sum(1 for r in library_algorithms if r['converged'])
+                custom_converged = sum(1 for r in custom_algorithms if r['converged'])
+                
+                f.write("## Summary Statistics\n\n")
+                f.write(f"| Metric | Library Algorithms | Custom Algorithms |\n")
+                f.write(f"|--------|-------------------|-------------------|\n")
+                f.write(f"| Total Setups | {len(library_algorithms)} | {len(custom_algorithms)} |\n")
+                f.write(f"| Converged | {lib_converged} ({lib_converged/len(library_algorithms)*100:.1f}%) | {custom_converged} ({custom_converged/len(custom_algorithms)*100:.1f}%) |\n")
+                
+                # Performance comparison
+                if lib_converged > 0 and custom_converged > 0:
+                    lib_converged_algos = [r for r in library_algorithms if r['converged']]
+                    custom_converged_algos = [r for r in custom_algorithms if r['converged']]
+                    
+                    lib_avg_time = sum(r['training_time'] for r in lib_converged_algos) / len(lib_converged_algos)
+                    custom_avg_time = sum(r['training_time'] for r in custom_converged_algos) / len(custom_converged_algos)
+                    
+                    lib_avg_loss = sum(r.get('best_loss', r['final_loss']) for r in lib_converged_algos) / len(lib_converged_algos)
+                    custom_avg_loss = sum(r.get('best_loss', r['final_loss']) for r in custom_converged_algos) / len(custom_converged_algos)
+                    
+                    f.write(f"| Avg Training Time (converged) | {lib_avg_time:.4f}s | {custom_avg_time:.4f}s |\n")
+                    f.write(f"| Avg Best Loss (converged) | {lib_avg_loss:.6f} | {custom_avg_loss:.6f} |\n")
+                
+                f.write("\n")
+                
+                # Library breakdown
+                if library_algorithms:
+                    f.write("## Library Algorithm Breakdown\n\n")
+                    library_stats = {}
+                    for r in library_algorithms:
+                        lib_name = r.get('library_name', 'unknown')
+                        if lib_name not in library_stats:
+                            library_stats[lib_name] = {'total': 0, 'converged': 0, 'setups': []}
+                        library_stats[lib_name]['total'] += 1
+                        library_stats[lib_name]['setups'].append(r)
+                        if r['converged']:
+                            library_stats[lib_name]['converged'] += 1
+                    
+                    for lib_name, stats in library_stats.items():
+                        f.write(f"### {lib_name}\n")
+                        f.write(f"- Total setups: {stats['total']}\n")
+                        f.write(f"- Converged: {stats['converged']}/{stats['total']} ({stats['converged']/stats['total']*100:.1f}%)\n")
+                        
+                        # Best performer for this library
+                        converged_setups = [s for s in stats['setups'] if s['converged']]
+                        if converged_setups:
+                            best_setup = min(converged_setups, key=lambda x: x.get('best_loss', x['final_loss']))
+                            f.write(f"- Best setup: {best_setup['setup_name']} (loss: {best_setup.get('best_loss', best_setup['final_loss']):.6f})\n")
+                        f.write("\n")
+                
+                # Recommendations
+                f.write("## Recommendations\n\n")
+                
+                # Find best overall from each category
+                if lib_converged > 0:
+                    lib_converged_algos = [r for r in library_algorithms if r['converged']]
+                    best_library = min(lib_converged_algos, key=lambda x: x.get('best_loss', x['final_loss']))
+                    f.write(f"- **Best Library Algorithm:** {best_library['setup_name']} ({best_library.get('library_name', 'unknown')} {best_library.get('library_algorithm', '')})\n")
+                    f.write(f"  - Loss: {best_library.get('best_loss', best_library['final_loss']):.6f}\n")
+                    f.write(f"  - Training time: {best_library['training_time']:.4f}s\n\n")
+                
+                if custom_converged > 0:
+                    custom_converged_algos = [r for r in custom_algorithms if r['converged']]
+                    best_custom = min(custom_converged_algos, key=lambda x: x.get('best_loss', x['final_loss']))
+                    f.write(f"- **Best Custom Algorithm:** {best_custom['setup_name']} ({best_custom['algorithm_name']})\n")
+                    f.write(f"  - Loss: {best_custom.get('best_loss', best_custom['final_loss']):.6f}\n")
+                    f.write(f"  - Training time: {best_custom['training_time']:.4f}s\n\n")
+            
+            print(f"Library vs Custom comparison saved: {comparison_file}")
+            return True
+            
+        except Exception as e:
+            print(f"Error creating library vs custom comparison: {e}")
+            return False
+    
     def run_comparison(self):
         """Chạy quy trình so sánh và tạo files bao gồm complexity analysis"""
-        print("ALGORITHM COMPARATOR")
-        print("=" * 20)
+        print("ALGORITHM COMPARATOR - ENHANCED WITH LIBRARY SUPPORT")
+        print("=" * 60)
         
         # Step 1: Thu thập kết quả
         self.collect_results()
@@ -599,9 +834,11 @@ class AlgorithmComparator:
         # Step 5: Create optimization trajectory plot (optional)
         print("Creating trajectory plot...")
         self._create_trajectory_plot()
+        
+        # Step 6: Create library vs custom comparison if applicable
+        library_comparison_created = self.create_library_vs_custom_comparison()
 
-
-        print("\n" + "=" * 50)
+        print("\n" + "=" * 60)
         print("COMPARISON COMPLETED!")
         print(f"Results saved to: {self.output_dir.absolute()}")
         print("Files generated:")
@@ -613,6 +850,8 @@ class AlgorithmComparator:
             print("  - log_loss_convergence.png (Log scale)")
             print("  - log_gradient_norm_convergence.png (Log scale)")
         print("  - optimization_trajectory.png (Contour plot with trajectories)")
+        if library_comparison_created:
+            print("  - library_vs_custom_comparison.md (Library vs Custom analysis)")
     
         
         return {

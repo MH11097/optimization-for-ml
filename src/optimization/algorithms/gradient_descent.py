@@ -36,7 +36,7 @@ class GradientDescentOptimizer(IterativeOptimizer):
                  learning_rate: float = 0.01,
                  regularization: float = 0.01,
                  diem_dung: float = 1e-3,
-                 max_iterations: int = 10000,
+                 max_iterations: int = 100000,
                  convergence_check_freq: int = 1,
                  random_state: Optional[int] = None,
                  # Step size parameters

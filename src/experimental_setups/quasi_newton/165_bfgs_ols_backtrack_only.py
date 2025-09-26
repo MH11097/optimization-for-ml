@@ -39,7 +39,7 @@ def main():
         line_search_method='backtracking',
         backtrack_c1=1e-4,  # Only Armijo condition
         backtrack_c2=None,  # No curvature condition
-        convergence_tolerance=1e-6,
+        convergence_tolerance=1e-5,
         max_iterations=50000
     )
 

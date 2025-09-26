@@ -28,3 +28,14 @@ flake8>=4.0.0
 # ipykernel>=6.0.0
 # Optional: Advanced visualization
 # plotly>=5.0.0
+
+# External Optimization Libraries for Comparison
+scipy>=1.9.0              # Advanced optimization algorithms (BFGS, L-BFGS, Newton-CG)
+torch>=1.12.0             # PyTorch optimizers (SGD, Adam, AdamW, LBFGS)
+tensorflow>=2.8.0         # TensorFlow/Keras optimizers (SGD, Adam, RMSprop)
+jax>=0.3.0                # JAX for JIT compilation
+optax>=0.1.0              # JAX optimization library
+
+# Optional: Performance monitoring for benchmarks
+psutil>=5.8.0             # System resource monitoring
+memory_profiler>=0.60.0   # Memory usage profiling

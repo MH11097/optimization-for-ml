@@ -19,7 +19,7 @@ class ConvergenceChecker:
     
     def __init__(self,
                  tolerance: float = 1e-5,
-                 max_iterations: int = 10000,
+                 max_iterations: int = 100000,
                  patience: int = 10,
                  min_delta: float = 1e-7,
                  divergence_threshold: float = 1e10):
@@ -222,7 +222,7 @@ class SGDConvergenceChecker(ConvergenceChecker):
     
     def __init__(self,
                  tolerance: float = 1e-4,  # Higher tolerance for SGD noise
-                 max_iterations: int = 10000,
+                 max_iterations: int = 100000,
                  patience: int = 20,       # More patience due to noise
                  min_delta: float = 1e-6,  # Smaller minimum delta
                  divergence_threshold: float = 1e10,

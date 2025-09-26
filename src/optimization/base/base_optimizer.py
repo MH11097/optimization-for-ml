@@ -52,7 +52,7 @@ class BaseOptimizer(ComplexityTrackingMixin, OptimizationResultsMixin, ABC):
                  loss_type: str = 'ols',
                  regularization: float = 0.01,
                  convergence_tolerance: float = 1e-3,
-                 max_iterations: int = 10000,
+                 max_iterations: int = 100000,
                  convergence_check_freq: int = 1,
                  random_state: Optional[int] = None,
                  # Legacy parameter support

@@ -26,7 +26,7 @@ def main():
     print(f"\n============================================================")
     print(f"EXPERIMENTAL SETUP #245")
     print(f"Algorithm: Stochastic Gradient Descent")
-    print(f"Configuration: SGD - OLS Loss, Batch Size=512, Step Size √t Decay, LR=0.01")
+    print(f"Configuration: SGD - OLS Loss, Batch Size=512, Step Size sqrtt Decay, LR=0.01")
     print(f"============================================================")
 
     # Load data
@@ -52,7 +52,7 @@ def main():
     model.plot_results(X_test, y_test, ten_file)
 
     print(f"\nSetup #245 completed successfully!")
-    print(f"Configuration: SGD - OLS Loss, Batch Size=512, Step Size √t Decay, LR=0.01")
+    print(f"Configuration: SGD - OLS Loss, Batch Size=512, Step Size sqrtt Decay, LR=0.01")
     print(f"Final Loss: {results.get('final_loss', 'N/A'):.6f}")
     print(f"Test MSE: {metrics.get('mse', 'N/A'):.6f}")
     print(f"Results saved to: {results_dir}")

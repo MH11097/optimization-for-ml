@@ -46,10 +46,14 @@ venv.bak/
 data/00_raw/*.csv
 data/02_processed/*.csv
 
-# Heavy model files only  
+# Heavy model files only
 *.npy
 *.pkl
 data/02_processed/*.pkl
+
+# Large generated files (PNG images and CSV training histories)
+data/03_algorithms/**/*.png
+data/03_algorithms/**/*.csv
 
 # Keep directory structure
 !data/00_raw/.gitkeep

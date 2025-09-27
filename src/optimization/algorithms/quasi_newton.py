@@ -287,7 +287,7 @@ class QuasiNewtonOptimizer(IterativeOptimizer):
         gradient, _ = self.grad_func(X, y, self.weights)
         directional_derivative = np.dot(gradient, direction)
         
-        step_size = 1.0
+        step_size = 20.0
         steps = 0
         
         for _ in range(self.max_line_search_steps):

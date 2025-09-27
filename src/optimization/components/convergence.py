@@ -22,7 +22,7 @@ class ConvergenceChecker:
                  max_iterations: int = 100000,
                  patience: int = 10,
                  min_delta: float = 1e-7,
-                 divergence_threshold: float = 1e10):
+                 divergence_threshold: float = 1e5):
         """
         Khởi tạo convergence checker.
         

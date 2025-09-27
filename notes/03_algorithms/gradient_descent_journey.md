@@ -3,7 +3,7 @@
 ## Tóm Tắt
 
 Nghiên cứu này trình bày một đánh giá thực nghiệm nghiêm ngặt về các thuật toán tối ưu gradient descent được áp dụng cho các bài toán hồi quy quy mô lớn. Chúng tôi điều tra một cách có hệ thống 21 cấu hình tối ưu khác biệt trên các phương pháp gradient descent batch, phân tích tính chất hội tụ, hiệu quả tính toán và khả năng áp dụng thực tế của chúng. Khung thực nghiệm của chúng tôi bao gồm gradient descent truyền thống với các chiến lược learning rate khác nhau, kỹ thuật chính quy hóa (Ridge, Lasso), phương pháp momentum tiên tiến (Nesterov acceleration), lịch trình learning rate thích ứng và quy trình line search. Đánh giá được thực hiện trên một bộ dữ liệu giá xe ô tô đáng kể chứa 2.79 triệu mẫu với 45 đặc trưng được thiết kế.
-**Những Phát Hiện Chính:** Kết quả của chúng tôi tiết lộ sự khác biệt đáng kể giữa các đảm bảo hội tụ lý thuyết và hiệu suất thực tế. Chỉ có 9.5% số cấu hình gradient descent được thử nghiệm (2 trong số 21) đạt được hội tụ trong các tiêu chí dung sai được chỉ định. Chính quy hóa mạnh xuất hiện như yếu tố quan trọng cho phép hội tụ, với chính quy hóa Ridge (λ ≥ 0.01) là cần thiết cho sự thành công của thuật toán.
+**Những Phát Hiện Chính:** Kết quả của chúng tôi tiết lộ sự khác biệt đáng kể giữa các đảm bảo hội tụ lý thuyết và hiệu suất thực tế. Chỉ có 9.5% số cấu hình gradient descent được thử nghiệm (2 trong số 21) đạt được hội tụ trong các tiêu chí dung sai được chỉ định. Chính quy hóa mạnh xuất hiện như yếu tố quan trọng cho phép hội tụ, với chính quy hóa Ridge (lambda ≥ 0.01) là cần thiết cho sự thành công của thuật toán.
 **Đóng Góp Nghiên Cứu:** Công trình này cung cấp bằng chứng thực nghiệm thách thức các thực hành tối ưu tiêu chuẩn trong machine learning, chứng minh tầm quan trọng then chốt của điều kiện bài toán trong việc lựa chọn thuật toán, và thiết lập một khung đánh giá phương pháp tối ưu dựa trên dữ liệu trong các tình huống thực tế.
 
 ## 1. Giới Thiệu và Mục Tiêu Nghiên Cứu
@@ -62,12 +62,12 @@ trong đó ρ = (κ-1)/(κ+1) < 1 và κ = L/μ là số điều kiện.
 ### 2.4 Tác Động Chính Quy Hóa Đến Điều Kiện
 
 Chính quy hóa thay đổi cơ bản cảnh quan tối ưu bằng cách sửa đổi Hessian:
-**Chính Quy Hóa Ridge**: `H_ridge = XᵀX + λI`
+**Chính Quy Hóa Ridge**: `H_ridge = XᵀX + lambdaI`
 **Chính Quy Hóa Lasso**: Giới thiệu tính không trơn yêu cầu các phương pháp subgradient
-Tham số chính quy hóa λ cải thiện điều kiện bằng cách đảm bảo:
+Tham số chính quy hóa lambda cải thiện điều kiện bằng cách đảm bảo:
 
 ```
-κ_new = (λₘₐₓ + λ)/(λₘᵢₙ + λ) < κ_original = λₘₐₓ/λₘᵢₙ
+κ_new = (lambdaₘₐₓ + lambda)/(lambdaₘᵢₙ + lambda) < κ_original = lambdaₘₐₓ/lambdaₘᵢₙ
 ```
 
 ## 3. Phương Pháp Thực Nghiệm và Thiết Kế
@@ -95,15 +95,15 @@ Chúng tôi đánh giá một cách có hệ thống 21 cấu hình tối ưu gr
 
 #### 3.2.2 Phương Pháp Chính Quy Hóa (Setups 06-08)
 
-6. **Setup 06**: Ridge regression (λ = 0.001, α = 0.001)
-7. **Setup 07**: Ridge regression (λ = 0.001, α = 0.1)
-8. **Setup 08**: Ridge regression (λ = 0.5, α = 0.1)
+6. **Setup 06**: Ridge regression (lambda = 0.001, α = 0.001)
+7. **Setup 07**: Ridge regression (lambda = 0.001, α = 0.1)
+8. **Setup 08**: Ridge regression (lambda = 0.5, α = 0.1)
 
 #### 3.2.3 Kỹ Thuật Tiên Tiến (Setups 09-14)
 
 9. **Setup 09**: Adaptive learning rate (α = 0.001)
 10. **Setup 10**: Backtracking line search (c₁ = 1e-4)
-11. **Setup 11**: Ridge backtracking (c₁ = 0.01, λ = 0.001)
+11. **Setup 11**: Ridge backtracking (c₁ = 0.01, lambda = 0.001)
 12. **Setup 12**: Linear decreasing learning rate (α₀ = 0.1)
 13. **Setup 13**: Square root decreasing learning rate (α₀ = 0.1)
 14. **Setup 14**: Wolfe conditions line search (c₁ = 1e-4, c₂ = 0.9)
@@ -114,9 +114,9 @@ Chúng tôi đánh giá một cách có hệ thống 21 cấu hình tối ưu gr
 16. **Setup 16**: Momentum (α = 0.001, β = 0.9)
 17. **Setup 17**: Momentum (α = 0.001, β = 0.5)
 18. **Setup 18**: Nesterov acceleration (α = 0.001, β = 0.9)
-19. **Setup 19**: Ridge momentum (α = 0.001, β = 0.9, λ = 0.001)
-20. **Setup 20**: Nesterov Ridge (α = 0.0001, β = 0.7, λ = 0.001)
-21. **Setup 21**: Nesterov Lasso (α = 0.001, β = 0.9, λ = 0.01)
+19. **Setup 19**: Ridge momentum (α = 0.001, β = 0.9, lambda = 0.001)
+20. **Setup 20**: Nesterov Ridge (α = 0.0001, β = 0.7, lambda = 0.001)
+21. **Setup 21**: Nesterov Lasso (α = 0.001, β = 0.9, lambda = 0.01)
 
 #### 3.2.5 So Sánh với Thư Viện (Setup 22)
 
@@ -185,13 +185,13 @@ Chúng tôi đánh giá một cách có hệ thống 21 cấu hình tối ưu gr
 **Chuỗi Thí Nghiệm B: Chính Quy Hóa Ridge**
 | Cấu Hình | Learning Rate | Chính Quy Hóa | Lần Lặp | Trạng Thái | Thời Gian Huấn Luyện |
 | -------- | ------------- | ------------- | ------- | -------------- | -------------------- |
-| Setup 06 | 0.001 | λ = 0.001 | 10,000 | Thất Bại | 75.94s |
-| Setup 07 | 0.1 | λ = 0.001 | 3,800 | **Thành Công** | 30.75s |
-| Setup 08 | 0.1 | λ = 0.5 | 200 | **Thành Công** | 1.84s |
+| Setup 06 | 0.001 | lambda = 0.001 | 10,000 | Thất Bại | 75.94s |
+| Setup 07 | 0.1 | lambda = 0.001 | 3,800 | **Thành Công** | 30.75s |
+| Setup 08 | 0.1 | lambda = 0.5 | 200 | **Thành Công** | 1.84s |
 **Phân Tích Thống Kê**:
 
 - **Tỷ Lệ Thành Công**: Phương pháp Ridge đạt 66.7% thành công so với 0% cho OLS
-- **Tốc Độ Hội Tụ**: Chính quy hóa mạnh (λ = 0.5) giảm lần lặp 95%
+- **Tốc Độ Hội Tụ**: Chính quy hóa mạnh (lambda = 0.5) giảm lần lặp 95%
 - **Hiệu Quả Tính Toán**: Tăng tốc 19× với chính quy hóa mạnh
   **Giải Thích Toán Học**: Chính quy hóa Ridge cải thiện điều kiện bài toán bằng cách sửa đổi phổ trị riêng Hessian, cho phép kích thước bước lớn hơn và hội tụ nhanh hơn.
 
@@ -217,9 +217,9 @@ Chúng tôi đánh giá một cách có hệ thống 21 cấu hình tối ưu gr
 | Setup 16 | Momentum | β = 0.9 | 78 | Thất Bại |
 | Setup 17 | Momentum | β = 0.5 | 440 | Thất Bại |
 | Setup 18 | Nesterov | β = 0.9 | 440 | Thất Bại |
-| Setup 19 | Ridge Momentum | β = 0.9, λ = 0.001 | 700 | Thất Bại |
-| Setup 20 | Nesterov Ridge | β = 0.7, λ = 0.001 | 700 | Thất Bại |
-| Setup 21 | Nesterov Lasso | β = 0.9, λ = 0.01 | 276 | Thất Bại |
+| Setup 19 | Ridge Momentum | β = 0.9, lambda = 0.001 | 700 | Thất Bại |
+| Setup 20 | Nesterov Ridge | β = 0.7, lambda = 0.001 | 700 | Thất Bại |
+| Setup 21 | Nesterov Lasso | β = 0.9, lambda = 0.01 | 276 | Thất Bại |
 **Phân Tích Thống Kê**: Với độ tin cậy 95%, các phương pháp momentum và acceleration chứng minh thất bại hội tụ có hệ thống trên instance bài toán này, mâu thuẫn với kỳ vọng lý thuyết về tối ưu với momentum.
 
 ### 4.6 Xếp Hạng So Sánh Thuật Toán
@@ -227,8 +227,8 @@ Chúng tôi đánh giá một cách có hệ thống 21 cấu hình tối ưu gr
 **Phân Loại Tầng Hiệu Suất**:
 **Tầng 1 (Thành Công)**:
 
-1. Ridge GD (λ=0.5, α=0.1) - Setup 08: 200 lần lặp
-2. Ridge GD (λ=0.001, α=0.1) - Setup 07: 3,800 lần lặp
+1. Ridge GD (lambda=0.5, α=0.1) - Setup 08: 200 lần lặp
+2. Ridge GD (lambda=0.001, α=0.1) - Setup 07: 3,800 lần lặp
    **Tầng 2 (Gần Đạt)**: 3. Standard GD (α=0.03) - Setup 04: Hội tụ 99.9%
    **Tầng 3 (Thất Bại)**: Tất cả 18 cấu hình còn lại
    **Phân Tích Thống Kê**: Kiểm định t hai mẫu xác nhận sự khác biệt hiệu suất đáng kể giữa các phương pháp có và không chính quy hóa (p < 0.001).
@@ -264,12 +264,12 @@ Kết quả của chúng tôi thiết lập chính quy hóa không phải như m
 
 ```
 H_original = X^T X (có thể suy biến)
-H_ridge = X^T X + λI (đảm bảo xác định dương)
+H_ridge = X^T X + lambdaI (đảm bảo xác định dương)
 ```
 
 **Tác Động Thực Tế**:
 
-- **Cải Thiện Điều Kiện**: κ_new = (λ_max + λ)/(λ_min + λ) << κ_original
+- **Cải Thiện Điều Kiện**: κ_new = (lambda_max + lambda)/(lambda_min + lambda) << κ_original
 - **Tăng Cường Ổn Định**: Giới hạn dưới trị riêng đảm bảo ổn định số
 - **Cho Phép Hội Tụ**: Chỉ các phương pháp chính quy hóa đạt được hội tụ
 
@@ -287,11 +287,11 @@ Dựa trên bằng chứng thực nghiệm, chúng tôi đề xuất một khung
 ```
 if κ > 10^6:
     use_heavy_regularization = True
-    λ_min = 0.01
+    lambda_min = 0.01
 else:
     try_without_regularization = True
 if convergence_failed:
-    increase_regularization(λ *= 10)
+    increase_regularization(lambda *= 10)
     retry_optimization()
 ```
 
@@ -299,7 +299,7 @@ if convergence_failed:
 
 #### 5.4.1 Chiến Lược Tối Ưu Mặc Định
 
-1. **Bắt đầu với chính quy hóa Ridge** (λ = 0.01)
+1. **Bắt đầu với chính quy hóa Ridge** (lambda = 0.01)
 2. **Sử dụng learning rate vừa phải** (α = 0.1)
 3. **Giám sát điều kiện** trước khi lựa chọn thuật toán
 4. **Tránh các phương pháp phức tạp cho các bài toán điều kiện tệ**
@@ -309,7 +309,7 @@ if convergence_failed:
 
 1. **Đánh Giá Hội Tụ Sớm**: Đánh giá xu hướng chuẩn gradient trong 100 lần lặp đầu tiên
 2. **Giám Sát Ổn Định**: Phát hiện nổ gradient hoặc hành vi dao động
-3. **Điều Chỉnh Chính Quy Hóa**: Tăng λ một cách có hệ thống cho đến khi đạt hội tụ
+3. **Điều Chỉnh Chính Quy Hóa**: Tăng lambda một cách có hệ thống cho đến khi đạt hội tụ
 
 #### 5.4.3 Hướng Dẫn Triển Khai
 
@@ -317,9 +317,9 @@ if convergence_failed:
 def robust_gradient_descent(X, y, tolerance=1e-6):
     lambda_values = [0, 0.001, 0.01, 0.1, 1.0]
     learning_rates = [0.01, 0.1, 0.5]
-    for λ in lambda_values:
+    for lambda in lambda_values:
         for α in learning_rates:
-            result = gradient_descent_ridge(X, y, λ, α, tolerance)
+            result = gradient_descent_ridge(X, y, lambda, α, tolerance)
             if result.converged:
                 return result
     raise OptimizationError("Không có cấu hình nào đạt được hội tụ")
@@ -350,8 +350,8 @@ Kết quả của chúng tôi cung cấp bằng chứng thực nghiệm định 
 #### 6.2.2 Mở Rộng Lý Thuyết Chính Quy Hóa
 
 Công trình này mở rộng lý thuyết chính quy hóa vượt ra ngoài các xem xét thống kê đến sự cần thiết tối ưu:
-**Định Lý 6.1 (Sự Cần Thiết Chính Quy Hóa)**: Đối với các bài toán tối ưu với số điều kiện κ > 10⁶, tham số chính quy hóa λ ≥ 0.01 là cần thiết cho hội tụ gradient descent trong thực tế.
-**Phác Thảo Chứng Minh**: Bằng chứng thực nghiệm chứng minh không có thành công hội tụ cho λ = 0 và tỷ lệ thành công dương cho λ ≥ 0.01.
+**Định Lý 6.1 (Sự Cần Thiết Chính Quy Hóa)**: Đối với các bài toán tối ưu với số điều kiện κ > 10⁶, tham số chính quy hóa lambda ≥ 0.01 là cần thiết cho hội tụ gradient descent trong thực tế.
+**Phác Thảo Chứng Minh**: Bằng chứng thực nghiệm chứng minh không có thành công hội tụ cho lambda = 0 và tỷ lệ thành công dương cho lambda ≥ 0.01.
 
 ### 6.3 Tác Động Thực Tế và Ứng Dụng
 

@@ -27,9 +27,9 @@ Các phương pháp tối ưu hóa bậc hai sử dụng cả gradient và ma tr
 - Hessian: H = ∇²f(w) = 2X^TX (hằng số)
 - Bước Newton: wₖ₊₁ = wₖ - (X^TX)⁻¹X^T(Xwₖ - y)
   **Ridge:**
-- Mục tiêu: f(w) = ||Xw - y||² + λ||w||²
-- Gradient: ∇f(w) = 2X^T(Xw - y) + 2λw
-- Hessian: H = 2X^TX + 2λI
+- Mục tiêu: f(w) = ||Xw - y||² + lambda||w||²
+- Gradient: ∇f(w) = 2X^T(Xw - y) + 2lambdaw
+- Hessian: H = 2X^TX + 2lambdaI
 - Conditioning được cải thiện thông qua regularization
 
 ### A. Phương pháp Newton
@@ -95,7 +95,7 @@ Các phương pháp tối ưu hóa bậc hai sử dụng cả gradient và ma tr
 **Setup 05: Regularization Hessian**
 
 - Cấu hình: `05_setup_newton_regularized_ols_lambda_001.py`
-- Hessian cải tiến: H_reg = H + λI với λ = 0.001
+- Hessian cải tiến: H_reg = H + lambdaI với lambda = 0.001
 - Mục đích: Đảm bảo positive definiteness
 - Hội tụ: 4 Iteration
 - Ổn định số học: Ngăn vấn đề ma trận singular
@@ -104,7 +104,7 @@ Các phương pháp tối ưu hóa bậc hai sử dụng cả gradient và ma tr
 - Regularization kết hợp: Mục tiêu Ridge + cải tiến Hessian
 - Ổn định tăng cường: Cả lợi ích tối ưu và tổng quát hóa
 - Hội tụ: 3 Iteration
-- Tham số: λ_hessian = 0.01, λ_ridge = 0.001
+- Tham số: lambda_hessian = 0.01, lambda_ridge = 0.001
   **Lợi Ích Regularized Newton:**
 - Đảm bảo Hessian positive definite
 - Tăng cường ổn định số học
@@ -185,7 +185,7 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
   **Setup 14: L-BFGS với Ridge Regularization**
 - Cấu hình: `14_setup_lbfgs_ridge_m_5_reg_001.py`
 - Tham số bộ nhớ: m = 5
-- Tham số regularization: λ = 0.001
+- Tham số regularization: lambda = 0.001
 - Tối ưu cho bài toán regularized quy mô lớn
 - Tiết kiệm bộ nhớ với conditioning được cải thiện
   **Ưu Điểm L-BFGS:**
@@ -344,12 +344,12 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 
 **Hessian Ill-Conditioned:**
 
-- Số điều kiện lớn κ = λₘₐₓ/λₘᵢₙ
+- Số điều kiện lớn κ = lambdaₘₐₓ/lambdaₘᵢₙ
 - Bất ổn định số học trong nghịch đảo ma trận
 - Khuếch đại lỗi làm tròn
   **Giải Pháp Regularization:**
-- Ridge regularization: H + λI
-- Cải thiện số điều kiện: (λₘₐₓ + λ)/(λₘᵢₙ + λ)
+- Ridge regularization: H + lambdaI
+- Cải thiện số điều kiện: (lambdaₘₐₓ + lambda)/(lambdaₘᵢₙ + lambda)
 - Cung cấp ổn định số học
 
 #### Cân Nhắc Triển Khai
@@ -410,7 +410,7 @@ Thay vì lưu trữ xấp xỉ Hessian đầy đủ, L-BFGS chỉ lưu trữ m c
 
 **Tham Số Regularization:**
 
-- Bắt đầu với λ = 1e-3 cho ridge regularization
+- Bắt đầu với lambda = 1e-3 cho ridge regularization
 - Điều chỉnh dựa trên conditioning bài toán
 - Sử dụng cross-validation cho lựa chọn tối ưu
   **Tham Số Line Search:**
@@ -603,7 +603,7 @@ Nghiên cứu Newton methods đã tiết lộ **paradox cốt lõi của tối �
 **✅ Production Recommendations:**
 
 1. **Setup 23 (Damped Newton + Ridge)** - Lựa chọn tốt nhất cho medium-scale problems
-2. **Always use regularization** - Ridge λ ≥ 0.001 cải thiện conditioning dramatically
+2. **Always use regularization** - Ridge lambda ≥ 0.001 cải thiện conditioning dramatically
 3. **Line search essential** - Pure Newton chỉ work trong academic setting
    **⛔ Never Use in Production:**
 

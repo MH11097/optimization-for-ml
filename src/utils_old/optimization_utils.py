@@ -43,10 +43,10 @@ def tinh_gradient_hoi_quy_tuyen_tinh(X: np.ndarray, y: np.ndarray, trong_so: np.
     """
     Tính vector gradient cho hồi quy tuyến tính với điều chỉnh
     
-    Hàm mục tiêu: f(w,b) = (1/2n) * ||Xw + b - y||² + (λ/2) * ||w||²
+    Hàm mục tiêu: f(w,b) = (1/2n) * ||Xw + b - y||² + (lambda/2) * ||w||²
     
     Gradient:
-    - ∂f/∂w = (1/n) * X^T(Xw + b - y) + λ * w  
+    - ∂f/∂w = (1/n) * X^T(Xw + b - y) + lambda * w  
     - ∂f/∂b = (1/n) * Σ(Xw + b - y)
     
     Tham số:
@@ -54,7 +54,7 @@ def tinh_gradient_hoi_quy_tuyen_tinh(X: np.ndarray, y: np.ndarray, trong_so: np.
         y: vector mục tiêu (n_samples,)
         trong_so: trọng số hiện tại (n_features,)
         he_so_tu_do: hệ số tự do hiện tại (scalar)
-        dieu_chinh: hệ số điều chỉnh λ (mặc định 0.0)
+        dieu_chinh: hệ số điều chỉnh lambda (mặc định 0.0)
     
     Trả về:
         gradient_w: gradient theo trọng số (n_features,)
@@ -68,7 +68,7 @@ def tinh_gradient_hoi_quy_tuyen_tinh(X: np.ndarray, y: np.ndarray, trong_so: np.
     # Sai số: e = ŷ - y
     sai_so = du_doan - y
     
-    # Gradient theo trọng số: ∂f/∂w = (1/n) * X^T * e + λ * w
+    # Gradient theo trọng số: ∂f/∂w = (1/n) * X^T * e + lambda * w
     gradient_w = (1/so_mau) * X.T @ sai_so + dieu_chinh * trong_so
     
     # Gradient theo hệ số tự do: ∂f/∂b = (1/n) * Σ(e)
@@ -80,21 +80,21 @@ def tinh_ma_tran_hessian_hoi_quy_tuyen_tinh(X: np.ndarray, dieu_chinh: float = 0
     """
     Tính ma trận Hessian cho hồi quy tuyến tính với điều chỉnh
     
-    Ma trận Hessian: H = (1/n) * X^T * X + λ * I
+    Ma trận Hessian: H = (1/n) * X^T * X + lambda * I
     
     Đây là ma trận đạo hàm bậc 2 của hàm mục tiêu.
     Đối với hồi quy tuyến tính, Hessian là hằng số (không phụ thuộc vào w, b).
     
     Tham số:
         X: ma trận đặc trưng (n_samples, n_features)
-        dieu_chinh: hệ số điều chỉnh λ (mặc định 0.0)
+        dieu_chinh: hệ số điều chỉnh lambda (mặc định 0.0)
     
     Trả về:
         H: ma trận Hessian (n_features, n_features)
     
     Lưu ý: 
-    - Ma trận này là positive semi-definite khi λ ≥ 0
-    - Khi λ > 0, ma trận trở thành positive definite và khả nghịch
+    - Ma trận này là positive semi-definite khi lambda ≥ 0
+    - Khi lambda > 0, ma trận trở thành positive definite và khả nghịch
     """
     so_mau, so_dac_trung = X.shape
     
@@ -409,7 +409,7 @@ def tinh_loss_ridge(X: np.ndarray, y: np.ndarray, trong_so: np.ndarray,
     """
     Tính loss cho Ridge Regression
     
-    Loss = (1/2n) * ||Xw + b - y||² + (λ/2) * ||w||²
+    Loss = (1/2n) * ||Xw + b - y||² + (lambda/2) * ||w||²
     """
     mse_loss = tinh_loss_ols(X, y, trong_so, he_so_tu_do)
     l2_penalty = 0.5 * dieu_chinh * np.sum(trong_so ** 2)
@@ -420,7 +420,7 @@ def tinh_loss_lasso_smooth(X: np.ndarray, y: np.ndarray, trong_so: np.ndarray,
     """
     Tính loss cho Lasso Regression (smooth approximation)
     
-    Loss = (1/2n) * ||Xw + b - y||² + λ * Σ√(w²+ ε)
+    Loss = (1/2n) * ||Xw + b - y||² + lambda * Σ√(w²+ ε)
     """
     mse_loss = tinh_loss_ols(X, y, trong_so, he_so_tu_do)
     smooth_l1 = dieu_chinh * np.sum(np.sqrt(trong_so ** 2 + epsilon))
@@ -497,7 +497,7 @@ def tinh_gia_tri_ham_Ridge_with_bias(X: np.ndarray, y: np.ndarray, w: np.ndarray
     """
     Tính giá trị hàm Ridge regression với bias term
     
-    Hàm Ridge: L(w,b) = (1/2n) * ||Xw + b - y||² + (λ/2) * ||w||²
+    Hàm Ridge: L(w,b) = (1/2n) * ||Xw + b - y||² + (lambda/2) * ||w||²
     Lưu ý: Không regularize bias term
     
     Tham số:
@@ -505,7 +505,7 @@ def tinh_gia_tri_ham_Ridge_with_bias(X: np.ndarray, y: np.ndarray, w: np.ndarray
         y: vector target (n_samples,)
         w: vector weights (n_features,)
         b: bias term (scalar)
-        regularization: hệ số regularization λ
+        regularization: hệ số regularization lambda
     
     Trả về:
         float: giá trị hàm Ridge tại (w, b)
@@ -521,14 +521,14 @@ def tinh_gradient_Ridge_with_bias(X: np.ndarray, y: np.ndarray, w: np.ndarray, b
     """
     Tính gradient của hàm Ridge theo weights và bias
     
-    ∇L(w,b) = ((1/n) * X^T(Xw + b - y) + λ*w, (1/n) * Σ(Xw + b - y))
+    ∇L(w,b) = ((1/n) * X^T(Xw + b - y) + lambda*w, (1/n) * Σ(Xw + b - y))
     
     Tham số:
         X: ma trận đặc trưng (n_samples, n_features)
         y: vector target (n_samples,)
         w: vector weights (n_features,)
         b: bias term (scalar)
-        regularization: hệ số regularization λ
+        regularization: hệ số regularization lambda
     
     Trả về:
         gradient_w: gradient theo weights (n_features,)
@@ -547,7 +547,7 @@ def tinh_gia_tri_ham_Lasso_smooth_with_bias(X: np.ndarray, y: np.ndarray, w: np.
     """
     Tính giá trị hàm Lasso (smooth approximation) với bias term
     
-    Hàm Lasso: L(w,b) = (1/2n) * ||Xw + b - y||² + λ * Σ|w_i|
+    Hàm Lasso: L(w,b) = (1/2n) * ||Xw + b - y||² + lambda * Σ|w_i|
     Sử dụng smooth approximation: |x| ≈ √(x² + ε²) với ε = 1e-8
     
     Tham số:
@@ -555,7 +555,7 @@ def tinh_gia_tri_ham_Lasso_smooth_with_bias(X: np.ndarray, y: np.ndarray, w: np.
         y: vector target (n_samples,)
         w: vector weights (n_features,)
         b: bias term (scalar)
-        regularization: hệ số regularization λ
+        regularization: hệ số regularization lambda
     
     Trả về:
         float: giá trị hàm Lasso tại (w, b)
@@ -575,14 +575,14 @@ def tinh_gradient_Lasso_smooth_with_bias(X: np.ndarray, y: np.ndarray, w: np.nda
     """
     Tính gradient của hàm Lasso (smooth) theo weights và bias
     
-    ∇L(w,b) = ((1/n) * X^T(Xw + b - y) + λ * w/√(w² + ε²), (1/n) * Σ(Xw + b - y))
+    ∇L(w,b) = ((1/n) * X^T(Xw + b - y) + lambda * w/√(w² + ε²), (1/n) * Σ(Xw + b - y))
     
     Tham số:
         X: ma trận đặc trưng (n_samples, n_features)
         y: vector target (n_samples,)
         w: vector weights (n_features,)
         b: bias term (scalar)
-        regularization: hệ số regularization λ
+        regularization: hệ số regularization lambda
     
     Trả về:
         gradient_w: gradient theo weights (n_features,)
@@ -625,8 +625,8 @@ def tinh_gia_tri_ham_Ridge(X: np.ndarray, y: np.ndarray, w: np.ndarray, bias: fl
     Tính giá trị hàm Ridge
     
     Hỗ trợ cả 2 format:
-    - Format cũ: L(w,b) = (1/2n) * ||Xw + b - y||² + (λ/2) * ||w||² (khi bias != None)
-    - Format mới: L(w) = (1/2n) * ||Xw - y||² + (λ/2) * ||w[:-1]||² (khi X đã bao gồm cột bias)
+    - Format cũ: L(w,b) = (1/2n) * ||Xw + b - y||² + (lambda/2) * ||w||² (khi bias != None)
+    - Format mới: L(w) = (1/2n) * ||Xw - y||² + (lambda/2) * ||w[:-1]||² (khi X đã bao gồm cột bias)
     
     Lưu ý: Không regularize bias term trong cả 2 format
     
@@ -656,8 +656,8 @@ def tinh_gradient_Ridge(X: np.ndarray, y: np.ndarray, w: np.ndarray, bias: float
     Tính gradient của hàm Ridge theo weights
     
     Hỗ trợ cả 2 format:
-    - Format cũ: ∇L(w,b) = ((1/n) * X^T(Xw + b - y) + λ*w, (1/n) * Σ(Xw + b - y)) (khi bias != None)
-    - Format mới: ∇L(w) = (1/n) * X^T(Xw - y) + λ*[w[:-1]; 0] (khi X đã bao gồm cột bias)
+    - Format cũ: ∇L(w,b) = ((1/n) * X^T(Xw + b - y) + lambda*w, (1/n) * Σ(Xw + b - y)) (khi bias != None)
+    - Format mới: ∇L(w) = (1/n) * X^T(Xw - y) + lambda*[w[:-1]; 0] (khi X đã bao gồm cột bias)
     
     Lưu ý: Không regularize bias term trong cả 2 format
     
@@ -690,7 +690,7 @@ def tinh_hessian_Ridge(X: np.ndarray, lambda_reg: float) -> np.ndarray:
     """
     Tính ma trận Hessian của hàm Ridge (không có bias)
     
-    H = (1/n) * X^T * X + λ * I
+    H = (1/n) * X^T * X + lambda * I
     
     Tham số:
         X: ma trận đặc trưng (n_samples, n_features)
@@ -710,8 +710,8 @@ def tinh_gia_tri_ham_Lasso_smooth(X: np.ndarray, y: np.ndarray, w: np.ndarray,
     Tính giá trị hàm Lasso với smooth approximation
     
     Hỗ trợ cả 2 format:
-    - Format cũ: L(w,b) = (1/2n) * ||Xw + b - y||² + λ * Σ√(w²+ ε) (khi bias != None)
-    - Format mới: L(w) = (1/2n) * ||Xw - y||² + λ * Σ√(w[:-1]²+ ε) (khi X đã bao gồm cột bias)
+    - Format cũ: L(w,b) = (1/2n) * ||Xw + b - y||² + lambda * Σ√(w²+ ε) (khi bias != None)
+    - Format mới: L(w) = (1/2n) * ||Xw - y||² + lambda * Σ√(w[:-1]²+ ε) (khi X đã bao gồm cột bias)
     
     Lưu ý: Không regularize bias term trong cả 2 format
     
@@ -743,8 +743,8 @@ def tinh_gradient_Lasso_smooth(X: np.ndarray, y: np.ndarray, w: np.ndarray,
     Tính gradient của hàm Lasso với smooth approximation theo weights
     
     Hỗ trợ cả 2 format:
-    - Format cũ: ∇L(w,b) = ((1/n) * X^T(Xw + b - y) + λ * w / √(w² + ε), (1/n) * Σ(Xw + b - y)) (khi bias != None)
-    - Format mới: ∇L(w) = (1/n) * X^T(Xw - y) + λ * [w[:-1] / √(w[:-1]² + ε); 0] (khi X đã bao gồm cột bias)
+    - Format cũ: ∇L(w,b) = ((1/n) * X^T(Xw + b - y) + lambda * w / √(w² + ε), (1/n) * Σ(Xw + b - y)) (khi bias != None)
+    - Format mới: ∇L(w) = (1/n) * X^T(Xw - y) + lambda * [w[:-1] / √(w[:-1]² + ε); 0] (khi X đã bao gồm cột bias)
     
     Lưu ý: Không regularize bias term trong cả 2 format
     
@@ -778,7 +778,7 @@ def tinh_hessian_Lasso_smooth(X: np.ndarray, w: np.ndarray, lambda_reg: float, e
     """
     Tính ma trận Hessian của hàm Lasso với smooth approximation (không có bias)
     
-    H = (1/n) * X^T * X + λ * diag(ε / (w² + ε)^(3/2))
+    H = (1/n) * X^T * X + lambda * diag(ε / (w² + ε)^(3/2))
     
     Tham số:
         X: ma trận đặc trưng (n_samples, n_features)
@@ -1036,7 +1036,7 @@ def tinh_gradient_ridge(X: np.ndarray, y: np.ndarray, w: np.ndarray, lam: float)
     """
     Tính gradient cho Ridge regression
     
-    ∇f = X^T(Xw - y)/n + λw
+    ∇f = X^T(Xw - y)/n + lambdaw
     """
     n = X.shape[0]
     predictions = X @ w
@@ -1049,7 +1049,7 @@ def tinh_gradient_lasso_smooth(X: np.ndarray, y: np.ndarray, w: np.ndarray,
     """
     Tính gradient cho Lasso regression (smooth approximation)
     
-    ∇f = X^T(Xw - y)/n + λ * w/√(w² + ε)
+    ∇f = X^T(Xw - y)/n + lambda * w/√(w² + ε)
     """
     n = X.shape[0]
     predictions = X @ w
@@ -1064,7 +1064,7 @@ def tinh_hessian_ridge(X: np.ndarray, lam: float) -> np.ndarray:
     """
     Tính Hessian cho Ridge regression
     
-    H = X^TX/n + λI
+    H = X^TX/n + lambdaI
     """
     n = X.shape[0]
     XTX = X.T @ X

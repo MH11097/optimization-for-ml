@@ -110,12 +110,12 @@ Hessian `H = X^T X` có thể singular hoặc ill-conditioned:
    **Solution: Regularization**
 
 ```
-H_reg = H + λI
+H_reg = H + lambdaI
 ```
 
 ### **Regularization Values**
 
-| λ         | Khi nào dùng              | Effect                  |
+| lambda    | Khi nào dùng              | Effect                  |
 | --------- | ------------------------- | ----------------------- |
 | **1e-12** | Perfect conditioning      | Minimal impact          |
 | **1e-8**  | Standard (good data)      | Barely noticeable       |
@@ -126,13 +126,13 @@ H_reg = H + λI
 ### **Condition Number Analysis**
 
 ```python
-κ = λ_max / λ_min  # Condition number
+κ = lambda_max / lambda_min  # Condition number
 if κ < 1e6:    # Well-conditioned
-    λ = 1e-8
+    lambda = 1e-8
 elif κ < 1e12: # Moderately conditioned
-    λ = 1e-6
+    lambda = 1e-6
 else:          # Ill-conditioned
-    λ = 1e-4
+    lambda = 1e-4
 ```
 
 ## 🧮 **Mathematical Properties**
@@ -203,7 +203,7 @@ else:          # Ill-conditioned
 # For f(w) = (1/2n) ||Xw - y||²
 H = (1/n) * X.T @ X
 # Add regularization
-H_reg = H + λ * np.eye(n)
+H_reg = H + lambda * np.eye(n)
 # Check condition number
 κ = np.linalg.cond(H_reg)
 ```
@@ -215,7 +215,7 @@ try:
     H_inv = np.linalg.inv(H_reg)
 except np.linalg.LinAlgError:
     # Increase regularization
-    H_reg = H + (λ * 1000) * np.eye(n)
+    H_reg = H + (lambda * 1000) * np.eye(n)
     H_inv = np.linalg.inv(H_reg)
 ```
 
@@ -247,9 +247,9 @@ Newton Method = Đi xe có bản đồ chi tiết
 ### **Regularization như Insurance**
 
 ```
-λ = 1e-8   →  "Chỉ mua bảo hiểm minimum"
-λ = 1e-6   →  "Bảo hiểm standard"
-λ = 1e-4   →  "Bảo hiểm comprehensive"
+lambda = 1e-8   →  "Chỉ mua bảo hiểm minimum"
+lambda = 1e-6   →  "Bảo hiểm standard"
+lambda = 1e-4   →  "Bảo hiểm comprehensive"
 ```
 
 ### **Convergence Visualization**

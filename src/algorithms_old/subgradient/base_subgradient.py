@@ -130,8 +130,8 @@ class BaseSubgradient(ABC):
             if (
                 iteration > 1
                 and (min_loss_1["loss_value"] != BASE_LOSS_VALUE)
-                and abs(min_loss_1["loss_value"] - min_loss_2["loss_value"])
-                < self.tolerance
+                and abs(min_loss_1["loss_value"] - min_loss_2["loss_value"]) < self.tolerance
+                and gradient_norm < self.tolerance
             ):
                 print(f"Converged after {iteration} iterations")
                 self.converged = True
@@ -182,8 +182,16 @@ class BaseSubgradient(ABC):
         """Đánh giá model trên test set"""
         if self.weights is None:
             raise ValueError("Model chưa được huấn luyện. Hãy gọi fit() trước.")
-        print(f"\\nĐánh giá model trên test set")
-        metrics = danh_gia_mo_hinh(self.weights, X_test, y_test)
+        print(f"\\nDanh gia model tren test set")
+        # X_test already includes bias column from experimental setup
+        # Remove bias column since danh_gia_mo_hinh will add it back
+        if X_test.shape[1] == self.weights.shape[0]:
+            # X_test already has bias, use as is
+            X_test_no_bias = X_test[:, 1:]  # Remove first column (bias)
+        else:
+            # X_test doesn't have bias
+            X_test_no_bias = X_test
+        metrics = danh_gia_mo_hinh(self.weights, X_test_no_bias, y_test)
         in_ket_qua_danh_gia(metrics, self.training_time, f"Subgradient Descent")
         return metrics
     def save_results(self, ten_file, base_dir="data/03_algorithms"):
@@ -201,7 +209,7 @@ class BaseSubgradient(ABC):
         results_dir = Path(base_dir) / algorithm_name / ten_file
         results_dir.mkdir(parents=True, exist_ok=True)
         # Save results.json
-        print(f"   Lưu kết quả vào {results_dir}/results.json")
+        print(f"   Luu ket qua vao {results_dir}/results.json")
         results_data = {
             "algorithm": f"Subgradient Descent",
             "parameters": {
@@ -220,7 +228,7 @@ class BaseSubgradient(ABC):
         with open(results_dir / "results.json", "w") as f:
             json.dump(results_data, f, indent=2)
         # Save training history
-        print(f"   Lưu lịch sử training vào {results_dir}/training_history.csv")
+        print(f"   Luu lich su training vao {results_dir}/training_history.csv")
         training_df = pd.DataFrame(
             {
                 "iteration": range(len(self.loss_history)),
@@ -229,7 +237,7 @@ class BaseSubgradient(ABC):
             }
         )
         training_df.to_csv(results_dir / "training_history.csv", index=False)
-        print(f"\\n Kết quả đã được lưu vào: {results_dir.absolute()}")
+        print(f"\\n Ket qua da duoc luu vao: {results_dir.absolute()}")
         return results_dir
     def plot_results(
         self, X_test, y_test, ten_file, base_dir="data/03_algorithms/subgradient"
@@ -245,9 +253,9 @@ class BaseSubgradient(ABC):
             raise ValueError("Model chưa được huấn luyện. Hãy gọi fit() trước.")
         results_dir = Path(base_dir) / ten_file
         results_dir.mkdir(parents=True, exist_ok=True)
-        print(f"\\n Tạo các biểu đồ visualization")
+        print(f"\\n Tao cac bieu do visualization")
         # 1. Convergence curves
-        print("   Vẽ đường hội tụ")
+        print("   Ve duong hoi tu")
         ve_duong_hoi_tu(
             self.loss_history,
             self.gradient_norms,
@@ -255,7 +263,7 @@ class BaseSubgradient(ABC):
             save_path=str(results_dir / "convergence_analysis.png"),
         )
         # 2. Predictions vs Actual
-        print("   Vẽ so sánh dự đoán với thực tế")
+        print("   Ve so sanh du doan voi thuc te")
         y_pred_test = self.predict(X_test)
         ve_du_doan_vs_thuc_te(
             y_test,
@@ -263,4 +271,4 @@ class BaseSubgradient(ABC):
             title=f"Predictions vs Actual",
             save_path=str(results_dir / "predictions_vs_actual.png"),
         )
-        print(f"   Biểu đồ đã được lưu vào: {results_dir.absolute()}")
+        print(f"   Bieu do da duoc luu vao: {results_dir.absolute()}")

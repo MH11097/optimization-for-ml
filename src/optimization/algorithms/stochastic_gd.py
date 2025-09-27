@@ -200,7 +200,7 @@ class StochasticGDOptimizer(IterativeOptimizer):
 
         elif self.step_size_method == 'linear_decay':
             # Linear decay: lr_t = lr_0 * (1 - t/T)
-            decay_factor = max(0.01, 1.0 - iteration / self.max_iterations)
+            decay_factor = 1.0 - iteration / self.max_iterations
             step_size = self.learning_rate * decay_factor
 
         elif self.step_size_method == 'exponential_decay':
@@ -328,12 +328,12 @@ class StochasticGDOptimizer(IterativeOptimizer):
             # Fallback: approximate Lipschitz constant
             print("   Warning: Lipschitz utility not available, using approximation")
             if self.loss_type == 'ols':
-                # For OLS: L ≈ λ_max(X^T X) / n
+                # For OLS: L ≈ lambda_max(X^T X) / n
                 XTX = X.T @ X / X.shape[0]
                 eigenvalues = np.linalg.eigvals(XTX)
                 self.lipschitz_constant = np.max(eigenvalues)
             elif self.loss_type == 'ridge':
-                # For Ridge: L ≈ λ_max(X^T X) / n + 2α
+                # For Ridge: L ≈ lambda_max(X^T X) / n + 2α
                 XTX = X.T @ X / X.shape[0]
                 eigenvalues = np.linalg.eigvals(XTX)
                 self.lipschitz_constant = np.max(eigenvalues) + 2 * self.regularization

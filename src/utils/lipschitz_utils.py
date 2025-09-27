@@ -6,8 +6,8 @@ This module provides utilities for computing Lipschitz constants of loss functio
 and suggesting optimal learning rates for gradient descent algorithms.
 
 Theory:
-- For OLS: L = λ_max(X^T X / n)
-- For Ridge: L = λ_max(X^T X / n + 2α I)
+- For OLS: L = lambda_max(X^T X / n)
+- For Ridge: L = lambda_max(X^T X / n + 2α I)
 - Optimal learning rate: α ≤ 2/L (for strongly convex functions)
 - Conservative learning rate: α = 1/L (guaranteed convergence)
 

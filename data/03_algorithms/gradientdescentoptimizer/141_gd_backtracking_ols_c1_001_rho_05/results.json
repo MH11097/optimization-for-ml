@@ -7,7 +7,7 @@
     "convergence_tolerance": 0.001
   },
   "training_results": {
-    "training_time": 21.03119969367981,
+    "training_time": 27.48155164718628,
     "converged": true,
     "final_iteration": 236,
     "total_iterations": 100000,

@@ -139,7 +139,7 @@ def print_results(results: Dict):
     print(f"   Safe range:                 α ∈ [0.001, {conservative_lr:.6f}]")
 
     if results['loss_type'] == 'ridge':
-        print(f"   Regularization λ:           {results['regularization']}")
+        print(f"   Regularization lambda:           {results['regularization']}")
         print(f"   Note: Ridge regularization increases Lipschitz constant")
 
 
@@ -169,7 +169,7 @@ def compare_ols_vs_ridge(regularizations: list = None):
         improvement_L = ridge_L / ols_L
         improvement_lr = ols_lr / ridge_lr
 
-        print(f"   λ = {reg}:")
+        print(f"   lambda = {reg}:")
         print(f"     Lipschitz L:   {ridge_L:.6f} ({improvement_L:.2f}x vs OLS)")
         print(f"     Optimal LR:    {ridge_lr:.6f} ({improvement_lr:.2f}x smaller)")
         print(f"     Condition #:   {ridge_results['condition_number']:.2e}")
@@ -193,4 +193,4 @@ if __name__ == "__main__":
 
     print(f"\n✅ Analysis complete!")
     print(f"💡 Use α = {ols_results['conservative_lr']:.6f} for OLS")
-    print(f"💡 Use α = {ridge_results['conservative_lr']:.6f} for Ridge (λ=0.01)")
+    print(f"💡 Use α = {ridge_results['conservative_lr']:.6f} for Ridge (lambda=0.01)")

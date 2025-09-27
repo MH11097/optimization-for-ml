@@ -294,5 +294,5 @@ class VisualizationMixin:
                 with open(results_dir / "complexity_analysis.json", 'w') as f:
                     json.dump(complexity_analysis, f, indent=2)
         
-        print(f"\\n✅ Kết quả đã được lưu vào: {results_dir.absolute()}")
+        print(f"\\n Ket qua da duoc luu vao: {results_dir.absolute()}")
         return results_dir

@@ -29,10 +29,12 @@ class BaseSubgradient(ABC):
         lambda_penalty: float = 0.1,
         max_iterations: int = 750,
         tolerance: float = 1e-8,
+        R: float = 10.0,
     ):
         self.lambda_penalty = lambda_penalty
         self.max_iterations = max_iterations
         self.tolerance = tolerance
+        self.R = R
         # Chọn loss function và gradient function
         self.loss_func = self._compute_cost
         self.grad_func = self._compute_gradient
@@ -41,6 +43,10 @@ class BaseSubgradient(ABC):
         self.loss_history = []
         self.gradient_norms = []
         self.weights_history = []
+        self.step_size_history = []
+        self.gap_history = []
+        self.f_best = float('inf')
+        self.l_best = float('-inf')
         self.training_time = 0
         self.converged = False
         self.final_iteration = 0
@@ -98,6 +104,10 @@ class BaseSubgradient(ABC):
         self.loss_history = []
         self.gradient_norms = []
         self.weights_history = []
+        self.step_size_history = []
+        self.gap_history = []
+        self.f_best = float('inf')
+        self.l_best = float('-inf')
         start_time = time.time()
         # Main optimization loop
         for iteration in range(1, self.max_iterations + 1):
@@ -118,6 +128,9 @@ class BaseSubgradient(ABC):
             gradient_norm = np.linalg.norm(gradient)
             self.gradient_norms.append(gradient_norm)
             self.weights_history.append(self.weights.copy())
+            self.step_size_history.append(step_size)
+            # Update best function value
+            self.f_best = min(self.f_best, loss_value)
             # Update min loss
             if loss_value < min_loss_1["loss_value"]:
                 min_loss_2 = deepcopy(min_loss_1)
@@ -126,21 +139,44 @@ class BaseSubgradient(ABC):
                     "loss_value": loss_value,
                     "weights": deepcopy(self.weights),
                 }
-            # Check convergence
-            if (
-                iteration > 1
-                and (min_loss_1["loss_value"] != BASE_LOSS_VALUE)
-                and abs(min_loss_1["loss_value"] - min_loss_2["loss_value"]) < self.tolerance
-                and gradient_norm < self.tolerance
-            ):
-                print(f"Converged after {iteration} iterations")
-                self.converged = True
-                self.final_iteration = iteration
-                break
+            # Check convergence using duality gap
+            if iteration > 1:
+                # Compute lower bound l_k (the formula from notes)
+                alpha_history = self.step_size_history[:iteration]
+                f_history = self.loss_history[:iteration] 
+                g_norm_sq_history = [g**2 for g in self.gradient_norms[:iteration]]
+                
+                numerator = (2 * np.sum([a*f for a,f in zip(alpha_history, f_history)]) 
+                             - self.R**2 
+                             - np.sum([a**2 * g_sq for a,g_sq in zip(alpha_history, g_norm_sq_history)]))
+                denominator = 2 * np.sum(alpha_history)
+                
+                if denominator > 0:  # Avoid division by zero
+                    l_k = numerator / denominator
+                    
+                    # Best lower bound so far
+                    self.l_best = max(self.l_best, l_k)
+                    
+                    # Stopping criterion
+                    gap = self.f_best - self.l_best
+                    self.gap_history.append(gap)
+                    
+                    if gap < self.tolerance:
+                        print(f"Stopped at iteration {iteration}, gap={gap:.6f}")
+                        self.converged = True
+                        self.final_iteration = iteration
+                        break
+                else:
+                    # Store NaN when denominator is zero
+                    self.gap_history.append(float('nan'))
+            else:
+                # Store NaN for first iteration when gap isn't computed
+                self.gap_history.append(float('nan'))
             # Progress update
             if iteration % 50 == 0:
+                gap_str = f", Gap = {self.gap_history[-1]:.6f}" if self.gap_history and not np.isnan(self.gap_history[-1]) else ", Gap = N/A"
                 print(
-                    f"Iteration {iteration}: Loss = {loss_value:.6f}, Gradient norm = {gradient_norm:.6f}"
+                    f"Iteration {iteration}: Loss = {loss_value:.6f}, Gradient norm = {gradient_norm:.6f}{gap_str}"
                 )
         self.training_time = time.time() - start_time
         if not self.converged:
@@ -223,6 +259,8 @@ class BaseSubgradient(ABC):
                 "iterations": self.final_iteration,
                 "final_loss": float(self.loss_history[-1]),
                 "final_gradient_norm": float(self.gradient_norms[-1]),
+                "final_gap": float(self.gap_history[-1]) if self.gap_history and not np.isnan(self.gap_history[-1]) else None,
+                "best_gap": float(min([g for g in self.gap_history if not np.isnan(g)])) if any(not np.isnan(g) for g in self.gap_history) else None,
             },
         }
         with open(results_dir / "results.json", "w") as f:
@@ -234,6 +272,7 @@ class BaseSubgradient(ABC):
                 "iteration": range(len(self.loss_history)),
                 "loss": self.loss_history,
                 "gradient_norm": self.gradient_norms,
+                "gap": self.gap_history,
             }
         )
         training_df.to_csv(results_dir / "training_history.csv", index=False)

@@ -207,8 +207,8 @@ class SubgradientOptimizer:
                  ham_loss: str = 'lasso',
                  lambda_penalty: float = 0.1,
                  regularization: float = 0.1,  # For compatibility
-                 diem_dung: float = 0.7,
-                 max_iterations: int = 1000,
+                 diem_dung: float = 10e-3,
+                 max_iterations: int = 5000,
                  convergence_check_freq: int = 1,
                  random_state: Optional[int] = None,
                  # Step size parameters
@@ -217,7 +217,9 @@ class SubgradientOptimizer:
                  step_length: float = 0.1,
                  square_summable_a: float = 1.0,
                  square_summable_b: float = 0.0,
-                 non_summable_a: float = 1.0):
+                 non_summable_a: float = 1.0,
+                 # Problem radius parameter
+                 R: float = 10.0):
         """
         Initialize SubgradientOptimizer.
         """
@@ -232,7 +234,8 @@ class SubgradientOptimizer:
         base_params = {
             'lambda_penalty': self.lambda_penalty,
             'max_iterations': max_iterations,
-            'tolerance': diem_dung
+            'tolerance': diem_dung,
+            'R': R
         }
         
         if step_size_method == 'constant':
@@ -333,6 +336,10 @@ class SubgradientOptimizer:
         return getattr(self.subgradient_impl, 'weights_history', [])
     
     @property
+    def gap_history(self):
+        return getattr(self.subgradient_impl, 'gap_history', [])
+    
+    @property
     def training_time(self):
         return getattr(self.subgradient_impl, 'training_time', 0)
     
@@ -355,6 +362,8 @@ class SubgradientOptimizer:
                 "total_iterations": getattr(self.subgradient_impl, 'max_iterations', 0),
                 "final_loss": self.loss_history[-1] if self.loss_history else 0,
                 "final_gradient_norm": self.gradient_norms[-1] if self.gradient_norms else 0,
+                "final_gap": float(self.gap_history[-1]) if self.gap_history and not np.isnan(self.gap_history[-1]) else None,
+                "best_gap": float(min([g for g in self.gap_history if not np.isnan(g)])) if any(not np.isnan(g) for g in self.gap_history) else None,
                 "best_iteration": self.final_iteration,
                 "best_loss": self.loss_history[-1] if self.loss_history else 0,
                 "best_gradient_norm": self.gradient_norms[-1] if self.gradient_norms else 0

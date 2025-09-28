@@ -274,6 +274,10 @@ class VisualizationMixin:
                 'gradient_norm': getattr(self, 'gradient_norms', [])
             }
 
+            # Add gap history if available (for subgradient methods)
+            if hasattr(self, 'gap_history') and self.gap_history:
+                training_data['gap'] = self.gap_history
+
             # Add learning rate if available, ensuring same sampling frequency
             if hasattr(self, 'learning_rate_history') and self.learning_rate_history:
                 # Sample learning rate history at the same frequency as loss history

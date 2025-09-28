@@ -42,9 +42,6 @@ venv.bak/
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# Exclude entire data directory - keep local only
-data/
-
 # Heavy model files only
 *.npy
 *.pkl

@@ -1,0 +1,13 @@
+{
+  "total_operations": 3,
+  "function_evaluations": 1,
+  "gradient_evaluations": 1,
+  "matrix_operations": 0,
+  "vector_operations": 1,
+  "peak_memory": 63,
+  "convergence_iteration": 677,
+  "problem_size": [
+    100000,
+    63
+  ]
+}
